@@ -1,0 +1,99 @@
+[base]
+install = true
+packages = ["eza", "fzf", "zoxide", "bat", "exa"]
+
+[system_tools]
+install = true
+packages = ["reflector", "openssh", "rsync"]
+
+[boot]
+install = true
+packages = ["plymouth", "grub", "os-prober"]
+
+[bluetooth]
+install = true
+packages = ["bluez", "bluez-utils"]
+
+[audio]
+install = true
+packages = ["pipewire", "wireplumber", "pipewire-pulse", "pipewire-alsa", "pipewire-jack"]
+
+[utilities]
+install = true
+packages = ["fastfetch", "ntp", "cronie", "kitty", "thunar" "kitty" "alacritty"]
+
+[browser]
+install = true
+packages = ["firefox"]
+
+[desktop]
+install = true
+packages = ["gnome", "gnome-tweaks", "gdm"]
+
+[development]
+install =true
+packages = ["git", "vim", "neovim"]
+
+[office]
+install =true
+packages = ["libreoffice-fresh", "pinta"]
+
+[multimedia]
+install = true
+packages = ["vlc"]
+
+[communication]
+install = true
+packages = ["discord", "thunderbird"]
+
+[security]
+install = true
+packages = ["bitwarden"]
+
+[networking]
+install =true
+packages = ["networkmanager", "network-manager-applet", "dhclient"]
+
+[printer]
+install = true
+packages = ["cups"]
+
+[scanner]
+install = false
+packages = [""]
+
+[virtualization]
+install = false
+packages = ["qemu", "virt-manager"]
+
+[containerization]
+install = false
+packages = ["docker"]
+
+[fonts]
+install = true
+packages = [
+    "terminus-font",
+    "ttf-font-awesome",
+    "ttf-nerd-fonts-symbols",
+    "ttf-jetbrains-mono-nerd",
+    "ttf-meslo-nerd",
+    "ttf-firacode-nerd",
+    "ttf-nerd-fonts-symbols-common"
+]
+
+[filesystem]
+install = true
+packages = ["btrfs-progs", "dosfstools", "ntfs-3g"]
+
+[xdg]
+install = true
+packages = ["xdg-user-dirs"]
+
+[theme]
+install = false
+packages = ["papirus-icon-theme"]
+
+[gaming]
+install = false
+packages = ["steam", "lutris"]
