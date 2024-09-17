@@ -51,8 +51,8 @@ main() {
     # Print message Set DRY_RUN to ?
     print_message PROC "DRY_RUN is set to: ${YELLOW}$DRY_RUN"
     print_message PROC "Print configuration: ${YELLOW}Info:"
-    # Print debug information
-    print_debug_info
+    # Print system information
+    print_system_info
 
     # Parse the stages TOML file
     parse_stages_toml "$STAGES_CONFIG" || print_message ERROR "Failed to parse stages.toml" exit 1

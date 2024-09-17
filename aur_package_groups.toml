@@ -1,0 +1,67 @@
+[browsers]
+install = true
+packages = ["microsoft-edge-stable-bin", "google-chrome", "zen-browser-bin"]
+
+[utilities]
+install = true
+packages = ["timeshift", "bazecor"]
+
+[programming]
+install = false
+packages = ["make"]
+
+[communication]
+install = false
+packages = ["slack-desktop", "zoom"]
+
+[multimedia]
+install = false
+packages = ["spotify", "obs-studio-browser"]
+
+[gaming]
+install = false
+packages = ["heroic-games-launcher-bin", "mangohud", "goverlay-bin"]
+
+[system]
+install = true
+packages = ["paru"]
+
+[themes]
+install = false
+packages = ["catppuccin-gtk-theme-mocha", "tela-icon-theme", "nordic-theme"]
+
+[fonts]
+install = false
+packages = ["nerd-fonts-complete"]
+
+[productivity]
+install = true
+packages = ["trilium-bin", "obsidian"]
+
+[security]
+install = false
+packages = ["authy"]
+
+[virtualization]
+install = false
+packages = ["virtualbox-ext-oracle"]
+
+[file_management]
+install = false
+packages = ["dropbox"]
+
+[customization]
+install = false
+packages = ["conky-manager"]
+
+[network]
+install = false
+packages = ["protonvpn"]
+
+[development]
+install = true
+packages = ["visual-studio-code-bin", "jetbrains-toolbox", "github-desktop-bin", "cursor-bin", "sublime-text-4"]
+
+[scanner]
+install = false
+packages = ["xsane"]

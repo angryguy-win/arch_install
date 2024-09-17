@@ -774,6 +774,21 @@ ask_question() {
     read -r -p "${blue}$*${nc} " var
     echo "$var"
 }
+# Function to read TOML file and update INSTALL_GROUPS
+read_toml_and_update_groups() {
+    local toml_file="$1"
+    local temp_groups=()
+
+    while IFS= read -r line; do
+        if [[ $line =~ ^\[([^]]+)\]$ ]]; then
+            current_group="${BASH_REMATCH[1]}"
+        elif [[ $line =~ ^install[[:space:]]*=[[:space:]]*true$ ]]; then
+            temp_groups+=("$current_group")
+        fi
+    done < "$toml_file"
+
+    INSTALL_GROUPS=("${temp_groups[@]}")
+}
 # Function to execute commands with error handling
 execute_process() {
     local process_name="$1"
