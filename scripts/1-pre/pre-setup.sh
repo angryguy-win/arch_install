@@ -63,7 +63,8 @@ main() {
     pre_setup || { print_message ERROR "Pre-setup process failed"; return 1; }
     setup_mirrors "$reflector_country" || { print_message ERROR "Mirror setup failed"; return 1; }
     get_install_device || { print_message ERROR "Drive selection failed"; return 1; }
-
+    show_drive_list
+    
     print_message OK "Pre-setup process completed successfully"
     process_end $?
 }
