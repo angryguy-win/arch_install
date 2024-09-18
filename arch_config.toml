@@ -1,7 +1,7 @@
 COUNTRY_ISO = "CA"
 INSTALL_DEVICE = "nvme0n1"
 DEVICE = "/dev/vda"
-PARTITION_BIOSBOOT = "/dev/vda1"
+PARTITION_BIOSBOOT = "/dev/vda"
 PARTITION_EFI = "/dev/vda2"
 PARTITION_ROOT = "/dev/vda3"
 PARTITION_HOME = "/dev/vda4"
