@@ -31,7 +31,7 @@
              echo "::set-output name=output::$(cat shellcheck_output.txt)"
 
          - name: Upload ShellCheck Output
-           uses: actions/upload-artifact@v2
+           uses: actions/upload-artifact@latest
            with:
              name: shellcheck-output
              path: shellcheck_output.txt
