@@ -28,9 +28,9 @@ partitioning() {
     device="$1"
     print_message INFO "Partitioning $DEVICE"
     execute_process "Partitioning" \
+        --critical \
         --error-message "Partitioning failed" \
         --success-message "Partitioning completed" \
-        --critical-message "Partitioning failed" \
         "if mountpoint -q /mnt; then umount -A --recursive /mnt; else echo '/mnt is not mounted'; fi" \
         "sgdisk -Z $DEVICE" \
         "sgdisk -n1:0:+1M -t1:ef02 -c1:'BIOSBOOT' $DEVICE" \
