@@ -253,9 +253,10 @@ print_system_info() {
     # Disk
     print_message INFO "The drive list"
     drive_list || { print_message ERROR "Failed to get drive list"; return 1; }
+    
     # GPU
     print_message INFO "Getting GPU information"
-    gpu || { print_message ERROR "Failed to get GPU information"; return 1; }
+    gpu_type || { print_message ERROR "Failed to get GPU information"; return 1; }
 
     print_message INFO "--- Debug Information ---"
     print_message INFO "SCRIPT_NAME: " "${SCRIPT_NAME:-Unknown}"
@@ -291,6 +292,7 @@ ram() {
     if total_ram_kb=$(free | awk '/Mem:/ {print $2}'); then
         RAM_AMOUNT=$(awk "BEGIN {printf \"%.1f\", $total_ram_kb / 1048576}")
         print_message INFO "RAM: " "$RAM_AMOUNT GB"
+        set_option "RAM_AMOUNT" "$RAM_AMOUNT" || { print_message ERROR "Failed to set RAM_AMOUNT"; return 1; }
     else
         print_message WARNING "Unable to determine RAM amount"
     fi
@@ -300,21 +302,30 @@ ram() {
 cpu() {
     if CPU_MODEL=$(lscpu | awk -F': +' '/Model name/ {print $2}'); then
         print_message INFO "CPU Model: " "$CPU_MODEL"
+        set_option "CPU_MODEL" "$CPU_MODEL" || { print_message ERROR "Failed to set CPU_MODEL"; return 1; }
     else
         print_message WARNING "Unable to determine CPU model"
     fi
 
     if CPU_CORES=$(nproc 2>/dev/null); then
         print_message INFO "CPU Cores: " "$CPU_CORES"
+        set_option "CPU_CORES" "$CPU_CORES" || { print_message ERROR "Failed to set CPU_CORES"; return 1; }
     else
         print_message WARNING "Unable to determine CPU core count"
     fi
 
     if CPU_THREADS=$(lscpu | awk '/^CPU\(s\):/ {print $2}'); then
         print_message INFO "CPU Threads: " "$CPU_THREADS"
+        set_option "CPU_THREADS" "$CPU_THREADS" || { print_message ERROR "Failed to set CPU_THREADS"; return 1; }
     else
         print_message WARNING "Unable to determine CPU thread count"
     fi
+}
+gpu_type() {
+    local gpu_type=$(lspci | grep -E "VGA|3D|Display")
+    set_option "GPU_TYPE" "$gpu_type" || { print_message ERROR "Failed to set GPU_TYPE"; return 1; }
+    print_message INFO "GPU Type: " "$gpu_type"
+
 }
 # @description Get GPU information
 # @noargs
