@@ -118,7 +118,7 @@ ${logo_message_color}
                 ███████║██████╔╝██║     ███████║ 
                 ██╔══██║██╔══██╗██║     ██╔══██║
                 ██║  ██║██║  ██║╚██████╗██║  ██║
-                ╚═╝  ╚═╝╚��╝  ╚═╝ ╚═════╝╚═╝  ╚═╝
+                ╚═╝  ╚═╝ ╚╝   ╚═╝╚═════╝╚═╝  ╚═╝
 ${border}------------------------------------------------------------------------
                 ${text_color} $logo_message
 ${border}------------------------------------------------------------------------
@@ -578,6 +578,8 @@ cleanup() {
 }
 # @description Load configuration variables.
 load_config() {
+    local critical_vars=("INSTALL_DEVICE" "FORMAT_TYPE" "DESKTOP_ENVIRONMENT")
+
     if [[ ! -f "$CONFIG_FILE" ]]; then
         print_message ERROR "Configuration file not found: $CONFIG_FILE"
         return 1
@@ -587,6 +589,22 @@ load_config() {
     set -o allexport
     source "$CONFIG_FILE"
     set +o allexport
+
+    # Verify critical variables are set
+    for var in "${critical_vars[@]}"; do
+        if [[ -z "${!var}" ]]; then
+            print_message ERROR "Critical variable $var is not set in the configuration"
+            return 1
+        fi
+    done
+
+    # Print loaded variables if in debug mode
+    if [[ "$DEBUG_MODE" == "true" ]]; then
+        print_message DEBUG "Loaded configuration variables:"
+        for var in $(grep -v '^#' "$CONFIG_FILE" | cut -d= -f1); do
+            print_message DEBUG "$var=${!var}"
+        done
+    fi
 
     print_message OK "Configuration loaded successfully"
     return 0
@@ -869,46 +887,105 @@ execute_process() {
 execute_script() {
     local stage="$1"
     local script="$2"
-    local script_path
+    local dry_run="$3"
+    local script_path="$SCRIPTS_DIR/$stage/$script"
 
-    # Both stage and script must be provided
-    if [[ -z "$stage" || -z "$script" ]]; then
-        print_message ERROR "Both stage and script must be provided for execute_script"
-        return 1
-    fi
-
-    script_path="$SCRIPTS_DIR/$stage/$script"
-
-    # Check if the script file exists
     if [[ ! -f "$script_path" ]]; then
-        print_message ERROR "Script file not found: " "$script_path"
+        print_message ERROR "Script not found: $script_path"
         return 1
     fi
 
-    # Print the script being executed
-    print_message INFO "Executing: " "$stage/$script"
-    print_message DEBUG "Script path: " "$script_path"
-    print_message DEBUG "DRY_RUN value before execution:" "$DRY_RUN"
+    if [[ "$dry_run" == "true" ]]; then
+        print_message ACTION "[DRY RUN] Would execute script: $script_path"
+        print_message INFO "Extracting commands from $script_path"
 
-    # Execute the script
-    if [[ $DRY_RUN == true ]]; then
-        print_message ACTION "[DRY RUN] Would execute: bash $script_path (Script: $script)"
-        
-        # Simulate execution of commands in the script
-        while IFS= read -r line; do
-            if [[ ! -z "$line" && "$line" != \#* ]]; then  # Ignore empty lines and comments
-                print_message ACTION "[DRY RUN] Would execute: $line"
-            fi
-        done < "$script_path"
+        # Source the script and extract commands from the main function
+        (
+            source "$script_path"
+
+            # Extract the main function commands
+            declare -f main | awk '
+                # Skip function definition line and closing brace
+                NR == 1 || /^[[:space:]]*\}$/ { next }
+
+                # Apply the same filters as before
+                /^[[:space:]]*#/ { next }
+                /^[[:space:]]*$/ { next }
+                /^[[:space:]]*[a-zA-Z_][a-zA-Z0-9_]*=.*$/ { next }
+                /^[[:space:]]*(if|elif|else|fi|for|while|until|do|done|case|esac|then|function)\b/ { next }
+                /^[[:space:]]*(source|export|return|exit)\b/ { next }
+
+                # Print executable lines
+                { print }
+            ' | while read -r line; do
+                print_message ACTION "    [DRY RUN]         \"$line\""
+            done
+        )
     else
-        print_message ACTION "Executing script: $script_path"
-        if ! (export DRY_RUN="$DRY_RUN"; bash "$script_path"); then
-            print_message ERROR "Failed to execute $script in stage $stage"
+        print_message INFO "Executing script: $script_path"
+        if ! bash "$script_path"; then
+            print_message ERROR "Failed to execute script: $script_path"
             return 1
         fi
     fi
-
     return 0
+}
+   # @description Extracts the executable commands from a script file for dry-run purposes.
+# @arg $1 string Path to the script file
+extract_commands_from_script() {
+    local script_path="$1"
+    print_message INFO "Extracting commands from $script_path"
+
+    awk '
+        # Skip shebang line
+        NR == 1 && /^#!/ { next }
+
+        # Skip comments and empty lines
+        /^[[:space:]]*#/ { next }
+        /^[[:space:]]*$/ { next }
+
+        # Skip function definitions and their bodies
+        /^[[:space:]]*([a-zA-Z_][a-zA-Z0-9_]*)[[:space:]]*\(\)[[:space:]]*\{/ {
+            skip = 1
+            brace_count = 1
+            next
+        }
+
+        # Handle opening braces
+        skip && /\{/ {
+            brace_count++
+            next
+        }
+
+        # Handle closing braces
+        skip && /\}/ {
+            brace_count--
+            if (brace_count == 0) {
+                skip = 0
+            }
+            next
+        }
+
+        # Skip lines inside functions
+        skip { next }
+
+        # Skip variable assignments
+        /^[[:space:]]*[a-zA-Z_][a-zA-Z0-9_]*=.*$/ { next }
+
+        # Skip control structures
+        /^[[:space:]]*(if|elif|else|fi|for|while|until|do|done|case|esac|then|function)\b/ { next }
+
+        # Skip source and export statements
+        /^[[:space:]]*(source|export|return|exit)\b/ { next }
+
+        # Skip '}' outside functions
+        /^[[:space:]]*\}/ { next }
+
+        # Print executable lines
+        { print }
+    ' "$script_path" | while read -r line; do
+        print_message ACTION "    [DRY RUN]         \"$line\""
+    done
 }
 # @description Run install scripts.
 # @arg $1 string Format type
@@ -918,44 +995,64 @@ run_install_scripts() {
     local desktop_environment="$2"
     local dry_run="${3:=false}"
 
-    print_message DEBUG "Format type: " "$format_type"
-    print_message DEBUG "Desktop environment: " "$desktop_environment"
-    print_message DEBUG "DRY_RUN: " "$DRY_RUN"
+    print_message DEBUG "Format type: $format_type"
+    print_message DEBUG "Desktop environment: $desktop_environment"
+    print_message DEBUG "DRY_RUN: $DRY_RUN"
 
     for stage in "${SORTED_STAGES[@]}"; do
-        print_message INFO "Starting stage: " "$stage"
-        IFS=' ' read -ra scripts <<< "${INSTALL_SCRIPTS[$stage]}"
-        
-        for script in "${scripts[@]}"; do
-            print_message ACTION "Processing script: $stage/$script"
-            if [[ ! -f "$SCRIPTS_DIR/$stage/$script" ]]; then
-                print_message WARNING "Script not found: $SCRIPTS_DIR/$stage/$script"
-                continue
-            fi
-            if [[ $dry_run == true ]]; then
-                # Instead of just printing, we'll source the script in a subshell
-                # This allows us to run the script's functions without affecting the main shell
-                (
-                    source "$SCRIPTS_DIR/$stage/$script"
-                    # Assuming each script has a main function named after the script
-                    script_main="${script%.*}"  # Remove file extension
-                    if declare -f "$script_main" > /dev/null; then
-                        print_message ACTION "[DRY RUN] Executing main function of $script"
-                        $script_main
-                    else
-                        print_message WARNING "[DRY RUN] No main function found in $script"
-                    fi
-                )
-            else
-                if ! execute_script "$stage" "$script"; then
-                    print_message ERROR "Failed to execute: " "$script in stage $stage"
+        print_message INFO "Starting stage: $stage"
+
+        local -a mandatory_scripts=()
+        local -a optional_scripts=()
+
+        case "$stage" in
+            "1-pre")
+                mandatory_scripts=("pre-setup.sh")
+                optional_scripts=("run-checks.sh")
+                ;;
+            "2-drive")
+                if [[ "$format_type" == "btrfs" ]]; then
+                    mandatory_scripts=("partition-btrfs.sh" "format-btrfs.sh")
+                elif [[ "$format_type" == "ext4" ]]; then
+                    mandatory_scripts=("partition-ext4.sh" "format-ext4.sh")
+                else
+                    print_message ERROR "Invalid format type: $format_type"
                     return 1
                 fi
-            fi
-        done
+                ;;
+            "3-base")
+                mandatory_scripts=("bootstrap-pkgs.sh" "generate-fstab.sh")
+                ;;
+            "4-post")
+                mandatory_scripts=("system-config.sh" "system-pkgs.sh")
+                optional_scripts=("terminal.sh")
+                ;;
+            "5-desktop")
+                if [[ "$desktop_environment" == "none" ]]; then
+                    mandatory_scripts=("none.sh")
+                else
+                    mandatory_scripts=("${desktop_environment}.sh")
+                    optional_scripts=("${desktop_environment}.sh")
+                fi
+                ;;
+            "6-final")
+                mandatory_scripts=("last-cleanup.sh")
+                ;;
+            "7-post-optional")
+                optional_scripts=("post-setup.sh")
+                ;;
+        esac
+
+        # Convert arrays to delimited strings
+        local mandatory_scripts_str=$(printf "%s|" "${mandatory_scripts[@]}")
+        local optional_scripts_str=$(printf "%s|" "${optional_scripts[@]}")
+
+        if ! check_and_run_scripts "$stage" "${mandatory_scripts_str%|}" "${optional_scripts_str%|}"; then
+            print_message ERROR "Failed to process scripts for stage: $stage"
+            return 1
+        fi
     done
 
-    print_message OK "Installation completed successfully"
     return 0
 }
 # @description Check and run scripts for a given stage.
@@ -965,42 +1062,21 @@ run_install_scripts() {
 # @return 0 on success, 1 on failure
 check_and_run_scripts() {
     local stage="$1"
-    local mandatory_scripts=("$2")
-    local optional_scripts=("$3")
-    
+    IFS='|' read -ra mandatory_scripts <<< "$2"
+    IFS='|' read -ra optional_scripts <<< "$3"
+
     print_message INFO "Checking scripts for stage: $stage"
 
-    # Check mandatory scripts
     for script in "${mandatory_scripts[@]}"; do
-        script_path="$SCRIPTS_DIR/$stage/$script"
-        if [[ ! -f "$script_path" ]]; then
-            print_message ERROR "Mandatory script not found: $script_path"
+        if ! execute_script "$stage" "$script" "$DRY_RUN"; then
+            print_message ERROR "Failed to execute mandatory script: $stage/$script"
             return 1
         fi
     done
 
-    # Check and potentially run optional scripts
     for script in "${optional_scripts[@]}"; do
-        script_path="$SCRIPTS_DIR/$stage/$script"
-        if [[ ! -f "$script_path" ]]; then
-            print_message WARNING "Optional script not found: $script_path"
-            continue
-        fi
-
-        # Check if there's a corresponding config variable
-        config_var="INSTALL_$(echo "$script" | tr '[:lower:]' '[:upper:]' | sed 's/\.SH$//')"
-        install_script=$(get_config_value "$config_var" "false")
-
-        if [[ "$install_script" == "true" ]]; then
-            print_message INFO "Running optional script: $script"
-            if [[ $DRY_RUN == true ]]; then
-                print_message ACTION "[DRY RUN] Would execute: $script_path"
-            else
-                if ! execute_script "$stage" "$script"; then
-                    print_message ERROR "Failed to execute optional script: $stage/$script"
-                    return 1
-                fi
-            fi
+        if should_run_optional_script "$script"; then
+            execute_script "$stage" "$script" "$DRY_RUN"
         else
             print_message INFO "Skipping optional script: $script"
         fi
@@ -1008,41 +1084,43 @@ check_and_run_scripts() {
 
     return 0
 }
+# @description Should run optional script.
+# @arg $1 string Script name
+# @return 0 if the script should run, 1 otherwise
+should_run_optional_script() {
+    local script="$1"
+    local config_var="INSTALL_$(echo "${script%.*}" | tr '[:lower:]' '[:upper:]' | tr '-' '_')"
+    local install_script=$(get_config_value "$config_var" "false")
+    [[ "$install_script" == "true" ]]
+}
 # @description Parse TOML file and populate INSTALL_SCRIPTS
 # @arg $1 string Path to the TOML file
 # @return 0 on success, 1 on failure
 parse_stages_toml() {
     local toml_file="$1"
     declare -gA INSTALL_SCRIPTS
+    local current_section=""
 
-    # Check if the TOML file exists
     if [[ ! -f "$toml_file" ]]; then
-        print_message ERROR "Stages configuration file not found: " "$toml_file"
+        print_message ERROR "Stages configuration file not found: $toml_file"
         return 1
     fi
 
-    # Parse the TOML file
     while IFS= read -r line; do
-        # Skip comments and empty lines
         [[ $line =~ ^[[:space:]]*# ]] && continue
         [[ -z "$line" ]] && continue
 
-        if [[ $line =~ ^\[stages\] ]]; then
-            # We're in the stages section
-            in_stages=true
-        elif [[ $in_stages == true && $line =~ ^\"([^\"]+)\"[[:space:]]*=[[:space:]]*\[(.*)\]$ ]]; then
-            # This is a stage definition
+        if [[ $line =~ ^\[([^\]]+)\]$ ]]; then
+            current_section="${BASH_REMATCH[1]}"
+        elif [[ $line =~ ^\"([^\"]+)\"[[:space:]]*=[[:space:]]*\[(.*)\]$ ]]; then
             stage="${BASH_REMATCH[1]}"
-            scripts="${BASH_REMATCH[2]}"
-            # Remove quotes and spaces from scripts list
-            scripts=$(echo "$scripts" | sed 's/\"//g; s/,//g; s/^ *//; s/ *$//')
+            scripts=$(echo "${BASH_REMATCH[2]}" | sed 's/\"//g; s/,//g; s/^ *//; s/ *$//')
             INSTALL_SCRIPTS["$stage"]="$scripts"
         fi
     done < "$toml_file"
 
-    # Verify that we parsed some stages
     if [[ ${#INSTALL_SCRIPTS[@]} -eq 0 ]]; then
-        print_message ERROR "No stages found in " "$toml_file"
+        print_message ERROR "No stages found in $toml_file"
         return 1
     fi
 

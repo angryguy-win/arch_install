@@ -42,6 +42,7 @@ mirror_setup() {
         --error-message "Mirror setup failed" \
         --success-message "Mirror setup completed" \
         "curl -4 'https://ifconfig.co/country-iso' > COUNTRY_ISO" \
+        "reflector --country '$country_iso' --latest 10 --protocol https --sort rate --save /etc/pacman.d/mirrorlist" \
         "cp /etc/pacman.d/mirrorlist /etc/pacman.d/mirrorlist.backup"
         
 
