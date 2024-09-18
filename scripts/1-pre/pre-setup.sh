@@ -49,6 +49,7 @@ mirror_setup() {
 prepare_drive() {
 
     print_message INFO "Preparing drive"
+    load_config || { print_message ERROR "Failed to load config"; return 1; }
     set_option "DEVICE" "/dev/${INSTALL_DEVICE}" || { print_message ERROR "Failed to set DEVICE"; return 1; }
     print_message ACTION "Drive set to: " "$DEVICE"
     print_message ACTION "Partitions string set to: " "${DEVICE}p2, ${DEVICE}p3"
@@ -56,8 +57,7 @@ prepare_drive() {
     set_option "PARTITION_ROOT" "${DEVICE}p3" || { print_message ERROR "Failed to set INSTALL_DEVICE"; return 1; }
     set_option "PARTITION_HOME" "${DEVICE}p4" || { print_message ERROR "Failed to set INSTALL_DEVICE"; return 1; }
     set_option "PARTITION_SWAP" "${DEVICE}p5" || { print_message ERROR "Failed to set INSTALL_DEVICE"; return 1; }
-    load_config || { print_message ERROR "Failed to load config"; return 1; }
-
+   
 }
 main() {
     process_init "Pre-setup"
