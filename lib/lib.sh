@@ -275,9 +275,7 @@ print_system_info() {
     print_message INFO "LOG_DIR: " "${LOG_DIR:-Unknown} ($(file_exists "${LOG_DIR:-}"))"
     print_message INFO "LOG_FILE: " "${LOG_FILE:-Unknown} ($(file_exists "${LOG_FILE:-}"))"
     print_message INFO "PROCESS_LOG: " "${PROCESS_LOG:-Unknown} ($(file_exists "${PROCESS_LOG:-}"))"
-    print_message INFO "DEBUG_LOG: " "${DEBUG_LOG:-Unknown} ($(file_exists "${DEBUG_LOG:-}"))"
-    print_message INFO "ERROR_LOG: " "${ERROR_LOG:-Unknown} ($(file_exists "${ERROR_LOG:-}"))"
-
+    
     print_message INFO "---Install config files---"
     for config_file in "${ARCH_CONFIG_TOML:-}" "${ARCH_CONFIG_CFG:-}"; do
         if [[ -f "$config_file" ]]; then

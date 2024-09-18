@@ -46,6 +46,17 @@ mirror_setup() {
         
 
 }
+prepare_drive() {
+
+    print_message INFO "Preparing drive"
+    set_option "DEVICE" "/dev/${INSTALL_DEVICE}" || { print_message ERROR "Failed to set DEVICE"; return 1; }
+    print_message ACTION "Drive set to: " "$DEVICE"
+    print_message ACTION "Partitions string set to: " "${DEVICE}p2, ${DEVICE}p3"
+    set_option "PARTITION_EFI" "${DEVICE}p2" || { print_message ERROR "Failed to set INSTALL_DEVICE"; return 1; }
+    set_option "PARTITION_ROOT" "${DEVICE}p3" || { print_message ERROR "Failed to set INSTALL_DEVICE"; return 1; }
+    set_option "PARTITION_HOME" "${DEVICE}p4" || { print_message ERROR "Failed to set INSTALL_DEVICE"; return 1; }
+    set_option "PARTITION_SWAP" "${DEVICE}p5" || { print_message ERROR "Failed to set INSTALL_DEVICE"; return 1; }
+}
 main() {
     process_init "Pre-setup"
     show_logo "Pre-setup"
@@ -59,7 +70,8 @@ main() {
     initial_setup || { print_message ERROR "Initial setup failed"; return 1; }
     mirror_setup "$COUNTRY_ISO" || { print_message ERROR "Mirror setup failed"; return 1; }
     show_drive_list || { print_message ERROR "Drive selection failed"; return 1; }
-    
+    prepare_drive || { print_message ERROR "Drive preparation failed"; return 1; }
+
     print_message OK "Pre-setup process completed successfully"
     process_end $?
 }
