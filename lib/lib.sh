@@ -586,6 +586,15 @@ load_config() {
     source "$CONFIG_FILE"
     set +o allexport
 
+    # Verify that required variables are set
+    local vars=("$@")
+    for var in "${vars[@]}"; do
+        if [[ -z "${!var}" ]]; then
+            print_message ERROR "Required variable $var is not set in the configuration"
+            return 1
+        fi
+    done
+
     print_message OK "Configuration loaded successfully"
     return 0
 }
@@ -796,6 +805,7 @@ execute_process() {
     shift
     local use_chroot=false
     local debug=false
+    local critical=${critical:-false}
     local error_message="Process failed"
     local success_message="Process completed successfully"
     local exit_code=0
