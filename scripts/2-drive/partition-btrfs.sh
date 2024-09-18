@@ -34,8 +34,8 @@ partitioning() {
         "if mountpoint -q /mnt; then umount -A --recursive /mnt; else echo '/mnt is not mounted'; fi" \
         "sgdisk -Z $DEVICE" \
         "sgdisk -n1:0:+1M -t1:ef02 -c1:'BIOSBOOT' $DEVICE" \
-        "sgdisk -n2:0:+512M -t2:ef00 -c2:'EFIBOOT' $DEVICE" \
-        "sgdisk -n3:0:0 -t3:8300 -c3:'ROOT' $DEVICE"
+        "sgdisk -n2:0:+512M -t2:ef00 -c2:'EFIBOOT' $PARTITION_EFI" \
+        "sgdisk -n3:0:0 -t3:8300 -c3:'ROOT' $PARTITION_ROOT"
 
 }
 luks_setup() {
@@ -49,10 +49,10 @@ main() {
     print_message INFO "DRY_RUN in $(basename "$0") is set to: ${YELLOW}$DRY_RUN"
 
     # Load configuration
-    local vars=(install_device)
+    local vars=(DEVICE)
     load_config "${vars[@]}" || { print_message ERROR "Failed to load config"; return 1; }
 
-    partitioning ${install_device} || { print_message ERROR "Partitioning failed"; return 1; }
+    partitioning ${DEVICE} || { print_message ERROR "Partitioning failed"; return 1; }
 
     print_message OK "Partition btrfs process completed successfully"
     process_end $?

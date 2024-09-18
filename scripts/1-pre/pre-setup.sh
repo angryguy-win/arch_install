@@ -47,16 +47,24 @@ mirror_setup() {
 
 }
 prepare_drive() {
-
     print_message INFO "Preparing drive"
+    
+    # Load the updated configuration
     load_config || { print_message ERROR "Failed to load config"; return 1; }
-    set_option "DEVICE" "/dev/${INSTALL_DEVICE}" || { print_message ERROR "Failed to set DEVICE"; return 1; }
+    
+    # Now INSTALL_DEVICE should be correctly set
+    local DEVICE="/dev/${INSTALL_DEVICE}"
+    set_option "DEVICE" "$DEVICE" || { print_message ERROR "Failed to set DEVICE"; return 1; }
     print_message ACTION "Drive set to: " "$DEVICE"
+    
+    # Use $DEVICE instead of ${DEVICE} for consistency
     print_message ACTION "Partitions string set to: " "${DEVICE}p2, ${DEVICE}p3"
-    set_option "PARTITION_EFI" "${DEVICE}p2" || { print_message ERROR "Failed to set INSTALL_DEVICE"; return 1; }
-    set_option "PARTITION_ROOT" "${DEVICE}p3" || { print_message ERROR "Failed to set INSTALL_DEVICE"; return 1; }
-    set_option "PARTITION_HOME" "${DEVICE}p4" || { print_message ERROR "Failed to set INSTALL_DEVICE"; return 1; }
-    set_option "PARTITION_SWAP" "${DEVICE}p5" || { print_message ERROR "Failed to set INSTALL_DEVICE"; return 1; }
+    set_option "PARTITION_EFI" "${DEVICE}p2" || { print_message ERROR "Failed to set PARTITION_EFI"; return 1; }
+    set_option "PARTITION_ROOT" "${DEVICE}p3" || { print_message ERROR "Failed to set PARTITION_ROOT"; return 1; }
+    set_option "PARTITION_HOME" "${DEVICE}p4" || { print_message ERROR "Failed to set PARTITION_HOME"; return 1; }
+    set_option "PARTITION_SWAP" "${DEVICE}p5" || { print_message ERROR "Failed to set PARTITION_SWAP"; return 1; }
+    
+    # Load the config again to ensure all changes are reflected
     load_config || { print_message ERROR "Failed to load config"; return 1; }
 }
 main() {
