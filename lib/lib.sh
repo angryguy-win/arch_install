@@ -275,7 +275,7 @@ print_system_info() {
     print_message INFO "LOG_DIR: " "${LOG_DIR:-Unknown} ($(file_exists "${LOG_DIR:-}"))"
     print_message INFO "LOG_FILE: " "${LOG_FILE:-Unknown} ($(file_exists "${LOG_FILE:-}"))"
     print_message INFO "PROCESS_LOG: " "${PROCESS_LOG:-Unknown} ($(file_exists "${PROCESS_LOG:-}"))"
-    
+
     print_message INFO "---Install config files---"
     for config_file in "${ARCH_CONFIG_TOML:-}" "${ARCH_CONFIG_CFG:-}"; do
         if [[ -f "$config_file" ]]; then
@@ -833,10 +833,10 @@ execute_process() {
             # If use_chroot is true, execute the command in chroot
             if [[ "$use_chroot" == true ]]; then
                 if ! arch-chroot /mnt /bin/bash -c "$cmd"; then
-                    print_message ERROR "${error_message:-${process_name}}: $cmd"
+                    print_message ERROR "${error_message} ${process_name}: $cmd"
                     # If critical is true, handle critical error
                     if [[ "$critical" == true ]]; then
-                        handle_critical_error "${error_message:-${process_name}}: $cmd"
+                        handle_critical_error "${error_message} ${process_name}: $cmd"
                         exit_code=1
                         break
                     fi
@@ -844,10 +844,10 @@ execute_process() {
             else
                 # If use_chroot is false, execute the command in the current shell
                 if ! eval "$cmd"; then
-                    print_message ERROR "${error_message:-${process_name}}: ${cmd}"
+                    print_message ERROR "${error_message} ${process_name}: ${cmd}"
                     # If critical is true, handle critical error
                     if [[ "$critical" == true ]]; then
-                        handle_critical_error "${error_message:-${process_name}} failed: ${cmd}"
+                        handle_critical_error "${error_message} ${process_name} failed: ${cmd}"
                         exit_code=1
                         break
                     fi
@@ -857,7 +857,7 @@ execute_process() {
     done
     # Print success message if exit code is 0
     if [[ $exit_code -eq 0 ]]; then
-        print_message OK "${success_message:-${process_name} completed}"
+        print_message OK "${success_message} ${process_name} completed"
     fi
     return $exit_code
 }
