@@ -240,7 +240,7 @@ print_system_info() {
     ERROR_LOG="$LOG_DIR/error.log"
     SCRIPT_DIR="$ARCH_DIR"
 
-       print_message INFO "--- System Information ---"
+    print_message INFO "--- System Information ---"
 
     # RAM
     print_message INFO "Getting RAM information"
@@ -253,7 +253,7 @@ print_system_info() {
     # Disk
     print_message INFO "The drive list"
     drive_list || { print_message ERROR "Failed to get drive list"; return 1; }
-    
+
     # GPU
     print_message INFO "Getting GPU information"
     gpu_type || { print_message ERROR "Failed to get GPU information"; return 1; }
