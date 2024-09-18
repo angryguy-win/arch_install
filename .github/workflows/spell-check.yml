@@ -1,0 +1,37 @@
+   name: spell-check
+
+   on:
+     push:
+       branches: [ main ]
+     pull_request:
+       branches: [ main ]
+
+   jobs:
+     build:
+       runs-on: ${{ matrix.os }}
+       strategy:
+         matrix:
+           os: [ubuntu-latest, arch-latest]
+
+       steps:
+         - name: Checkout repository
+           uses: actions/checkout@v3
+
+         - name: Install ShellCheck
+           run: sudo apt-get install -y shellcheck
+
+         - name: Run ShellCheck
+           run: |
+             shellcheck scripts/*.sh lib/*.sh
+             
+         - name: Run ShellCheck
+           id: shellcheck
+           run: |
+             shellcheck scripts/*.sh lib/*.sh > shellcheck_output.txt || true
+             echo "::set-output name=output::$(cat shellcheck_output.txt)"
+
+         - name: Upload ShellCheck Output
+           uses: actions/upload-artifact@v2
+           with:
+             name: shellcheck-output
+             path: shellcheck_output.txt
