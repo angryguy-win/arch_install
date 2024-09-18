@@ -760,21 +760,15 @@ show_drive_list() {
             
             # Export INSTALL_DEVICE here
             export INSTALL_DEVICE="$selected_drive"
+            set_option "INSTALL_DEVICE" "$INSTALL_DEVICE" || { print_message ERROR "Failed to set INSTALL_DEVICE"; return 1; }
+            print_message ACTION "INSTALL_DEVICE set to: " "$INSTALL_DEVICE"
             break
         else
             print_message WARNING "Invalid selection. Please enter a number between: " "1 and ${#drives[@]}."
         fi
     done
 
-    set_option "INSTALL_DEVICE" "$INSTALL_DEVICE" || { print_message ERROR "Failed to set INSTALL_DEVICE"; return 1; }
-    print_message INFO "INSTALL_DEVICE set to: " "$INSTALL_DEVICE"
 
-    load_config INSTALL_DEVICE
-    saved_device=$(get_config_value INSTALL_DEVICE)
-    if [[ "$saved_device" != "$INSTALL_DEVICE" ]]; then
-        print_message ERROR "The drive you selected ($INSTALL_DEVICE) was not saved properly: " "$saved_device"
-        return 1
-    fi
 }
 # @description Display a formatted list item
 # @param $1 The list item to display
