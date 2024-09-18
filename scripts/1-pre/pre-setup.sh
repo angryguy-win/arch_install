@@ -59,10 +59,10 @@ prepare_drive() {
     
     # Use $DEVICE instead of ${DEVICE} for consistency
     print_message ACTION "Partitions string set to: " "${DEVICE}p2, ${DEVICE}p3"
-    set_option "PARTITION_EFI" "${DEVICE}p2" || { print_message ERROR "Failed to set PARTITION_EFI"; return 1; }
-    set_option "PARTITION_ROOT" "${DEVICE}p3" || { print_message ERROR "Failed to set PARTITION_ROOT"; return 1; }
-    set_option "PARTITION_HOME" "${DEVICE}p4" || { print_message ERROR "Failed to set PARTITION_HOME"; return 1; }
-    set_option "PARTITION_SWAP" "${DEVICE}p5" || { print_message ERROR "Failed to set PARTITION_SWAP"; return 1; }
+    set_option "PARTITION_EFI" "${DEVICE}2" || { print_message ERROR "Failed to set PARTITION_EFI"; return 1; }
+    set_option "PARTITION_ROOT" "${DEVICE}3" || { print_message ERROR "Failed to set PARTITION_ROOT"; return 1; }
+    set_option "PARTITION_HOME" "${DEVICE}4" || { print_message ERROR "Failed to set PARTITION_HOME"; return 1; }
+    set_option "PARTITION_SWAP" "${DEVICE}5" || { print_message ERROR "Failed to set PARTITION_SWAP"; return 1; }
     
     # Load the config again to ensure all changes are reflected
     load_config || { print_message ERROR "Failed to load config"; return 1; }
