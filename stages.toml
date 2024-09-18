@@ -2,6 +2,7 @@
 "1-pre" = ["pre-setup.sh", "run-checks.sh"]
 "2-drive" = ["partition-btrfs.sh", "format-btrfs.sh"]
 "3-base" = ["bootstrap-pkgs.sh", "generate-fstab.sh"]
-"4-post" = ["system-conf.sh", "system-pkgs.sh", "terminal.sh"]
+"4-post" = ["system-config.sh", "system-pkgs.sh", "terminal.sh"]
 "5-desktop" = ["gnome.sh"]
 "6-final" = ["last-cleanup.sh"]
+"7-post" = ["post-setup.sh"]

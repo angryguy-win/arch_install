@@ -21,8 +21,6 @@ SHELL = "bash"
 EDITOR = "nvim"
 DESKTOP_ENVIRONMENT = "gnome"
 FORMAT_TYPE = "btrfs"
-SUBVOLUMES = ""
-LUKS_PASSWORD = ""
+SUBVOLUMES = "@,@home,@var,@.snapshots"
+LUKS_PASSWORD = "changeme"
 LUKS = false
-
-

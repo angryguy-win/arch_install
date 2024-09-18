@@ -18,15 +18,13 @@ else
     exit 1
 fi
 
-# Enable dry run mode for testing purposes (set to false to disable)
-# Ensure DRY_RUN is exported
-export DRY_RUN="${DRY_RUN:-false}"
 
 
 initial_setup() {
     print_message INFO "Starting initial setup"
     # Initial setup
     execute_process "Initial setup" \
+        --debug \
         --error-message "Initial setup failed" \
         --success-message "Initial setup completed" \
         "timedatectl set-ntp true" \
@@ -35,8 +33,6 @@ initial_setup() {
         "setfont ter-v22b" \
         "sed -i -e '/^#ParallelDownloads/s/^#//' -e '/^#Color/s/^#//' /etc/pacman.conf" \
         "pacman -Syy"
-
-
 }
 mirror_setup() {
     local country_iso
@@ -57,13 +53,12 @@ main() {
     print_message INFO "DRY_RUN in $(basename "$0") is set to: ${YELLOW}$DRY_RUN"
 
     # Load configuration
-    local vars=(reflector_country)
+    local vars=(COUNTRY_ISO)
     load_config "${vars[@]}" || { print_message ERROR "Failed to load config"; return 1; }
 
-    pre_setup || { print_message ERROR "Pre-setup process failed"; return 1; }
-    setup_mirrors "$reflector_country" || { print_message ERROR "Mirror setup failed"; return 1; }
-    get_install_device || { print_message ERROR "Drive selection failed"; return 1; }
-    show_drive_list
+    initial_setup || { print_message ERROR "Initial setup failed"; return 1; }
+    mirror_setup "$COUNTRY_ISO" || { print_message ERROR "Mirror setup failed"; return 1; }
+    show_drive_list || { print_message ERROR "Drive selection failed"; return 1; }
     
     print_message OK "Pre-setup process completed successfully"
     process_end $?

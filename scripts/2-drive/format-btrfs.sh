@@ -24,7 +24,7 @@ export DRY_RUN="${DRY_RUN:-false}"
 
 
 luks_setup() {
-
+    print_message INFO "Setting up LUKS"
 
 }
 formating() {

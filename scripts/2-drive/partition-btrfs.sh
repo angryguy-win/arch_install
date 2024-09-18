@@ -26,7 +26,7 @@ export DRY_RUN="${DRY_RUN:-false}"
 partitioning() {
     local device
     device="$1"
-    
+
     execute_process "Partitioning" \
         --error-message "Partitioning failed" \
         --success-message "Partitioning completed" \
@@ -38,7 +38,7 @@ partitioning() {
 
 }
 luks_setup() {
-
+    print_message INFO "Setting up LUKS"
 
 }
 main() {

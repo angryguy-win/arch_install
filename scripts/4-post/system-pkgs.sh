@@ -73,7 +73,7 @@ INSTALL_GROUPS=(
 install_package_group() {
     local group_name="$1"
     local packages="${PACKAGE_GROUPS[$group_name]}"
-    
+    # Check if packages are defined for the group
     if [ -n "$packages" ]; then
         print_message INFO "Installing $group_name packages: $packages"
         execute_process "Install $group_name packages" \
@@ -89,7 +89,7 @@ install_package_group() {
 # Modify the install_selected_packages function
 install_selected_packages() {
     print_message INFO "Starting package installation"
-    print_debug_info  # Add this line to print debug info
+    # Install packages for each group
     for group in "${INSTALL_GROUPS[@]}"; do
         if [[ -v "PACKAGE_GROUPS[$group]" ]]; then
             print_message INFO "Installing group: $group"

@@ -1,21 +1,18 @@
 #!/bin/bash
-# Lib,sh file
+# Lib.sh file
 # Location: /lib/lib.sh
 # Author: ssnow
 # Date: 2024
 # Description: This file contains all the functions used in the install script
 #              and other scripts.
-#              It also contains the logging functions and the trap functions.
-#              The trap functions are used to handle errors and exits gracefully.
-#              The logging functions are used to print messages to the log file.
-#              The functions are organized into sections based on their purpose.
-#
-# Usage:
-# To use this file, source it in your script:
-# source /lib/lib.sh
+
 set -eo pipefail
 
-# @description Color codes
+# Use the values set in install.sh, or use defaults if not set
+DRY_RUN="${DRY_RUN:-false}"
+DEBUG_MODE="${DEBUG_MODE:-false}"
+VERBOSE="${VERBOSE:-false}"
+
 # Color codes
 export TERM=xterm-256color
 declare -A COLORS
@@ -47,50 +44,60 @@ COLORS=(
     [WHITE]='\033[1;37m'
     [RESET]='\033[0m'
 )
+export COLORS
 
-# Global variables
-VERBOSE=false
-DRY_RUN=false
-PARALLEL_JOBS=4
-LOG_FILE=""
-FORMAT_TYPE=""
-DESKTOP_ENVIRONMENT=""
-COUNTRY_ISO="CA"
-DEVICE="/dev/nvme0n1"
-PARTITION_BIOSBOOT="/dev/nvme0n1p1"
-PARTITION_EFI="/dev/nvme0n1p2"
-PARTITION_ROOT="/dev/nvme0n1p3"
-PARTITION_HOME="/dev/nvme0n1p4"
-PARTITION_SWAP="/dev/nvme0n1p5"
-MOUNT_OPTIONS="noatime,compress=zstd,ssd,commit=120"
-LOCALE="en_US.UTF-8"
-TIMEZONE="America/Toronto"
-KEYMAP="us"
-USERNAME="ssnow"
-PASSWORD="changeme"
-HOSTNAME="hostname"
-MICROCODE="intel"
-GPU_DRIVER="nvidia"
-TERMINAL="alacritty"
+# Global variables (use values from install.sh if set, otherwise use defaults)
+# @note the blank variables are used for the user spesific variables.
+# @note if the blank variables are not set by the load_config function, the script can not proceed.
+# @note all the other variable the defaults can be used
+PARALLEL_JOBS="${PARALLEL_JOBS:-4}"
+FORMAT_TYPE="${FORMAT_TYPE:-btrfs}"
+DESKTOP_ENVIRONMENT="${DESKTOP_ENVIRONMENT:-none}"
+COUNTRY_ISO="${COUNTRY_ISO:-US}"
+DEVICE=""
+PARTITION_BIOSBOOT=""
+PARTITION_EFI=""
+PARTITION_ROOT=""
+PARTITION_HOME=""
+PARTITION_SWAP=""
+MOUNT_OPTIONS="${MOUNT_OPTIONS:-noatime,compress=zstd,ssd,commit=120}"
+LOCALE="${LOCALE:-en_US.UTF-8}"
+TIMEZONE="${TIMEZONE:-UTC}"
+KEYMAP="${KEYMAP:-us}"
+USERNAME="${USERNAME:-user}"
+PASSWORD="${PASSWORD:-changeme}"
+HOSTNAME="${HOSTNAME:-arch}"
+MICROCODE=""
+GPU_DRIVER=""
+TERMINAL="${TERMINAL:-alacritty}"
+SUBVOLUME="${SUBVOLUME:-@,@home,@var,@.snapshots}"
+LUKS="${LUKS:-false}"
+LUKS_PASSWORD="${LUKS_PASSWORD:-changeme}"
+SHELL="${SHELL:-bash}"
+DESKTOP_ENVIRONMENT="${DESKTOP_ENVIRONMENT:-none}"
 
-# Global variables
+
+# Script-related variables
 SCRIPT_NAME=$(basename "$0")
-SCRIPT_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
+SCRIPT_VERSION="1.0.0"
 
-# Use the ARCH_DIR from the environment if it's set, otherwise calculate it
-ARCH_DIR="${ARCH_DIR:-$(dirname "$SCRIPT_DIR")}"
-
-# Log file
+# Log file setup
 LOG_DIR="/tmp/arch-install-logs"
 LOG_FILE="$LOG_DIR/arch_install.log"
 PROCESS_LOG="$LOG_DIR/process.log"
 
+# Create log directory and files if they don't exist
+mkdir -p "$LOG_DIR" || { echo "Failed to create log directory: $LOG_DIR"; exit 1; }
+touch "$LOG_FILE" "$PROCESS_LOG" || { echo "Failed to create log files"; exit 1; }
 
-SCRIPT_VERSION="1.0.0"
-
-# Ensure DRY_RUN is exported
-export DRY_RUN="${DRY_RUN:-false}"
-DEBUG_MODE=${DEBUG_MODE:-false}
+# Debug information
+if [[ "$DEBUG_MODE" == "true" ]]; then
+    echo "DEBUG: DRY_RUN is set to $DRY_RUN"
+    echo "DEBUG: VERBOSE is set to $VERBOSE"
+    echo "DEBUG: DEBUG_MODE is set to $DEBUG_MODE"
+    echo "DEBUG: LOG_DIR is set to $LOG_DIR"
+    echo "DEBUG: CONFIG_FILE is set to $CONFIG_FILE"
+fi
 
 # Error handling
 trap 'log "ERROR" "An error occurred. Exiting."; exit 1' ERR
@@ -111,7 +118,7 @@ ${logo_message_color}
                 ███████║██████╔╝██║     ███████║ 
                 ██╔══██║██╔══██╗██║     ██╔══██║
                 ██║  ██║██║  ██║╚██████╗██║  ██║
-                ╚═╝  ╚═╝╚═╝  ╚═╝ ╚═════╝╚═╝  ╚═╝
+                ╚═╝  ╚═╝╚��╝  ╚═╝ ╚═════╝╚═╝  ╚═╝
 ${border}------------------------------------------------------------------------
                 ${text_color} $logo_message
 ${border}------------------------------------------------------------------------
@@ -123,23 +130,25 @@ ${RESET}\n"
 # @arg $3 string Highlight (optional).
 log() {
     local level=${1:-INFO}
-    local message=${2:-"No message provided"}
+    shift
+    local message=${*}
     local timestamp
+    local prefix="[$type]"
     local log_entry
     local stripped_entry
 
     # Set the Variables
     timestamp=$(date '+%Y-%m-%d %H:%M:%S')
-    #echo "$timestamp [$level] $message" >> "${LOG_FILE:-/dev/null}"
-    log_entry="$timestamp [$level] $message"
-    # Strip color codes from the log entry
-    stripped_entry=$(echo "$log_entry" |  sed -r "s/\x1B\[([0-9]{1,3}(;[0-9]{1,3})*)?[mGK]//g")
-
-
-    echo "$stripped_entry" >> "$LOG_FILE"
-
-    #echo "$stripped_entry" >> "$PROCESS_LOG"
-    
+    # Construct the log message without color codes
+    local log_entry="${timestamp} ${prefix} ${message}"
+    ensure_log_directory || return
+    # No need for a separate stripped_entry variable
+    if ! echo "$log_entry" | sed -r "s/\x1B\[([0-9]{1,3}(;[0-9]{1,3})*)?[mGK]//g" >> "$LOG_FILE"; then
+        #echo "$log_entry" >> "$PROCESS_LOG" 
+        print_message ERROR "Failed to write to log file: $LOG_FILE"
+        return 1
+    fi
+    # TODO: Implement log rotation to manage log file size
 }
 export -f log
 # @description Print formatted messages
@@ -147,9 +156,14 @@ export -f log
 # @param message Message to print
 print_message() {
     local type="${1:-INFO}"
-    local message="${2:-No message provided}"
+    shift
+    local message="${*}"
     local prefix_color=""
     local prefix="[$type]"
+    local color="${COLORS[$type]:-${COLORS[WHITE]}}"
+    local reset="${COLORS[RESET]}"
+    local timestamp="[$(date '+%Y-%m-%d %H:%M:%S')]"
+
 
     if [[ -n "${COLORS[*]:-}" ]]; then
         case "$type" in
@@ -165,11 +179,20 @@ print_message() {
         esac
     fi
 
-    printf "%b%s%b %s\n" "$prefix_color" "$prefix" "${COLORS[RESET]:-}" "$message"
+    if [[ "$VERBOSE" != true && "$type" == "DEBUG" ]]; then
+        return  # Suppress DEBUG messages if VERBOSE is not true
+    fi
 
+    # Compose the message
+    local formatted_message="${prefix_color}${prefix} ${COLORS[RESET]:-} ${message}"
+    printf "%b %s\n" "$formatted_message"
+    #printf "%b%s%b %s\n" "$prefix_color" "$prefix" "${COLORS[RESET]:-}" "$message"
+
+    # Append to log file
     if [[ -n "${LOG_FILE:-}" ]]; then
         log "$type" "$message"
     fi
+
 }
 export -f print_message
 export COLORS
@@ -394,9 +417,6 @@ file_exists() {
     fi
     return 0
 }
-initialize_scripts() {
-
-}
 # @description Initialize process.
 process_init() {
     local process_name
@@ -406,7 +426,7 @@ process_init() {
     CURRENT_PROCESS="$process_name"
     CURRENT_PROCESS_ID="$process_id"
 
-    initialize_scripts || { print_message ERROR "Failed to initialize script"; return 1; }
+    #initialize_scripts || { print_message ERROR "Failed to initialize script"; return 1; }
     print_message PROC "Starting process: " "$process_name (ID: $process_id)"
     echo "$process_id:$process_name:started" >> "$PROCESS_LOG"
 }
@@ -557,36 +577,17 @@ cleanup() {
     print_message DEBUG "Cleanup completed"
 }
 # @description Load configuration variables.
-# @arg $1 string Variable names to load from config file
-# var1 var2 var3 ...
 load_config() {
-    local var_names
-    local missing_vars
-
-    var_names=("$@")
-    missing_vars=()
-
-    print_message INFO "Starting load_config function"
-    print_message INFO "CONFIG_FILE: " "$CONFIG_FILE"
-
-
-    for var_name in "${var_names[@]}"; do
-        print_message INFO "Loading config for: " "$var_name"
-        local value
-        if ! value=$(get_config_value "$var_name"); then
-            missing_vars+=("$var_name")
-        else
-            declare -g "$var_name=$value"
-            print_message INFO "$var_name: " "${!var_name}"
-        fi
-    done
-    print_message INFO "load_config completed"
-
-    if [[ ${#missing_vars[@]} -gt 0 ]]; then
-        print_message ERROR "Missing configuration values: " "${missing_vars[*]}"
-        print_message ACTION "Please check your configuration file and ensure all required values are set."
+    if [[ ! -f "$CONFIG_FILE" ]]; then
+        print_message ERROR "Configuration file not found: $CONFIG_FILE"
         return 1
     fi
+
+    # Source the configuration file to load all variables
+    set -o allexport
+    source "$CONFIG_FILE"
+    set +o allexport
+
     print_message OK "Configuration loaded successfully"
     return 0
 }
@@ -635,30 +636,32 @@ get_config_value() {
 # @description Read config file.
 # @noargs
 read_config() {
-    local config_file
-    config_file="$ARCH_DIR/arch_config.toml"
-    [[ ! -f "$config_file" ]] && { print_message ERROR "Config file not found: " "$config_file"; exit 1; }
+    local toml_file="$ARCH_DIR/arch_config.toml"
+    local cfg_file="$ARCH_DIR/arch_config.cfg"
 
-    : > "$CONFIG_FILE"
+    print_message INFO "Reading configuration from $toml_file"
 
-    while IFS= read -r line; do
-        [[ $line =~ ^[[:space:]]*# || -z $line ]] && continue
-        if [[ $line =~ ^([[:alnum:]_]+)[[:space:]]*=[[:space:]]*(.*) ]]; then
-            local key="${BASH_REMATCH[1]}" value="${BASH_REMATCH[2]}"
-            value="${value#[\"']}"
-            value="${value%[\"']}"
-            [[ $value == "true" ]] && value=1
-            [[ $value == "false" ]] && value=0
-            set_option "$key" "$value"
-            
-            # Explicitly set DRY_RUN as an environment variable
-            if [[ "$key" == "DRY_RUN" ]]; then
-                export DRY_RUN=$value
-            fi
-        fi
-    done < "$config_file"
+    # Check if the TOML file exists
+    if [[ ! -f "$toml_file" ]]; then
+        print_message ERROR "TOML configuration file not found: $toml_file"
+        return 1
+    fi
 
-    print_message OK "Configuration loaded into: " "$CONFIG_FILE"
+    # Clear the existing cfg file
+    > "$cfg_file"
+
+    # Read the TOML file and write to the cfg file, removing quotes
+    while IFS='=' read -r key value; do
+        # Remove leading/trailing whitespace from the key
+        key=$(echo "$key" | sed -e 's/^[[:space:]]*//' -e 's/[[:space:]]*$//')
+        
+        # Remove leading/trailing whitespace and quotes from the value
+        value=$(echo "$value" | sed -e 's/^[[:space:]]*//' -e 's/[[:space:]]*$//' -e 's/^"//;s/"$//')
+        
+        echo "${key}=${value}" >> "$cfg_file"
+    done < "$toml_file"
+
+    print_message OK "Configuration loaded into: $cfg_file"
 }
 # @description Set option.
 # @arg $1 string Key.
@@ -797,39 +800,68 @@ execute_process() {
     local debug=false
     local error_message="Process failed"
     local success_message="Process completed successfully"
+    local exit_code=0
+    local commands=()
 
     while [[ "$1" == --* ]]; do
         case "$1" in
             --use-chroot) use_chroot=true; shift ;;
             --debug) debug=true; shift ;;
+            --critical) critical=true; shift ;;
             --error-message) error_message="$2"; shift 2 ;;
             --success-message) success_message="$2"; shift 2 ;;
             *) echo "Unknown option: $1"; return 1 ;;
         esac
     done
 
+    # Collect remaining arguments as commands
+    commands=("$@")
     print_message INFO "Starting: $process_name"
-
-    local commands=("$@")
+    # If no commands provided, return 0
+    if [[ ${#commands[@]} -eq 0 ]]; then
+        print_message WARNING "No commands provided for execution"
+        return 0
+    fi
+    # Execute commands
     for cmd in "${commands[@]}"; do
-        if [[ "$debug" == true ]]; then
-            print_message DEBUG "Executing: $cmd"
-        fi
-
-        if [[ "$use_chroot" == true ]]; then
-            if ! arch-chroot /mnt /bin/bash -c "$cmd"; then
-                print_message ERROR "$error_message: $cmd"
-                return 1
-            fi
+        # If DRY_RUN is true, print the command
+        if [[ "$DRY_RUN" == true ]]; then
+            print_message ACTION "[DRY RUN] Would execute: $cmd"
         else
-            if ! eval "$cmd"; then
-                print_message ERROR "$error_message: $cmd"
-                return 1
+            # If debug is true, print the command
+            if [[ "$debug" == true ]]; then
+                print_message DEBUG "Executing: $cmd"
+            fi
+            # If use_chroot is true, execute the command in chroot
+            if [[ "$use_chroot" == true ]]; then
+                if ! arch-chroot /mnt /bin/bash -c "$cmd"; then
+                    print_message ERROR "${error_message:-${process_name}}: $cmd"
+                    # If critical is true, handle critical error
+                    if [[ "$critical" == true ]]; then
+                        handle_critical_error "${error_message:-${process_name}}: $cmd"
+                        exit_code=1
+                        break
+                    fi
+                fi
+            else
+                # If use_chroot is false, execute the command in the current shell
+                if ! eval "$cmd"; then
+                    print_message ERROR "${error_message:-${process_name}}: ${cmd}"
+                    # If critical is true, handle critical error
+                    if [[ "$critical" == true ]]; then
+                        handle_critical_error "${error_message:-${process_name}} failed: ${cmd}"
+                        exit_code=1
+                        break
+                    fi
+                fi
             fi
         fi
     done
-
-    print_message OK "$success_message"
+    # Print success message if exit code is 0
+    if [[ $exit_code -eq 0 ]]; then
+        print_message OK "${success_message:-${process_name} completed}"
+    fi
+    return $exit_code
 }
 # @description Execute scripts for a given stage.
 # @arg $1 string Stage (directory name)
@@ -884,9 +916,11 @@ execute_script() {
 run_install_scripts() {
     local format_type="$1"
     local desktop_environment="$2"
+    local dry_run="${3:=false}"
 
     print_message DEBUG "Format type: " "$format_type"
     print_message DEBUG "Desktop environment: " "$desktop_environment"
+    print_message DEBUG "DRY_RUN: " "$DRY_RUN"
 
     for stage in "${SORTED_STAGES[@]}"; do
         print_message INFO "Starting stage: " "$stage"
@@ -894,7 +928,11 @@ run_install_scripts() {
         
         for script in "${scripts[@]}"; do
             print_message ACTION "Processing script: $stage/$script"
-            if [[ $DRY_RUN == true ]]; then
+            if [[ ! -f "$SCRIPTS_DIR/$stage/$script" ]]; then
+                print_message WARNING "Script not found: $SCRIPTS_DIR/$stage/$script"
+                continue
+            fi
+            if [[ $dry_run == true ]]; then
                 # Instead of just printing, we'll source the script in a subshell
                 # This allows us to run the script's functions without affecting the main shell
                 (
@@ -918,6 +956,56 @@ run_install_scripts() {
     done
 
     print_message OK "Installation completed successfully"
+    return 0
+}
+# @description Check and run scripts for a given stage.
+# @arg $1 string Stage (directory name)
+# @arg $2 string Array of mandatory scripts
+# @arg $3 string Array of optional scripts
+# @return 0 on success, 1 on failure
+check_and_run_scripts() {
+    local stage="$1"
+    local mandatory_scripts=("$2")
+    local optional_scripts=("$3")
+    
+    print_message INFO "Checking scripts for stage: $stage"
+
+    # Check mandatory scripts
+    for script in "${mandatory_scripts[@]}"; do
+        script_path="$SCRIPTS_DIR/$stage/$script"
+        if [[ ! -f "$script_path" ]]; then
+            print_message ERROR "Mandatory script not found: $script_path"
+            return 1
+        fi
+    done
+
+    # Check and potentially run optional scripts
+    for script in "${optional_scripts[@]}"; do
+        script_path="$SCRIPTS_DIR/$stage/$script"
+        if [[ ! -f "$script_path" ]]; then
+            print_message WARNING "Optional script not found: $script_path"
+            continue
+        fi
+
+        # Check if there's a corresponding config variable
+        config_var="INSTALL_$(echo "$script" | tr '[:lower:]' '[:upper:]' | sed 's/\.SH$//')"
+        install_script=$(get_config_value "$config_var" "false")
+
+        if [[ "$install_script" == "true" ]]; then
+            print_message INFO "Running optional script: $script"
+            if [[ $DRY_RUN == true ]]; then
+                print_message ACTION "[DRY RUN] Would execute: $script_path"
+            else
+                if ! execute_script "$stage" "$script"; then
+                    print_message ERROR "Failed to execute optional script: $stage/$script"
+                    return 1
+                fi
+            fi
+        else
+            print_message INFO "Skipping optional script: $script"
+        fi
+    done
+
     return 0
 }
 # @description Parse TOML file and populate INSTALL_SCRIPTS
@@ -1022,6 +1110,17 @@ determine_microcode() {
             ;;
     esac
 }
+# @description Backup config file.
+# @arg $1 string Config file
+backup_config() {
+    local config_file="$1"
+    local backup_dir="$ARCH_DIR/backups"
+    local timestamp
+    timestamp="$(date '+%Y-%m-%d_%H-%M-%S')"
+    mkdir -p "$backup_dir"
+    cp "$config_file" "$backup_dir/$(basename "$config_file").backup.$timestamp"
+    print_message INFO "Backup of $config_file created at $backup_dir/$(basename "$config_file").backup.$timestamp"
+}
 # @description Backup fstab.
 # @arg $1 string Fstab file 
 # @arg string Mount point
@@ -1112,4 +1211,13 @@ check_disk_space() {
     fi
 
     return 0
+}
+ensure_log_directory() {
+    local log_dir=$(dirname "$LOG_FILE")
+    if [[ ! -d "$log_dir" ]]; then
+        mkdir -p "$log_dir" || {
+            print_message ERROR "Failed to create log directory: $log_dir" | >&2
+            return 1
+        }
+    fi
 }

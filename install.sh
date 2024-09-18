@@ -2,35 +2,15 @@
 
 # @description Arch Linux Installer
 # This script is used to install Arch Linux on a device.
-# It is designed to be run as root.
-# Usage: bash install.sh
+# It is designed to be run as root for actual installation, but not for dry runs.
+# Usage: bash install.sh [--dry-run] [--verbose]
 # Author: ssnow
 # Date: 2024
 
-# Determine the correct path to lib.sh
-SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-LIB_PATH="$SCRIPT_DIR/lib/lib.sh"
-
-# Source the library functions
-if [ -f "$LIB_PATH" ]; then
-    source "$LIB_PATH"
-else
-    echo "Error: Cannot find lib.sh at $LIB_PATH" >&2
-    exit 1
-fi
-
-# Initialize variables
-ARCH_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-export ARCH_DIR
-SCRIPTS_DIR="$ARCH_DIR/scripts"
-STAGES_CONFIG="${STAGES_CONFIG:-$ARCH_DIR/stages.toml}"
-
-# Set global debug mode (can be overridden by command line arguments)
+# Initialize variables with default values
 export DEBUG_MODE=${DEBUG_MODE:-false}
-# Ensure DRY_RUN is exported
-export DRY_RUN="${DRY_RUN:-false}"
-# Redirect stdout and stderr through log_process_output function
-#exec > >($File_LOG) 2>&1
+export DRY_RUN=${DRY_RUN:-false}
+export VERBOSE=${VERBOSE:-false}
 
 # Parse command-line options
 while [[ "$#" -gt 0 ]]; do
@@ -41,6 +21,28 @@ while [[ "$#" -gt 0 ]]; do
     esac
     shift
 done
+
+# Check for root privileges only if not in dry-run mode
+if [[ "$DRY_RUN" != "true" && $EUID -ne 0 ]]; then
+   echo "This script must be run as root for actual installation. Use --dry-run for testing without root." 
+   exit 1
+fi
+
+# Set up important directories and files
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+export ARCH_DIR="$SCRIPT_DIR"
+export SCRIPTS_DIR="$ARCH_DIR/scripts"
+export STAGES_CONFIG="${STAGES_CONFIG:-$ARCH_DIR/stages.toml}"
+export CONFIG_FILE="$ARCH_DIR/arch_config.cfg"
+
+# Source the library functions
+LIB_PATH="$SCRIPT_DIR/lib/lib.sh"
+if [ -f "$LIB_PATH" ]; then
+    source "$LIB_PATH"
+else
+    echo "Error: Cannot find lib.sh at $LIB_PATH" >&2
+    exit 1
+fi
 
 # Main execution
 main() {
@@ -55,13 +57,14 @@ main() {
     print_system_info
 
     # Parse the stages TOML file
-    parse_stages_toml "$STAGES_CONFIG" || print_message ERROR "Failed to parse stages.toml" exit 1
+    parse_stages_toml "$STAGES_CONFIG" || { print_message ERROR "Failed to parse stages.toml"; exit 1; }
 
     # Create a sorted list of stages
     readarray -t SORTED_STAGES < <(printf '%s\n' "${!INSTALL_SCRIPTS[@]}" | sort)
-
+    backup_config "$CONFIG_FILE"
+    read_config
     # Load configuration
-    local vars=(format_type desktop_environment)
+    local vars=(FORMAT_TYPE DESKTOP_ENVIRONMENT)
     load_config "${vars[@]}" || { print_message ERROR "Failed to load config"; return 1; }
 
     # Print the INSTALL_SCRIPTS array for verification
@@ -70,7 +73,10 @@ main() {
         print_message INFO "  $stage: ${INSTALL_SCRIPTS[$stage]}"
     done
 
-    run_install_scripts "$format_type" "$desktop_environment" || { print_message ERROR "Installation failed"; return 1; }
+    print_message DEBUG "FORMAT_TYPE: $FORMAT_TYPE"
+    print_message DEBUG "DESKTOP_ENVIRONMENT: $DESKTOP_ENVIRONMENT"
+
+    run_install_scripts "$FORMAT_TYPE" "$DESKTOP_ENVIRONMENT" "$DRY_RUN" || { print_message ERROR "Installation failed"; return 1; }
 
     print_message OK "Arch Linux installation completed successfully"
     process_end $?
