@@ -52,18 +52,34 @@ prepare_drive() {
     # Load the updated configuration
     load_config || { print_message ERROR "Failed to load config"; return 1; }
     
-    # Now INSTALL_DEVICE should be correctly set
-    local DEVICE="/dev/${INSTALL_DEVICE}"
+    # Determine if we're dealing with a hdd/virtio drive or an ssd/nvme drive
+    if [[ "$INSTALL_DEVICE" == nvme* ]]; then
+        # Virtio drive
+        local DEVICE="/dev/${INSTALL_DEVICE}"
+        local PARTITION_EFI="${DEVICE}p2"
+        local PARTITION_ROOT="${DEVICE}p3"
+        local PARTITION_HOME="${DEVICE}p4"
+        local PARTITION_SWAP="${DEVICE}p5"
+        local MOUNT_OPTIONS="noatime,compress=zstd,ssd,commit=120"
+    else
+        # Physical drive
+        local DEVICE="/dev/${INSTALL_DEVICE}"
+        local PARTITION_EFI="${DEVICE}2"
+        local PARTITION_ROOT="${DEVICE}3"
+        local PARTITION_HOME="${DEVICE}4"
+        local PARTITION_SWAP="${DEVICE}5"
+        local MOUNT_OPTIONS="noatime,compress=zstd,commit=120"
+    fi
+
     set_option "DEVICE" "$DEVICE" || { print_message ERROR "Failed to set DEVICE"; return 1; }
     print_message ACTION "Drive set to: " "$DEVICE"
     
-    # Use $DEVICE instead of ${DEVICE} for consistency
-    print_message ACTION "Partitions string set to: " "${DEVICE}p2, ${DEVICE}p3"
-    set_option "PARTITION_EFI" "${DEVICE}2" || { print_message ERROR "Failed to set PARTITION_EFI"; return 1; }
-    set_option "PARTITION_ROOT" "${DEVICE}3" || { print_message ERROR "Failed to set PARTITION_ROOT"; return 1; }
-    set_option "PARTITION_HOME" "${DEVICE}4" || { print_message ERROR "Failed to set PARTITION_HOME"; return 1; }
-    set_option "PARTITION_SWAP" "${DEVICE}5" || { print_message ERROR "Failed to set PARTITION_SWAP"; return 1; }
-    
+    print_message ACTION "Partitions string set to: " "${PARTITION_EFI}, ${PARTITION_ROOT}"
+    set_option "PARTITION_EFI" "${PARTITION_EFI}" || { print_message ERROR "Failed to set PARTITION_EFI"; return 1; }
+    set_option "PARTITION_ROOT" "${PARTITION_ROOT}" || { print_message ERROR "Failed to set PARTITION_ROOT"; return 1; }
+    set_option "PARTITION_HOME" "${PARTITION_HOME}" || { print_message ERROR "Failed to set PARTITION_HOME"; return 1; }
+    set_option "PARTITION_SWAP" "${PARTITION_SWAP}" || { print_message ERROR "Failed to set PARTITION_SWAP"; return 1; }
+    set_option "MOUNT_OPTIONS" "${MOUNT_OPTIONS}" || { print_message ERROR "Failed to set MOUNT_OPTIONS"; return 1; }
     # Load the config again to ensure all changes are reflected
     load_config || { print_message ERROR "Failed to load config"; return 1; }
 }
