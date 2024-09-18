@@ -56,7 +56,8 @@ prepare_drive() {
     set_option "PARTITION_ROOT" "${DEVICE}p3" || { print_message ERROR "Failed to set INSTALL_DEVICE"; return 1; }
     set_option "PARTITION_HOME" "${DEVICE}p4" || { print_message ERROR "Failed to set INSTALL_DEVICE"; return 1; }
     set_option "PARTITION_SWAP" "${DEVICE}p5" || { print_message ERROR "Failed to set INSTALL_DEVICE"; return 1; }
-    read_config || { print_message ERROR "Failed to read config"; return 1; }
+    load_config || { print_message ERROR "Failed to load config"; return 1; }
+
 }
 main() {
     process_init "Pre-setup"
