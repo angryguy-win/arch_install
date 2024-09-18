@@ -1,0 +1,36 @@
+   # .github/workflows/ci.yml
+   name: CI
+
+   on:
+     push:
+       branches: [ main ]  # Adjust based on your default branch
+     pull_request:
+       branches: [ main ]
+
+   jobs:
+     build:
+       runs-on: ubuntu-latest
+
+       steps:
+         - name: Checkout repository
+           uses: actions/checkout@v3
+
+         - name: Set up Python for Ansible (Optional)
+           uses: actions/setup-python@v4
+           with:
+             python-version: '3.x'
+
+         - name: Install Dependencies
+           run: |
+             sudo apt-get update
+             sudo apt-get install -y bats
+
+         - name: Run ShellCheck
+           uses: ludeeus/action-shellcheck@v1
+           with:
+             folder: scripts/  # Path to your scripts
+             severity: error
+
+         - name: Run Bats Tests
+           run: |
+             bats tests/
