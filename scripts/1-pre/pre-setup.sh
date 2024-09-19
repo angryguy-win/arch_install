@@ -54,7 +54,7 @@ prepare_drive() {
     
     # Determine if we're dealing with a hdd/virtio drive or an ssd/nvme drive
     if [[ "$INSTALL_DEVICE" == nvme* ]]; then
-        # Virtio drive
+        # NVME/SSD  drive
         local DEVICE="/dev/${INSTALL_DEVICE}"
         local PARTITION_EFI="${DEVICE}p2"
         local PARTITION_ROOT="${DEVICE}p3"
@@ -62,7 +62,7 @@ prepare_drive() {
         local PARTITION_SWAP="${DEVICE}p5"
         local MOUNT_OPTIONS="noatime,compress=zstd,ssd,commit=120"
     else
-        # Physical drive
+        # Physical/virt drive
         local DEVICE="/dev/${INSTALL_DEVICE}"
         local PARTITION_EFI="${DEVICE}2"
         local PARTITION_ROOT="${DEVICE}3"

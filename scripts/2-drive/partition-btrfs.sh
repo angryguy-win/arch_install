@@ -26,6 +26,7 @@ export DRY_RUN="${DRY_RUN:-false}"
 partitioning() {
     local device
     device="$1"
+
     print_message INFO "Partitioning $DEVICE"
     execute_process "Partitioning" \
         --error-message "Partitioning failed" \
@@ -35,6 +36,9 @@ partitioning() {
         "sgdisk -n1:0:+1M -t1:ef02 -c1:'BIOSBOOT' $DEVICE" \
         "sgdisk -n2:0:+512M -t2:ef00 -c2:'EFIBOOT' $PARTITION_EFI" \
         "sgdisk -n3:0:0 -t3:8300 -c3:'ROOT' $PARTITION_ROOT"
+        print_message INFO "Part: ${PARTITION_ROOT}"
+        print_message INFO "Part: ${PARTITION_EFI}"
+        print_message INFO "Part: ${DEVICE}"
 
 }
 luks_setup() {
