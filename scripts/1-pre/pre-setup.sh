@@ -11,6 +11,7 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 LIB_PATH="$(dirname "$(dirname "$SCRIPT_DIR")")/lib/lib.sh"
 
 # Source the library functions
+# shellcheck source=../../lib/lib.sh
 if [ -f "$LIB_PATH" ]; then
     source "$LIB_PATH"
 else
@@ -64,8 +65,8 @@ prepare_drive() {
     else
         # Physical/virt drive
         DEVICE="/dev/${INSTALL_DEVICE}"
-        PARTITION_EFI="${DEVICE}2"
-        PARTITION_ROOT="${DEVICE}3"
+        PARTITION_EFI="${DEVICE}p2"
+        PARTITION_ROOT="${DEVICE}p3"
         PARTITION_HOME="${DEVICE}4"
         PARTITION_SWAP="${DEVICE}5"
         MOUNT_OPTIONS="noatime,compress=zstd,commit=120"

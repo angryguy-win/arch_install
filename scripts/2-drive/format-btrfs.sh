@@ -11,6 +11,7 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 LIB_PATH="$(dirname "$(dirname "$SCRIPT_DIR")")/lib/lib.sh"
 
 # Source the library functions
+# shellcheck source=../../lib/lib.sh
 if [ -f "$LIB_PATH" ]; then
     source "$LIB_PATH"
 else
@@ -28,10 +29,6 @@ luks_setup() {
 
 }
 formating() {
-    local partition_efi
-    local partition_root
-    partition_efi="$1"
-    partition_root="$2"
 
     execute_process "Formatting partitions btrfs" \
         --error-message "Formatting partitions btrfs failed" \

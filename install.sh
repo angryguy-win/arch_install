@@ -36,6 +36,7 @@ export STAGES_CONFIG="${STAGES_CONFIG:-$ARCH_DIR/stages.toml}"
 export CONFIG_FILE="$ARCH_DIR/arch_config.cfg"
 
 # Source the library functions
+# shellcheck source=./lib/lib.sh
 LIB_PATH="$SCRIPT_DIR/lib/lib.sh"
 if [ -f "$LIB_PATH" ]; then
     source "$LIB_PATH"
