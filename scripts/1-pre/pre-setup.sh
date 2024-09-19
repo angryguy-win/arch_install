@@ -65,8 +65,8 @@ prepare_drive() {
     else
         # Physical/virt drive
         DEVICE="/dev/${INSTALL_DEVICE}"
-        PARTITION_EFI="${DEVICE}p2"
-        PARTITION_ROOT="${DEVICE}p3"
+        PARTITION_EFI="${DEVICE}2"
+        PARTITION_ROOT="${DEVICE}3"
         PARTITION_HOME="${DEVICE}4"
         PARTITION_SWAP="${DEVICE}5"
         MOUNT_OPTIONS="noatime,compress=zstd,commit=120"
