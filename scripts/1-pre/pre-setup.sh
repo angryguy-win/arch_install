@@ -55,20 +55,20 @@ prepare_drive() {
     # Determine if we're dealing with a hdd/virtio drive or an ssd/nvme drive
     if [[ "$INSTALL_DEVICE" == nvme* ]]; then
         # NVME/SSD  drive
-        local DEVICE="/dev/${INSTALL_DEVICE}"
-        local PARTITION_EFI="${DEVICE}p2"
-        local PARTITION_ROOT="${DEVICE}p3"
-        local PARTITION_HOME="${DEVICE}p4"
-        local PARTITION_SWAP="${DEVICE}p5"
-        local MOUNT_OPTIONS="noatime,compress=zstd,ssd,commit=120"
+        DEVICE="/dev/${INSTALL_DEVICE}"
+        PARTITION_EFI="${DEVICE}p2"
+        PARTITION_ROOT="${DEVICE}p3"
+        PARTITION_HOME="${DEVICE}p4"
+        PARTITION_SWAP="${DEVICE}p5"
+        MOUNT_OPTIONS="noatime,compress=zstd,ssd,commit=120"
     else
         # Physical/virt drive
-        local DEVICE="/dev/${INSTALL_DEVICE}"
-        local PARTITION_EFI="${DEVICE}2"
-        local PARTITION_ROOT="${DEVICE}3"
-        local PARTITION_HOME="${DEVICE}4"
-        local PARTITION_SWAP="${DEVICE}5"
-        local MOUNT_OPTIONS="noatime,compress=zstd,commit=120"
+        DEVICE="/dev/${INSTALL_DEVICE}"
+        PARTITION_EFI="${DEVICE}2"
+        PARTITION_ROOT="${DEVICE}3"
+        PARTITION_HOME="${DEVICE}4"
+        PARTITION_SWAP="${DEVICE}5"
+        MOUNT_OPTIONS="noatime,compress=zstd,commit=120"
     fi
 
     set_option "DEVICE" "$DEVICE" || { print_message ERROR "Failed to set DEVICE"; return 1; }
