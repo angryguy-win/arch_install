@@ -33,12 +33,9 @@ partitioning() {
         --success-message "Partitioning completed" \
         "if mountpoint -q /mnt; then umount -A --recursive /mnt; else echo '/mnt is not mounted'; fi" \
         "sgdisk -Z $DEVICE" \
-        "sgdisk -n1:0:+1M -t1:ef02 -c1:'BIOSBOOT' $DEVICE" \
-        "sgdisk -n2:0:+512M -t2:ef00 -c2:'EFIBOOT' $PARTITION_EFI" \
-        "sgdisk -n3:0:0 -t3:8300 -c3:'ROOT' $PARTITION_ROOT"
-        print_message INFO "Part: ${PARTITION_ROOT}"
-        print_message INFO "Part: ${PARTITION_EFI}"
-        print_message INFO "Part: ${DEVICE}"
+        "sgdisk -n1:0:+1M -t1:ef02 -c1:'BIOSBOOT' ${DEVICE}" \
+        "sgdisk -n2:0:+512M -t2:ef00 -c2:'EFIBOOT' ${DEVICE}" \
+        "sgdisk -n3:0:0 -t3:8300 -c3:'ROOT' ${DEVICE}"
 
 }
 luks_setup() {

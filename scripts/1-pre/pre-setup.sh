@@ -64,17 +64,18 @@ prepare_drive() {
     else
         # Physical/virt drive
         DEVICE="/dev/${INSTALL_DEVICE}"
-        PARTITION_EFI="${DEVICE}p2"
-        PARTITION_ROOT="${DEVICE}p3"
-        PARTITION_HOME="${DEVICE}p4"
-        PARTITION_SWAP="${DEVICE}p5"
-        MOUNT_OPTIONS="noatime,compress=zstd,ssd,commit=120"
+        PARTITION_EFI="${DEVICE}2"
+        PARTITION_ROOT="${DEVICE}3"
+        PARTITION_HOME="${DEVICE}4"
+        PARTITION_SWAP="${DEVICE}5"
+        MOUNT_OPTIONS="noatime,compress=zstd,commit=120"
     fi
 
     set_option "DEVICE" "$DEVICE" || { print_message ERROR "Failed to set DEVICE"; return 1; }
     print_message ACTION "Drive set to: " "$DEVICE"
     
     print_message ACTION "Partitions string set to: " "${PARTITION_EFI}, ${PARTITION_ROOT}"
+    set_option "DEVICE" "${DEVICE}" || { print_message ERROR "Failed to set DEVICE"; return 1; }
     set_option "PARTITION_EFI" "${PARTITION_EFI}" || { print_message ERROR "Failed to set PARTITION_EFI"; return 1; }
     set_option "PARTITION_ROOT" "${PARTITION_ROOT}" || { print_message ERROR "Failed to set PARTITION_ROOT"; return 1; }
     set_option "PARTITION_HOME" "${PARTITION_HOME}" || { print_message ERROR "Failed to set PARTITION_HOME"; return 1; }
