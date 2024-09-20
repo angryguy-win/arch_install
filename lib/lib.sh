@@ -938,22 +938,16 @@ run_install_scripts() {
     local format_type="$1"
     local desktop_environment="$2"
     local dry_run="${3:=false}"
-    local mandatory_scripts
-    local optional_scripts
 
     print_message DEBUG "Starting run_install_scripts with format_type: $format_type, desktop_environment: $desktop_environment"
-
-    parse_stages_toml
-
-    print_message DEBUG "Stages after parsing: ${!INSTALL_SCRIPTS[*]}"
 
     for stage in "${SORTED_STAGES[@]}"; do
         print_message DEBUG "Processing stage: $stage"
         print_message DEBUG "Stage content: ${INSTALL_SCRIPTS[$stage]}"
         
         IFS=';' read -ra stage_scripts <<< "${INSTALL_SCRIPTS[$stage]}"
-        mandatory_scripts=()
-        optional_scripts=()
+        local mandatory_scripts=()
+        local optional_scripts=()
 
         for script_info in "${stage_scripts[@]}"; do
             print_message DEBUG "Processing script_info: $script_info"
@@ -964,49 +958,18 @@ run_install_scripts() {
                 
                 print_message DEBUG "Parsed type: $type, script: $script"
 
-                # Handle format_type placeholder
                 if [[ $script == *"{format_type}"* ]]; then
-                    print_message DEBUG "Handling format_type placeholder for $script"
-                    if [[ -n "${FORMAT_TYPES[$format_type]}" ]]; then
-                        IFS=',' read -ra format_scripts <<< "${FORMAT_TYPES[$format_type]}"
-                        for format_script in "${format_scripts[@]}"; do
-                            print_message DEBUG "Adding format script: $format_script"
-                            if [[ $type == "mandatory" ]]; then
-                                mandatory_scripts+=("$format_script")
-                            else
-                                optional_scripts+=("$format_script")
-                            fi
-                        done
-                    else
-                        print_message WARNING "Unknown format type: $format_type"
-                        mandatory_scripts+=("$script")  # Add the original script as a fallback
-                    fi
-                # Handle desktop_environment placeholder
+                    script="${script/\{format_type\}/$format_type}"
+                    print_message DEBUG "Replaced format_type placeholder: $script"
                 elif [[ $script == *"{desktop_environment}"* ]]; then
-                    print_message DEBUG "Handling desktop_environment placeholder for $script"
-                    if [[ -n "${DESKTOP_ENVIRONMENTS[$desktop_environment]}" ]]; then
-                        IFS=',' read -ra de_scripts <<< "${DESKTOP_ENVIRONMENTS[$desktop_environment]}"
-                        for de_script in "${de_scripts[@]}"; do
-                            print_message DEBUG "Adding desktop environment script: $de_script"
-                            if [[ $type == "mandatory" ]]; then
-                                mandatory_scripts+=("$de_script")
-                            else
-                                optional_scripts+=("$de_script")
-                            fi
-                        done
-                    else
-                        print_message WARNING "Unknown desktop environment: $desktop_environment"
-                        mandatory_scripts+=("$script")  # Add the original script as a fallback
-                    fi
+                    script="${script/\{desktop_environment\}/$desktop_environment}"
+                    print_message DEBUG "Replaced desktop_environment placeholder: $script"
+                fi
+
+                if [[ $type == "mandatory" ]]; then
+                    mandatory_scripts+=("$script")
                 else
-                    # If no placeholder, add the script as is
-                    if [[ $type == "mandatory" ]]; then
-                        print_message DEBUG "Adding mandatory script: $script"
-                        mandatory_scripts+=("$script")
-                    else
-                        print_message DEBUG "Adding optional script: $script"
-                        optional_scripts+=("$script")
-                    fi
+                    optional_scripts+=("$script")
                 fi
             else
                 print_message WARNING "Invalid script_info format: $script_info"
