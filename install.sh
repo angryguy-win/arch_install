@@ -62,7 +62,7 @@ main() {
 
     # Load configuration
     local vars=(FORMAT_TYPE DESKTOP_ENVIRONMENT)
-    load_config "${vars[@]}" || { print_message ERROR "Failed to load config"; exit 1; }
+    load_config  || { print_message ERROR "Failed to load config"; exit 1; }
 
     print_message DEBUG "FORMAT_TYPE: $FORMAT_TYPE"
     print_message DEBUG "DESKTOP_ENVIRONMENT: $DESKTOP_ENVIRONMENT"
