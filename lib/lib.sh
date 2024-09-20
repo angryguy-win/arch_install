@@ -788,12 +788,41 @@ read_toml_and_update_groups() {
     while IFS= read -r line; do
         if [[ $line =~ ^\[([^]]+)\]$ ]]; then
             current_group="${BASH_REMATCH[1]}"
-        elif [[ $line =~ ^install[[:space:]]*=[[:space:]]*true$ ]]; then
-            temp_groups+=("$current_group")
+        elif [[ $line =~ ^\"([^\"]+)\"[[:space:]]*=[[:space:]]*\{([^}]+)\}$ ]]; then
+            local stage="${BASH_REMATCH[1]}"
+            local content="${BASH_REMATCH[2]}"
+            INSTALL_SCRIPTS["$stage"]=""
+            print_message DEBUG "Processing stage: $stage"
+            
+            if [[ $content =~ mandatory[[:space:]]*=[[:space:]]*\[([^]]+)\] ]]; then
+                IFS=',' read -ra mandatory_scripts <<< "${BASH_REMATCH[1]}"
+                for script in "${mandatory_scripts[@]}"; do
+                    script=$(echo "$script" | tr -d '"' | xargs)
+                    INSTALL_SCRIPTS["$stage"]+="mandatory=$script;"
+                done
+            fi
+            
+            if [[ $content =~ optional[[:space:]]*=[[:space:]]*\[([^]]+)\] ]]; then
+                IFS=',' read -ra optional_scripts <<< "${BASH_REMATCH[1]}"
+                for script in "${optional_scripts[@]}"; do
+                    script=$(echo "$script" | tr -d '"' | xargs)
+                    INSTALL_SCRIPTS["$stage"]+="optional=$script;"
+                done
+            fi
         fi
     done < "$toml_file"
 
-    INSTALL_GROUPS=("${temp_groups[@]}")
+    if [[ ${#INSTALL_SCRIPTS[@]} -eq 0 ]]; then
+        print_message ERROR "No stages found in TOML file"
+        return 1
+    fi
+
+    print_message DEBUG "Parsed ${#INSTALL_SCRIPTS[@]} stages"
+    for stage in "${!INSTALL_SCRIPTS[@]}"; do
+        print_message DEBUG "Stage $stage: ${INSTALL_SCRIPTS[$stage]}"
+    done
+
+    return 0
 }
 # Function to execute commands with error handling
 execute_process() {
@@ -876,30 +905,19 @@ execute_script() {
     local dry_run="$3"
     local script_path="$SCRIPTS_DIR/$stage/$script"
 
-    # Both stage and script must be provided
-    if [[ -z "$stage" || -z "$script" ]]; then
-        print_message ERROR "Both stage and script must be provided for execute_script"
-        return 1
-    fi
-
-    # Check if the script file exists
     if [[ ! -f "$script_path" ]]; then
         print_message WARNING "Script file not found: $script_path"
-        return 0  # Return 0 instead of 1 to allow continuation
+        return 0  # Return 0 to allow continuation
     fi
 
-    # Print the script being executed
     print_message INFO "Executing: $stage/$script"
     print_message DEBUG "Script path: $script_path"
     print_message DEBUG "DRY_RUN value before execution: $DRY_RUN"
 
-    # Execute the script
     if [[ $dry_run == true ]]; then
         print_message ACTION "[DRY RUN] Would execute: bash $script_path (Script: $script)"
-        
-        # Simulate execution of commands in the script
         while IFS= read -r line; do
-            if [[ ! -z "$line" && "$line" != \#* ]]; then  # Ignore empty lines and comments
+            if [[ ! -z "$line" && "$line" != \#* ]]; then
                 print_message ACTION "[DRY RUN] Would execute: $line"
             fi
         done < "$script_path"
@@ -925,7 +943,7 @@ run_install_scripts() {
 
     parse_stages_toml
 
-    for stage in "${!INSTALL_SCRIPTS[@]}"; do
+    for stage in "${SORTED_STAGES[@]}"; do
         print_message DEBUG "Processing stage: $stage"
         IFS=';' read -ra stage_scripts <<< "${INSTALL_SCRIPTS[$stage]}"
         mandatory_scripts=()
@@ -938,84 +956,49 @@ run_install_scripts() {
                 
                 # Handle format_type placeholder
                 if [[ $script == *"{format_type}"* ]]; then
-                    if [[ -n "${FORMAT_TYPES[$format_type]}" ]]; then
-                        IFS=',' read -ra format_scripts <<< "${FORMAT_TYPES[$format_type]}"
-                        for format_script in "${format_scripts[@]}"; do
-                            if [[ $type == "mandatory" ]]; then
-                                mandatory_scripts+=("$format_script")
-                            else
-                                optional_scripts+=("$format_script")
-                            fi
-                        done
-                    else
-                        print_message WARNING "Unknown format type: $format_type"
-                    fi
+                    script="${script/\{format_type\}/$format_type}"
+                fi
                 # Handle desktop_environment placeholder
-                elif [[ $script == *"{desktop_environment}"* ]]; then
-                    if [[ -n "${DESKTOP_ENVIRONMENTS[$desktop_environment]}" ]]; then
-                        IFS=',' read -ra de_scripts <<< "${DESKTOP_ENVIRONMENTS[$desktop_environment]}"
-                        for de_script in "${de_scripts[@]}"; do
-                            if [[ $type == "mandatory" ]]; then
-                                mandatory_scripts+=("$de_script")
-                            else
-                                optional_scripts+=("$de_script")
-                            fi
-                        done
-                    else
-                        print_message WARNING "Unknown desktop environment: $desktop_environment"
-                    fi
+                if [[ $script == *"{desktop_environment}"* ]]; then
+                    script="${script/\{desktop_environment\}/$desktop_environment}"
+                fi
+
+                if [[ $type == "mandatory" ]]; then
+                    mandatory_scripts+=("$script")
                 else
-                    if [[ $type == "mandatory" ]]; then
-                        mandatory_scripts+=("$script")
-                    else
-                        optional_scripts+=("$script")
-                    fi
+                    optional_scripts+=("$script")
                 fi
             fi
         done
 
-        check_and_run_scripts "$stage" "${mandatory_scripts[*]}" "${optional_scripts[*]}"
-    done
-}
-# @description Check and run scripts for a given stage.
-# @arg $1 string Stage (directory name)
-# @arg $2 string Array of mandatory scripts
-# @arg $3 string Array of optional scripts
-# @return 0 on success, 1 on failure
-check_and_run_scripts() {
-    local stage="$1"
-    IFS='|' read -ra mandatory_scripts <<< "$2"
-    IFS='|' read -ra optional_scripts <<< "$3"
+        print_message DEBUG "Mandatory scripts for $stage: ${mandatory_scripts[*]}"
+        print_message DEBUG "Optional scripts for $stage: ${optional_scripts[*]}"
 
-    print_message INFO "Checking scripts for stage: $stage"
+        for script in "${mandatory_scripts[@]}"; do
+            if [[ ! -f "$SCRIPTS_DIR/$stage/$script" ]]; then
+                print_message ERROR "Mandatory script not found: $stage/$script"
+                return 1
+            fi
+            if ! execute_script "$stage" "$script" "$dry_run"; then
+                print_message ERROR "Failed to execute mandatory script: $stage/$script"
+                return 1
+            fi
+        done
 
-    for script in "${mandatory_scripts[@]}"; do
-        if [[ ! -f "$SCRIPTS_DIR/$stage/$script" ]]; then
-            print_message ERROR "Mandatory script not found: $stage/$script"
-            return 1
-        fi
-        if ! execute_script "$stage" "$script" "$DRY_RUN"; then
-            print_message ERROR "Failed to execute mandatory script: $stage/$script"
-            return 1
-        fi
-    done
-
-    for script in "${optional_scripts[@]}"; do
-        if [[ -f "$SCRIPTS_DIR/$stage/$script" ]]; then
-            if should_run_optional_script "$script"; then
-                if ! execute_script "$stage" "$script" "$DRY_RUN"; then
-                    print_message WARNING "Failed to execute optional script: $stage/$script"
-                    # Don't return 1 here, as it's an optional script
+        for script in "${optional_scripts[@]}"; do
+            if [[ -f "$SCRIPTS_DIR/$stage/$script" ]]; then
+                if should_run_optional_script "$script"; then
+                    if ! execute_script "$stage" "$script" "$dry_run"; then
+                        print_message WARNING "Failed to execute optional script: $stage/$script"
+                    fi
+                else
+                    print_message INFO "Skipping optional script: $stage/$script"
                 fi
             else
-                print_message INFO "Skipping optional script: $stage/$script"
+                print_message INFO "Optional script not found, skipping: $stage/$script"
             fi
-        else
-            print_message INFO "Optional script not found, skipping: $stage/$script"
-        fi
+        done
     done
-
-    return 0
 }
 # @description Check if an optional script should run.
 # @arg $1 string Script name
