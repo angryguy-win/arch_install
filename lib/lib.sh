@@ -934,22 +934,47 @@ run_install_scripts() {
         optional_scripts=()
 
         for script_info in "${stage_scripts[@]}"; do
-            if [[ $script_info =~ ^(mandatory|optional)=([^=]+)=(.+)$ ]]; then
+            if [[ $script_info =~ ^(mandatory|optional)=([^=]+)$ ]]; then
                 local type="${BASH_REMATCH[1]}"
-                local script="${BASH_REMATCH[2]}=${BASH_REMATCH[3]}"
-                if [[ $type == "mandatory" ]]; then
-                    mandatory_scripts+=("$script")
+                local script="${BASH_REMATCH[2]}"
+                
+                # Handle format_type placeholder
+                if [[ $script == *"{format_type}"* ]]; then
+                    if [[ -n "${FORMAT_TYPES[$format_type]}" ]]; then
+                        IFS=',' read -ra format_scripts <<< "${FORMAT_TYPES[$format_type]}"
+                        for format_script in "${format_scripts[@]}"; do
+                            if [[ $type == "mandatory" ]]; then
+                                mandatory_scripts+=("$format_script")
+                            else
+                                optional_scripts+=("$format_script")
+                            fi
+                        done
+                    else
+                        print_message WARNING "Unknown format type: $format_type"
+                    fi
+                # Handle desktop_environment placeholder
+                elif [[ $script == *"{desktop_environment}"* ]]; then
+                    if [[ -n "${DESKTOP_ENVIRONMENTS[$desktop_environment]}" ]]; then
+                        IFS=',' read -ra de_scripts <<< "${DESKTOP_ENVIRONMENTS[$desktop_environment]}"
+                        for de_script in "${de_scripts[@]}"; do
+                            if [[ $type == "mandatory" ]]; then
+                                mandatory_scripts+=("$de_script")
+                            else
+                                optional_scripts+=("$de_script")
+                            fi
+                        done
+                    else
+                        print_message WARNING "Unknown desktop environment: $desktop_environment"
+                    fi
                 else
-                    optional_scripts+=("$script")
+                    if [[ $type == "mandatory" ]]; then
+                        mandatory_scripts+=("$script")
+                    else
+                        optional_scripts+=("$script")
+                    fi
                 fi
             fi
         done
-
-        # Replace placeholders
-        mandatory_scripts=("${mandatory_scripts[@]/\{format_type\}/$format_type}")
-        mandatory_scripts=("${mandatory_scripts[@]/\{desktop_environment\}/$desktop_environment}")
-        optional_scripts=("${optional_scripts[@]/\{format_type\}/$format_type}")
-        optional_scripts=("${optional_scripts[@]/\{desktop_environment\}/$desktop_environment}")
 
         check_and_run_scripts "$stage" "${mandatory_scripts[*]}" "${optional_scripts[*]}"
     done
@@ -1011,6 +1036,8 @@ parse_stages_toml() {
     local current_section=""
 
     declare -gA INSTALL_SCRIPTS
+    declare -gA FORMAT_TYPES
+    declare -gA DESKTOP_ENVIRONMENTS
 
     print_message DEBUG "Parsing stages TOML file: $toml_file"
 
@@ -1039,6 +1066,16 @@ parse_stages_toml() {
                     INSTALL_SCRIPTS["$stage"]+="optional=$script;"
                 done
             fi
+        elif [[ $current_section == "format_types" && $line =~ ^([^=]+)[[:space:]]*=[[:space:]]*\[([^]]+)\]$ ]]; then
+            local format_type="${BASH_REMATCH[1]}"
+            local scripts="${BASH_REMATCH[2]}"
+            FORMAT_TYPES["$format_type"]=$(echo "$scripts" | tr -d '"' | xargs)
+            print_message DEBUG "Format type: $format_type, Scripts: ${FORMAT_TYPES[$format_type]}"
+        elif [[ $current_section == "desktop_environments" && $line =~ ^([^=]+)[[:space:]]*=[[:space:]]*\[([^]]+)\]$ ]]; then
+            local desktop_env="${BASH_REMATCH[1]}"
+            local scripts="${BASH_REMATCH[2]}"
+            DESKTOP_ENVIRONMENTS["$desktop_env"]=$(echo "$scripts" | tr -d '"' | xargs)
+            print_message DEBUG "Desktop environment: $desktop_env, Scripts: ${DESKTOP_ENVIRONMENTS[$desktop_env]}"
         fi
     done < "$toml_file"
 
@@ -1051,6 +1088,17 @@ parse_stages_toml() {
     for stage in "${!INSTALL_SCRIPTS[@]}"; do
         print_message DEBUG "Stage $stage: ${INSTALL_SCRIPTS[$stage]}"
     done
+
+    print_message DEBUG "Parsed ${#FORMAT_TYPES[@]} format types"
+    for format_type in "${!FORMAT_TYPES[@]}"; do
+        print_message DEBUG "Format type $format_type: ${FORMAT_TYPES[$format_type]}"
+    done
+
+    print_message DEBUG "Parsed ${#DESKTOP_ENVIRONMENTS[@]} desktop environments"
+    for desktop_env in "${!DESKTOP_ENVIRONMENTS[@]}"; do
+        print_message DEBUG "Desktop environment $desktop_env: ${DESKTOP_ENVIRONMENTS[$desktop_env]}"
+    done
+
     return 0
 }
 # @description Run command with dry run support.

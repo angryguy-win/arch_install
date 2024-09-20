@@ -59,10 +59,12 @@ main() {
 
     # Parse the stages TOML file
     parse_stages_toml "$STAGES_CONFIG" || { print_message ERROR "Failed to parse stages.toml"; exit 1; }
-
+    print_message DEBUG "Parsed stages.toml: ${STAGES_CONFIG}"
     # Create a sorted list of stages
     readarray -t SORTED_STAGES < <(printf '%s\n' "${!INSTALL_SCRIPTS[@]}" | sort)
+    print_message DEBUG "Sorted stages: ${SORTED_STAGES[*]}"
     backup_config "$CONFIG_FILE"
+    print_message DEBUG "Backuped config: $CONFIG_FILE"
     read_config
     # Load configuration
     local vars=(FORMAT_TYPE DESKTOP_ENVIRONMENT)
