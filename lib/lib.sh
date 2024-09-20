@@ -941,55 +941,41 @@ run_install_scripts() {
 
     print_message DEBUG "Starting run_install_scripts with format_type: $format_type, desktop_environment: $desktop_environment"
 
-    for stage in "${SORTED_STAGES[@]}"; do
-        print_message DEBUG "Processing stage: $stage"
-        local scripts_str="${INSTALL_SCRIPTS[$stage]}"
-        IFS=';' read -ra scripts_array <<< "$scripts_str"
+    # Create a sorted list of stages
+    local stages=("${!INSTALL_SCRIPTS[@]}")
+    IFS=$'\n' stages=($(sort <<<"${stages[*]}"))
+    unset IFS
 
+    for stage in "${stages[@]}"; do
+        print_message INFO "Processing stage: $stage"
+
+        local content="${INSTALL_SCRIPTS[$stage]}"
+
+        # Initialize script arrays
         local mandatory_scripts=()
         local optional_scripts=()
 
-        # Separate mandatory and optional scripts
-        for script_info in "${scripts_array[@]}"; do
-            if [[ "$script_info" =~ ^(mandatory|optional)=(.*)$ ]]; then
-                local script_type="${BASH_REMATCH[1]}"
-                local script_name="${BASH_REMATCH[2]}"
+        # Extract mandatory and optional scripts
+        if [[ "$content" =~ mandatory\s*=\s*\[(.*)\] ]]; then
+            local mandatory_list="${BASH_REMATCH[1]}"
+            IFS=',' read -ra mandatory_scripts <<< "$mandatory_list"
+        fi
+        if [[ "$content" =~ optional\s*=\s*\[(.*)\] ]]; then
+            local optional_list="${BASH_REMATCH[1]}"
+            IFS=',' read -ra optional_scripts <<< "$optional_list"
+        fi
 
-                # Replace placeholders
-                if [[ "$script_name" =~ \{format_type\} ]]; then
-                    if [[ -n "${FORMAT_TYPES[$format_type]}" ]]; then
-                        IFS=',' read -ra format_scripts <<< "${FORMAT_TYPES[$format_type]}"
-                        for f_script in "${format_scripts[@]}"; do
-                            [[ "$script_type" == "mandatory" ]] && mandatory_scripts+=("$f_script") || optional_scripts+=("$f_script")
-                        done
-                        continue
-                    else
-                        print_message ERROR "Unknown format_type: $format_type"
-                        exit 1
-                    fi
-                elif [[ "$script_name" =~ \{desktop_environment\} ]]; then
-                    if [[ -n "${DESKTOP_ENVIRONMENTS[$desktop_environment]}" ]]; then
-                        IFS=',' read -ra de_scripts <<< "${DESKTOP_ENVIRONMENTS[$desktop_environment]}"
-                        for de_script in "${de_scripts[@]}"; do
-                            [[ "$script_type" == "mandatory" ]] && mandatory_scripts+=("$de_script") || optional_scripts+=("$de_script")
-                        done
-                        continue
-                    else
-                        print_message ERROR "Unknown desktop_environment: $desktop_environment"
-                        exit 1
-                    fi
-                fi
+        # Replace placeholders in script names
+        mandatory_scripts=($(replace_placeholders "${mandatory_scripts[@]}"))
+        optional_scripts=($(replace_placeholders "${optional_scripts[@]}"))
 
-                # Add script to the appropriate list
-                [[ "$script_type" == "mandatory" ]] && mandatory_scripts+=("$script_name") || optional_scripts+=("$script_name")
-            fi
-        done
-
-        print_message DEBUG "Mandatory scripts for $stage: ${mandatory_scripts[*]}"
-        print_message DEBUG "Optional scripts for $stage: ${optional_scripts[*]}"
+        print_message DEBUG "Mandatory scripts for stage '$stage': ${mandatory_scripts[*]}"
+        print_message DEBUG "Optional scripts for stage '$stage': ${optional_scripts[*]}"
 
         # Execute mandatory scripts
         for script in "${mandatory_scripts[@]}"; do
+            script=$(echo "$script" | xargs)  # Trim whitespace
+            [ -z "$script" ] && continue  # Skip empty script names
             if [[ -f "$SCRIPTS_DIR/$stage/$script" ]]; then
                 execute_script "$stage" "$script" "$dry_run" || {
                     print_message ERROR "Failed to execute mandatory script: $stage/$script"
@@ -1003,6 +989,8 @@ run_install_scripts() {
 
         # Execute optional scripts
         for script in "${optional_scripts[@]}"; do
+            script=$(echo "$script" | xargs)  # Trim whitespace
+            [ -z "$script" ] && continue  # Skip empty script names
             if [[ -f "$SCRIPTS_DIR/$stage/$script" ]]; then
                 if should_run_optional_script "$script"; then
                     execute_script "$stage" "$script" "$dry_run" || {
@@ -1012,12 +1000,42 @@ run_install_scripts() {
                     print_message INFO "Skipping optional script: $stage/$script"
                 fi
             else
-                print_message INFO "Optional script not found, skipping: $stage/$script"
+                print_message WARNING "Optional script not found: $stage/$script"
             fi
         done
     done
 
     print_message DEBUG "Finished run_install_scripts"
+}
+# @description Replace placeholders in script names.
+# @arg $1 string Script name
+# @arg $2 string Format type
+# @arg $3 string Desktop environment
+# @return string Script name with placeholders replaced 
+replace_placeholders() {
+    local scripts=("$@")
+    local result=()
+
+    for script in "${scripts[@]}"; do
+        script=$(echo "$script" | sed 's/"//g')  # Remove double quotes
+        # Replace {format_type}
+        if [[ "$script" =~ \{format_type\} ]]; then
+            local replacements=(${FORMAT_TYPES[$format_type]})
+            for repl_script in "${replacements[@]}"; do
+                result+=("$repl_script")
+            done
+        # Replace {desktop_environment}
+        elif [[ "$script" =~ \{desktop_environment\} ]]; then
+            local replacements=(${DESKTOP_ENVIRONMENTS[$desktop_environment]})
+            for repl_script in "${replacements[@]}"; do
+                result+=("$repl_script")
+            done
+        else
+            result+=("$script")
+        fi
+    done
+
+    echo "${result[@]}"
 }
 # @description Check if an optional script should run.
 # @arg $1 string Script name
@@ -1032,76 +1050,69 @@ should_run_optional_script() {
 # @arg $1 string Path to the TOML file
 # @return 0 on success, 1 on failure
 parse_stages_toml() {
-    local toml_file="$ARCH_DIR/stages.toml"
+    local toml_file="$1"
     declare -gA INSTALL_SCRIPTS FORMAT_TYPES DESKTOP_ENVIRONMENTS
 
     print_message DEBUG "Parsing stages TOML file: $toml_file"
 
+    if [[ ! -f "$toml_file" ]]; then
+        print_message ERROR "TOML file not found: $toml_file"
+        return 1
+    fi
+
     local current_section=""
     while IFS= read -r line || [[ -n "$line" ]]; do
-        line=$(echo "$line" | xargs)  # Trim whitespace
+        line=$(echo "$line" | sed 's/^[ \t]*//;s/[ \t]*$//')  # Trim whitespace
 
         # Skip empty lines and comments
         [[ -z "$line" || "$line" =~ ^# ]] && continue
 
-        if [[ "$line" =~ \[(.*)\] ]]; then
+        # Detect section headers
+        if [[ "$line" =~ ^\[([^\]]+)\]$ ]]; then
             current_section="${BASH_REMATCH[1]}"
             print_message DEBUG "Entering section: [$current_section]"
-        elif [[ "$line" =~ ^\"([^\"]+)\"\s*=\s*\{(.*)\} ]]; then
-            local stage="${BASH_REMATCH[1]}"
-            local content="${BASH_REMATCH[2]}"
-            print_message DEBUG "Parsing stage: $stage"
-
-            # Initialize stage scripts
-            INSTALL_SCRIPTS["$stage"]=""
-
-            # Parse mandatory and optional scripts
-            if [[ "$content" =~ mandatory\s*=\s*\[(.*)\] ]]; then
-                local mandatory_list="${BASH_REMATCH[1]}"
-                IFS=',' read -ra mandatory_scripts <<< "$mandatory_list"
-                for script in "${mandatory_scripts[@]}"; do
-                    script=$(echo "$script" | tr -d '"' | xargs)
-                    INSTALL_SCRIPTS["$stage"]+="mandatory=$script;"
-                done
-            fi
-
-            if [[ "$content" =~ optional\s*=\s*\[(.*)\] ]]; then
-                local optional_list="${BASH_REMATCH[1]}"
-                IFS=',' read -ra optional_scripts <<< "$optional_list"
-                for script in "${optional_scripts[@]}"; do
-                    script=$(echo "$script" | tr -d '"' | xargs)
-                    INSTALL_SCRIPTS["$stage"]+="optional=$script;"
-                done
-            fi
-        elif [[ "$current_section" == "format_types" && "$line" =~ ^([^=]+)\s*=\s*\[(.*)\] ]]; then
-            local format="${BASH_REMATCH[1]}"
-            local scripts_str="${BASH_REMATCH[2]}"
-            scripts_str=$(echo "$scripts_str" | tr -d '"')
-            FORMAT_TYPES["$format"]="$scripts_str"
-            print_message DEBUG "Format type '$format' scripts: ${FORMAT_TYPES[$format]}"
-        elif [[ "$current_section" == "desktop_environments" && "$line" =~ ^([^=]+)\s*=\s*\[(.*)\] ]]; then
-            local de="${BASH_REMATCH[1]}"
-            local scripts_str="${BASH_REMATCH[2]}"
-            scripts_str=$(echo "$scripts_str" | tr -d '"')
-            DESKTOP_ENVIRONMENTS["$de"]="$scripts_str"
-            print_message DEBUG "Desktop environment '$de' scripts: ${DESKTOP_ENVIRONMENTS[$de]}"
+            continue
         fi
+
+        case "$current_section" in
+            stages)
+                if [[ "$line" =~ ^\"([^\"]+)\"\s*=\s*\{(.*)\}$ ]]; then
+                    local stage="${BASH_REMATCH[1]}"
+                    local content="${BASH_REMATCH[2]}"
+                    print_message DEBUG "Parsing stage: $stage"
+
+                    # Initialize stage scripts
+                    INSTALL_SCRIPTS["$stage"]="$content"
+                fi
+                ;;
+            format_types)
+                if [[ "$line" =~ ^([^=]+)\s*=\s*\[(.*)\]$ ]]; then
+                    local format="${BASH_REMATCH[1]}"
+                    local scripts_str="${BASH_REMATCH[2]}"
+                    scripts_str=$(echo "$scripts_str" | sed 's/^[ \t]*//;s/[ \t]*$//;s/"//g')
+                    FORMAT_TYPES["$format"]="$scripts_str"
+                    print_message DEBUG "Format type '$format' scripts: ${FORMAT_TYPES[$format]}"
+                fi
+                ;;
+            desktop_environments)
+                if [[ "$line" =~ ^([^=]+)\s*=\s*\[(.*)\]$ ]]; then
+                    local de="${BASH_REMATCH[1]}"
+                    local scripts_str="${BASH_REMATCH[2]}"
+                    scripts_str=$(echo "$scripts_str" | sed 's/^[ \t]*//;s/[ \t]*$//;s/"//g')
+                    DESKTOP_ENVIRONMENTS["$de"]="$scripts_str"
+                    print_message DEBUG "Desktop environment '$de' scripts: ${DESKTOP_ENVIRONMENTS[$de]}"
+                fi
+                ;;
+            *)
+                print_message WARNING "Unknown section or unhandled line: $line"
+                ;;
+        esac
     done < "$toml_file"
 
-    # Print debug information
-    print_message DEBUG "Parsed ${#INSTALL_SCRIPTS[@]} stages"
+    # Debugging output for verification
+    print_message DEBUG "Parsed stages:"
     for stage in "${!INSTALL_SCRIPTS[@]}"; do
-        print_message DEBUG "Stage $stage: ${INSTALL_SCRIPTS[$stage]}"
-    done
-
-    print_message DEBUG "Parsed ${#FORMAT_TYPES[@]} format types"
-    for format_type in "${!FORMAT_TYPES[@]}"; do
-        print_message DEBUG "Format type $format_type: ${FORMAT_TYPES[$format_type]}"
-    done
-
-    print_message DEBUG "Parsed ${#DESKTOP_ENVIRONMENTS[@]} desktop environments"
-    for desktop_env in "${!DESKTOP_ENVIRONMENTS[@]}"; do
-        print_message DEBUG "Desktop environment $desktop_env: ${DESKTOP_ENVIRONMENTS[$desktop_env]}"
+        print_message DEBUG "  Stage '$stage': ${INSTALL_SCRIPTS[$stage]}"
     done
 
     return 0
