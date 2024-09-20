@@ -33,7 +33,7 @@ partitioning() {
         --error-message "Partitioning failed" \
         --success-message "Partitioning completed" \
         "if mountpoint -q /mnt; then umount -A --recursive /mnt; else echo '/mnt is not mounted'; fi" \
-        "sgdisk -Z $DEVICE" \
+        "sgdisk -Z ${DEVICE}" \
         "sgdisk -n1:0:+1M -t1:ef02 -c1:'BIOSBOOT' ${DEVICE}" \
         "sgdisk -n2:0:+512M -t2:ef00 -c2:'EFIBOOT' ${DEVICE}" \
         "sgdisk -n3:0:0 -t3:8300 -c3:'ROOT' ${DEVICE}"
@@ -48,10 +48,6 @@ main() {
     show_logo "Partition Btrfs"
     print_message INFO "Starting partition btrfs process"
     print_message INFO "DRY_RUN in $(basename "$0") is set to: ${YELLOW}$DRY_RUN"
-
-    # Load configuration
-    local vars=(DEVICE)
-    load_config "${vars[@]}" || { print_message ERROR "Failed to load config"; return 1; }
 
     partitioning ${DEVICE} || { print_message ERROR "Partitioning failed"; return 1; }
 
