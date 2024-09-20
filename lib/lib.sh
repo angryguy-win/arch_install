@@ -1017,6 +1017,10 @@ check_and_run_scripts() {
 # @return 0 on success, 1 on failure
 parse_stages_toml() {
     local toml_file="$1"
+    local in_stages=false
+    local stage
+    local scripts
+    
     declare -gA INSTALL_SCRIPTS
 
     # Check if the TOML file exists
