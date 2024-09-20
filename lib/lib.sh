@@ -941,24 +941,36 @@ run_install_scripts() {
     local mandatory_scripts
     local optional_scripts
 
+    print_message DEBUG "Starting run_install_scripts with format_type: $format_type, desktop_environment: $desktop_environment"
+
     parse_stages_toml
+
+    print_message DEBUG "Stages after parsing: ${!INSTALL_SCRIPTS[*]}"
 
     for stage in "${SORTED_STAGES[@]}"; do
         print_message DEBUG "Processing stage: $stage"
+        print_message DEBUG "Stage content: ${INSTALL_SCRIPTS[$stage]}"
+        
         IFS=';' read -ra stage_scripts <<< "${INSTALL_SCRIPTS[$stage]}"
         mandatory_scripts=()
         optional_scripts=()
 
         for script_info in "${stage_scripts[@]}"; do
+            print_message DEBUG "Processing script_info: $script_info"
+            
             if [[ $script_info =~ ^(mandatory|optional)=([^=]+)$ ]]; then
                 local type="${BASH_REMATCH[1]}"
                 local script="${BASH_REMATCH[2]}"
                 
+                print_message DEBUG "Parsed type: $type, script: $script"
+
                 # Handle format_type placeholder
                 if [[ $script == *"{format_type}"* ]]; then
+                    print_message DEBUG "Handling format_type placeholder for $script"
                     if [[ -n "${FORMAT_TYPES[$format_type]}" ]]; then
                         IFS=',' read -ra format_scripts <<< "${FORMAT_TYPES[$format_type]}"
                         for format_script in "${format_scripts[@]}"; do
+                            print_message DEBUG "Adding format script: $format_script"
                             if [[ $type == "mandatory" ]]; then
                                 mandatory_scripts+=("$format_script")
                             else
@@ -973,9 +985,11 @@ run_install_scripts() {
                 
                 # Handle desktop_environment placeholder
                 if [[ $script == *"{desktop_environment}"* ]]; then
+                    print_message DEBUG "Handling desktop_environment placeholder for $script"
                     if [[ -n "${DESKTOP_ENVIRONMENTS[$desktop_environment]}" ]]; then
                         IFS=',' read -ra de_scripts <<< "${DESKTOP_ENVIRONMENTS[$desktop_environment]}"
                         for de_script in "${de_scripts[@]}"; do
+                            print_message DEBUG "Adding desktop environment script: $de_script"
                             if [[ $type == "mandatory" ]]; then
                                 mandatory_scripts+=("$de_script")
                             else
@@ -990,10 +1004,14 @@ run_install_scripts() {
 
                 # If no placeholder, add the script as is
                 if [[ $type == "mandatory" ]]; then
+                    print_message DEBUG "Adding mandatory script: $script"
                     mandatory_scripts+=("$script")
                 else
+                    print_message DEBUG "Adding optional script: $script"
                     optional_scripts+=("$script")
                 fi
+            else
+                print_message WARNING "Invalid script_info format: $script_info"
             fi
         done
 
@@ -1001,10 +1019,12 @@ run_install_scripts() {
         print_message DEBUG "Optional scripts for $stage: ${optional_scripts[*]}"
 
         for script in "${mandatory_scripts[@]}"; do
+            print_message DEBUG "Checking mandatory script: $stage/$script"
             if [[ ! -f "$SCRIPTS_DIR/$stage/$script" ]]; then
                 print_message ERROR "Mandatory script not found: $stage/$script"
                 return 1
             fi
+            print_message DEBUG "Executing mandatory script: $stage/$script"
             if ! execute_script "$stage" "$script" "$dry_run"; then
                 print_message ERROR "Failed to execute mandatory script: $stage/$script"
                 return 1
@@ -1012,8 +1032,10 @@ run_install_scripts() {
         done
 
         for script in "${optional_scripts[@]}"; do
+            print_message DEBUG "Checking optional script: $stage/$script"
             if [[ -f "$SCRIPTS_DIR/$stage/$script" ]]; then
                 if should_run_optional_script "$script"; then
+                    print_message DEBUG "Executing optional script: $stage/$script"
                     if ! execute_script "$stage" "$script" "$dry_run"; then
                         print_message WARNING "Failed to execute optional script: $stage/$script"
                     fi
@@ -1025,6 +1047,8 @@ run_install_scripts() {
             fi
         done
     done
+
+    print_message DEBUG "Finished run_install_scripts"
 }
 # @description Check if an optional script should run.
 # @arg $1 string Script name
@@ -1049,6 +1073,7 @@ parse_stages_toml() {
     print_message DEBUG "Parsing stages TOML file: $toml_file"
 
     while IFS= read -r line; do
+        print_message DEBUG "Processing line: $line"
         if [[ $line =~ ^\[([^]]+)\]$ ]]; then
             current_section="${BASH_REMATCH[1]}"
             print_message DEBUG "Found section: $current_section"
@@ -1056,13 +1081,14 @@ parse_stages_toml() {
             local stage="${BASH_REMATCH[1]}"
             local content="${BASH_REMATCH[2]}"
             INSTALL_SCRIPTS["$stage"]=""
-            print_message DEBUG "Processing stage: $stage"
+            print_message DEBUG "Processing stage: $stage, content: $content"
             
             if [[ $content =~ mandatory[[:space:]]*=[[:space:]]*\[([^]]+)\] ]]; then
                 IFS=',' read -ra mandatory_scripts <<< "${BASH_REMATCH[1]}"
                 for script in "${mandatory_scripts[@]}"; do
                     script=$(echo "$script" | tr -d '"' | xargs)
                     INSTALL_SCRIPTS["$stage"]+="mandatory=$script;"
+                    print_message DEBUG "Added mandatory script to $stage: $script"
                 done
             fi
             
@@ -1071,6 +1097,7 @@ parse_stages_toml() {
                 for script in "${optional_scripts[@]}"; do
                     script=$(echo "$script" | tr -d '"' | xargs)
                     INSTALL_SCRIPTS["$stage"]+="optional=$script;"
+                    print_message DEBUG "Added optional script to $stage: $script"
                 done
             fi
         elif [[ $current_section == "format_types" && $line =~ ^([^=]+)[[:space:]]*=[[:space:]]*\[([^]]+)\]$ ]]; then
