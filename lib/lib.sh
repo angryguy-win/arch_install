@@ -975,17 +975,19 @@ run_install_scripts() {
         # Execute mandatory scripts
         for script in "${mandatory_scripts[@]}"; do
             script=$(echo "$script" | xargs)  # Trim whitespace
-            [ -z "$script" ] && continue  # Skip empty script names
-            if [[ -f "$SCRIPTS_DIR/$stage/$script" ]]; then
+                [ -z "$script" ] && continue  # Skip empty script names
+            script_path="$SCRIPTS_DIR/$stage/$script"
+            if [[ -f "$script_path" ]]; then
+                print_message DEBUG "About to execute mandatory script: $script_path"
                 execute_script "$stage" "$script" "$dry_run" || {
                     print_message ERROR "Failed to execute mandatory script: $stage/$script"
                     exit 1
                 }
             else
-                print_message ERROR "Mandatory script not found: $stage/$script"
+                print_message ERROR "Mandatory script not found: $script_path"
                 exit 1
             fi
-        done
+done
 
         # Execute optional scripts
         for script in "${optional_scripts[@]}"; do
@@ -1020,13 +1022,15 @@ replace_placeholders() {
         script=$(echo "$script" | sed 's/"//g')  # Remove double quotes
         # Replace {format_type}
         if [[ "$script" =~ \{format_type\} ]]; then
-            local replacements=(${FORMAT_TYPES[$format_type]})
+            local replacements=("${FORMAT_TYPES[$format_type]}")
+            print_message DEBUG "Replacing {format_type} in '$script' with '${replacements[*]}'"
             for repl_script in "${replacements[@]}"; do
                 result+=("$repl_script")
             done
         # Replace {desktop_environment}
         elif [[ "$script" =~ \{desktop_environment\} ]]; then
-            local replacements=(${DESKTOP_ENVIRONMENTS[$desktop_environment]})
+            local replacements=("${DESKTOP_ENVIRONMENTS[$desktop_environment]}")
+            print_message DEBUG "Replacing {desktop_environment} in '$script' with '${replacements[*]}'"
             for repl_script in "${replacements[@]}"; do
                 result+=("$repl_script")
             done

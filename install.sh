@@ -52,13 +52,20 @@ main() {
     print_message INFO "Welcome to the Arch Linux installer script"
 
     print_message PROC "DRY_RUN is set to: ${YELLOW}$DRY_RUN"
-    print_system_info
+    #print_system_info
 
     export STAGES_CONFIG="${STAGES_CONFIG:-$ARCH_DIR/stages.toml}"
 
     # Parse the stages TOML file
     parse_stages_toml "$STAGES_CONFIG" || { print_message ERROR "Failed to parse stages.toml"; exit 1; }
     print_message DEBUG "Parsed stages.toml: ${STAGES_CONFIG}"
+
+    # Debug: Print the contents of INSTALL_SCRIPTS
+    print_message DEBUG "Contents of INSTALL_SCRIPTS:"
+    for key in "${!INSTALL_SCRIPTS[@]}"; do
+        print_message DEBUG "  Stage: $key"
+        print_message DEBUG "    Scripts: ${INSTALL_SCRIPTS[$key]}"
+    done
 
     # Load configuration
     load_config  || { print_message ERROR "Failed to load config"; exit 1; }
