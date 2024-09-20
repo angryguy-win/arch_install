@@ -78,9 +78,9 @@ main() {
 
     # Print the INSTALL_SCRIPTS array for verification
     print_message INFO "Installation Stages and Scripts:"
-    for stage in "${SORTED_STAGES[@]}"; do
-        print_message INFO "  $stage: ${INSTALL_SCRIPTS[$stage]}"
-    done
+    #for stage in "${SORTED_STAGES[@]}"; do
+    #    print_message INFO "  $stage: ${INSTALL_SCRIPTS[$stage]}"
+    #done
 
     print_message DEBUG "FORMAT_TYPE: $FORMAT_TYPE"
     print_message DEBUG "DESKTOP_ENVIRONMENT: $DESKTOP_ENVIRONMENT"
