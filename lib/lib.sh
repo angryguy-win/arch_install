@@ -915,15 +915,6 @@ execute_script() {
 
     return 0
 }
-# @description Check if an optional script should run.
-# @arg $1 string Script name
-# @return 0 if the script should run, 1 otherwise   
-should_run_optional_script() {
-    local script="$1"
-    local config_var="INSTALL_$(echo "${script%.*}" | tr '[:lower:]' '[:upper:]' | tr '-' '_')"
-    local install_script=$(get_config_value "$config_var" "false")
-    [[ "$install_script" == "true" ]]
-}
 # @description Run install scripts.
 # @arg $1 string Format type
 # @arg $2 string Desktop environment
@@ -934,65 +925,30 @@ run_install_scripts() {
     local mandatory_scripts
     local optional_scripts
 
-    print_message DEBUG "Format type: $format_type"
-    print_message DEBUG "Desktop environment: $desktop_environment"
-    print_message DEBUG "DRY_RUN: $DRY_RUN"
+    parse_stages_toml
 
-    for stage in "${SORTED_STAGES[@]}"; do
-        print_message INFO "Starting stage: $stage"
+    for stage in "${!INSTALL_SCRIPTS[@]}"; do
+        IFS=';' read -ra stage_scripts <<< "${INSTALL_SCRIPTS[$stage]}"
+        mandatory_scripts=()
+        optional_scripts=()
 
-        local -a mandatory_scripts=()
-        local -a optional_scripts=()
+        for script_info in "${stage_scripts[@]}"; do
+            if [[ $script_info =~ ^mandatory=(.+)$ ]]; then
+                mandatory_scripts+=("${BASH_REMATCH[1]}")
+            elif [[ $script_info =~ ^optional=(.+)$ ]]; then
+                optional_scripts+=("${BASH_REMATCH[1]}")
+            fi
+        done
 
-        case "$stage" in
-            "1-pre")
-                mandatory_scripts=("pre-setup.sh")
-                optional_scripts=("run-checks.sh")
-                ;;
-            "2-drive")
-                if [[ "$format_type" == "btrfs" ]]; then
-                    mandatory_scripts=("partition-btrfs.sh" "format-btrfs.sh")
-                elif [[ "$format_type" == "ext4" ]]; then
-                    mandatory_scripts=("partition-ext4.sh" "format-ext4.sh")
-                else
-                    print_message ERROR "Invalid format type: $format_type"
-                    return 1
-                fi
-                ;;
-            "3-base")
-                mandatory_scripts=("bootstrap-pkgs.sh" "generate-fstab.sh")
-                ;;
-            "4-post")
-                mandatory_scripts=("system-config.sh" "system-pkgs.sh")
-                optional_scripts=("terminal.sh")
-                ;;
-            "5-desktop")
-                if [[ "$desktop_environment" == "none" ]]; then
-                    mandatory_scripts=("none.sh")
-                else
-                    mandatory_scripts=("${desktop_environment}.sh")
-                    optional_scripts=("${desktop_environment}.sh")
-                fi
-                ;;
-            "6-final")
-                mandatory_scripts=("last-cleanup.sh")
-                ;;
-            "7-post-optional")
-                optional_scripts=("post-setup.sh")
-                ;;
-        esac
+        # Replace placeholders in script names
+        mandatory_scripts=("${mandatory_scripts[@]/\{format_type\}/$format_type}")
+        mandatory_scripts=("${mandatory_scripts[@]/\{desktop_environment\}/$desktop_environment}")
 
-        # Convert arrays to delimited strings
-        mandatory_scripts_str=$(printf "%s|" "${mandatory_scripts[@]}")
-        optional_scripts_str=$(printf "%s|" "${optional_scripts[@]}")
+        optional_scripts=("${optional_scripts[@]/\{format_type\}/$format_type}")
+        optional_scripts=("${optional_scripts[@]/\{desktop_environment\}/$desktop_environment}")
 
-        if ! check_and_run_scripts "$stage" "${mandatory_scripts_str%|}" "${optional_scripts_str%|}"; then
-            print_message ERROR "Failed to process scripts for stage: $stage"
-            return 1
-        fi
+        check_and_run_scripts "$stage" "${mandatory_scripts[*]}" "${optional_scripts[*]}"
     done
-
-    return 0
 }
 # @description Check and run scripts for a given stage.
 # @arg $1 string Stage (directory name)
@@ -1034,48 +990,36 @@ check_and_run_scripts() {
 
     return 0
 }
+# @description Check if an optional script should run.
+# @arg $1 string Script name
+# @return 0 if the script should run, 1 otherwise   
+should_run_optional_script() {
+    local script="$1"
+    local config_var="INSTALL_$(echo "${script%.*}" | tr '[:lower:]' '[:upper:]' | tr '-' '_')"
+    local install_script=$(get_config_value "$config_var" "false")
+    [[ "$install_script" == "true" ]]
+}
 # @description Parse TOML file and populate INSTALL_SCRIPTS
 # @arg $1 string Path to the TOML file
 # @return 0 on success, 1 on failure
 parse_stages_toml() {
-    local toml_file="$1"
-    local in_stages=false
-    local stage
-    local scripts
+    local toml_file="$ARCH_DIR/stages.toml"
+    local current_stage=""
 
     declare -gA INSTALL_SCRIPTS
 
-    # Check if the TOML file exists
-    if [[ ! -f "$toml_file" ]]; then
-        print_message ERROR "Stages configuration file not found: " "$toml_file"
-        return 1
-    fi
-
-    # Parse the TOML file
     while IFS= read -r line; do
-        # Skip comments and empty lines
-        [[ $line =~ ^[[:space:]]*# ]] && continue
-        [[ -z "$line" ]] && continue
-
-        if [[ $line =~ ^\[stages\] ]]; then
-            # We're in the stages section
-            in_stages=true
-        elif [[ $in_stages == true && $line =~ ^\"([^\"]+)\"[[:space:]]*=[[:space:]]*\[(.*)\]$ ]]; then
-            # This is a stage definition
-            stage="${BASH_REMATCH[1]}"
-            scripts="${BASH_REMATCH[2]}"
-            # Remove quotes and spaces from scripts list
-            scripts=$(echo "$scripts" | sed 's/\"//g; s/,//g; s/^ *//; s/ *$//')
-            INSTALL_SCRIPTS["$stage"]="$scripts"
+        if [[ $line =~ ^\[([^]]+)\]$ ]]; then
+            current_stage="${BASH_REMATCH[1]}"
+            INSTALL_SCRIPTS["$current_stage"]=""
+        elif [[ $current_stage && $line =~ ^([^=]+)=(.+)$ ]]; then
+            local key="${BASH_REMATCH[1]}"
+            local value="${BASH_REMATCH[2]}"
+            INSTALL_SCRIPTS["$current_stage"]+="${key}=${value};"
         fi
     done < "$toml_file"
 
-    # Verify that we parsed some stages
-    if [[ ${#INSTALL_SCRIPTS[@]} -eq 0 ]]; then
-        print_message ERROR "No stages found in " "$toml_file"
-        return 1
-    fi
-
+    [[ ${#INSTALL_SCRIPTS[@]} -eq 0 ]] && return 1
     return 0
 }
 # @description Run command with dry run support.

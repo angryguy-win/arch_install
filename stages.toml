@@ -1,8 +1,19 @@
 [stages]
-"1-pre" = ["pre-setup.sh", "run-checks.sh"]
-"2-drive" = ["partition-btrfs.sh", "format-btrfs.sh"]
-"3-base" = ["bootstrap-pkgs.sh", "generate-fstab.sh"]
-"4-post" = ["system-config.sh", "system-pkgs.sh", "terminal.sh"]
-"5-desktop" = ["gnome.sh"]
-"6-final" = ["last-cleanup.sh"]
-"7-post" = ["post-setup.sh"]
+"1-pre" = { mandatory = ["pre-setup.sh"], optional = ["run-checks.sh"] }
+"2-drive" = { mandatory = ["partition-{format_type}.sh", "format-{format_type}.sh"] }
+"3-base" = { mandatory = ["bootstrap-pkgs.sh", "generate-fstab.sh"] }
+"4-post" = { mandatory = ["system-config.sh", "system-pkgs.sh"], optional = ["terminal.sh"] }
+"5-desktop" = { mandatory = ["{desktop_environment}.sh"] }
+"6-final" = { mandatory = ["last-cleanup.sh"] }
+"7-post-optional" = { optional = ["post-setup.sh"] }
+
+[format_types]
+btrfs = ["partition-btrfs.sh", "format-btrfs.sh"]
+ext4 = ["partition-ext4.sh", "format-ext4.sh"]
+
+[desktop_environments]
+none = ["none.sh"]
+gnome = ["gnome.sh"]
+kde = ["kde.sh"]
+cosmic = ["cosmic.sh"]
+dwm = ["dwm.sh"]    
