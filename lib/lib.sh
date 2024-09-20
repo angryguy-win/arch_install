@@ -874,7 +874,7 @@ execute_script() {
     local stage="$1"
     local script="$2"
     local dry_run="$3"
-    local script_path
+    local script_path="$SCRIPTS_DIR/$stage/$script"
 
     # Both stage and script must be provided
     if [[ -z "$stage" || -z "$script" ]]; then
@@ -882,18 +882,16 @@ execute_script() {
         return 1
     fi
 
-    script_path="$SCRIPTS_DIR/$stage/$script"
-
     # Check if the script file exists
     if [[ ! -f "$script_path" ]]; then
-        print_message ERROR "Script file not found: " "$script_path"
-        return 1
+        print_message WARNING "Script file not found: $script_path"
+        return 0  # Return 0 instead of 1 to allow continuation
     fi
 
     # Print the script being executed
-    print_message INFO "Executing: " "$stage/$script"
-    print_message DEBUG "Script path: " "$script_path"
-    print_message DEBUG "DRY_RUN value before execution:" "$DRY_RUN"
+    print_message INFO "Executing: $stage/$script"
+    print_message DEBUG "Script path: $script_path"
+    print_message DEBUG "DRY_RUN value before execution: $DRY_RUN"
 
     # Execute the script
     if [[ $dry_run == true ]]; then
