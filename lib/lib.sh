@@ -925,7 +925,7 @@ run_install_scripts() {
     local mandatory_scripts
     local optional_scripts
 
-    #parse_stages_toml
+    parse_stages_toml
 
     for stage in "${!INSTALL_SCRIPTS[@]}"; do
         print_message DEBUG "Processing stage: $stage"
@@ -1048,6 +1048,9 @@ parse_stages_toml() {
     fi
 
     print_message DEBUG "Parsed ${#INSTALL_SCRIPTS[@]} stages"
+    for stage in "${!INSTALL_SCRIPTS[@]}"; do
+        print_message DEBUG "Stage $stage: ${INSTALL_SCRIPTS[$stage]}"
+    done
     return 0
 }
 # @description Run command with dry run support.

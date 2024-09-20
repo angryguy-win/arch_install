@@ -32,7 +32,7 @@ fi
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 export ARCH_DIR="$SCRIPT_DIR"
 export SCRIPTS_DIR="$ARCH_DIR/scripts"
-export STAGES_CONFIG="${STAGES_CONFIG:-$ARCH_DIR/stages.toml}"
+ 
 export CONFIG_FILE="$ARCH_DIR/arch_config.cfg"
 
 # Source the library functions

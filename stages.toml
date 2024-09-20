@@ -4,7 +4,7 @@
 "3-base" = { mandatory = ["bootstrap-pkgs.sh", "generate-fstab.sh"] }
 "4-post" = { mandatory = ["system-config.sh", "system-pkgs.sh"], optional = ["terminal.sh"] }
 "5-desktop" = { mandatory = ["{desktop_environment}.sh"] }
-"6-final" = { mandatory = ["last-cleanup.sh"] }
+"6-final" = { mandatory = ["last-cleanup.sh"] } 
 "7-post-optional" = { optional = ["post-setup.sh"] }
 
 [format_types]
