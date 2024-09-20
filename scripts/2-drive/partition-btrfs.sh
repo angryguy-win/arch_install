@@ -26,6 +26,8 @@ export DRY_RUN="${DRY_RUN:-false}"
 
 partitioning() {
 
+    print_message INFO "Device set to: $DEVICE"
+
     print_message INFO "Partitioning $DEVICE"
     execute_process "Partitioning" \
         --error-message "Partitioning failed" \
