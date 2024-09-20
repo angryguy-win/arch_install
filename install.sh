@@ -61,7 +61,6 @@ main() {
     print_message DEBUG "Parsed stages.toml: ${STAGES_CONFIG}"
 
     # Load configuration
-    local vars=(FORMAT_TYPE DESKTOP_ENVIRONMENT)
     load_config  || { print_message ERROR "Failed to load config"; exit 1; }
 
     print_message DEBUG "FORMAT_TYPE: $FORMAT_TYPE"
