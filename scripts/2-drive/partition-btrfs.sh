@@ -25,8 +25,6 @@ export DRY_RUN="${DRY_RUN:-false}"
 
 
 partitioning() {
-    local device
-    device="$1"
 
     print_message INFO "Partitioning $DEVICE"
     execute_process "Partitioning" \

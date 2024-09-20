@@ -36,6 +36,8 @@ formating() {
         "mkfs.vfat -F32 -n EFIBOOT $PARTITION_EFI" \
         "mkfs.btrfs -f -L ROOT $PARTITION_ROOT" \
         "mount -t btrfs $PARTITION_ROOT /mnt" 
+        print_message INFO "Format $PARTITION_ROOT as btrfs"
+        print_message INFO "Format $PARTITION_EFI as vfat"
     
 }
 subvolumes_setup() {
