@@ -925,7 +925,7 @@ run_install_scripts() {
     local mandatory_scripts
     local optional_scripts
 
-    parse_stages_toml
+    #parse_stages_toml
 
     for stage in "${!INSTALL_SCRIPTS[@]}"; do
         print_message DEBUG "Processing stage: $stage"
@@ -1008,27 +1008,37 @@ should_run_optional_script() {
 # @return 0 on success, 1 on failure
 parse_stages_toml() {
     local toml_file="$ARCH_DIR/stages.toml"
-    local current_stage=""
-    local script_type=""
+    local current_section=""
 
     declare -gA INSTALL_SCRIPTS
 
     print_message DEBUG "Parsing stages TOML file: $toml_file"
 
     while IFS= read -r line; do
-        if [[ $line =~ ^\[([^.]+)\]$ ]]; then
-            current_stage="${BASH_REMATCH[1]}"
-            INSTALL_SCRIPTS["$current_stage"]=""
-            script_type=""
-            print_message DEBUG "Found stage: $current_stage"
-        elif [[ $line =~ ^\[${current_stage}\.([^]]+)\]$ ]]; then
-            script_type="${BASH_REMATCH[1]}"
-            print_message DEBUG "Found script type for $current_stage: $script_type"
-        elif [[ $current_stage && $script_type && $line =~ ^([^=]+)=(.+)$ ]]; then
-            local key="${BASH_REMATCH[1]}"
-            local value="${BASH_REMATCH[2]}"
-            INSTALL_SCRIPTS["$current_stage"]+="${script_type}=${key}=${value};"
-            print_message DEBUG "Added to stage $current_stage ($script_type): $key=$value"
+        if [[ $line =~ ^\[([^]]+)\]$ ]]; then
+            current_section="${BASH_REMATCH[1]}"
+            print_message DEBUG "Found section: $current_section"
+        elif [[ $current_section == "stages" && $line =~ ^\"([^\"]+)\"[[:space:]]*=[[:space:]]*\{([^}]+)\}$ ]]; then
+            local stage="${BASH_REMATCH[1]}"
+            local content="${BASH_REMATCH[2]}"
+            INSTALL_SCRIPTS["$stage"]=""
+            print_message DEBUG "Processing stage: $stage"
+            
+            if [[ $content =~ mandatory[[:space:]]*=[[:space:]]*\[([^]]+)\] ]]; then
+                IFS=',' read -ra mandatory_scripts <<< "${BASH_REMATCH[1]}"
+                for script in "${mandatory_scripts[@]}"; do
+                    script=$(echo "$script" | tr -d '"' | xargs)
+                    INSTALL_SCRIPTS["$stage"]+="mandatory=$script;"
+                done
+            fi
+            
+            if [[ $content =~ optional[[:space:]]*=[[:space:]]*\[([^]]+)\] ]]; then
+                IFS=',' read -ra optional_scripts <<< "${BASH_REMATCH[1]}"
+                for script in "${optional_scripts[@]}"; do
+                    script=$(echo "$script" | tr -d '"' | xargs)
+                    INSTALL_SCRIPTS["$stage"]+="optional=$script;"
+                done
+            fi
         fi
     done < "$toml_file"
 
