@@ -928,22 +928,26 @@ run_install_scripts() {
     parse_stages_toml
 
     for stage in "${!INSTALL_SCRIPTS[@]}"; do
+        print_message DEBUG "Processing stage: $stage"
         IFS=';' read -ra stage_scripts <<< "${INSTALL_SCRIPTS[$stage]}"
         mandatory_scripts=()
         optional_scripts=()
 
         for script_info in "${stage_scripts[@]}"; do
-            if [[ $script_info =~ ^mandatory=(.+)$ ]]; then
-                mandatory_scripts+=("${BASH_REMATCH[1]}")
-            elif [[ $script_info =~ ^optional=(.+)$ ]]; then
-                optional_scripts+=("${BASH_REMATCH[1]}")
+            if [[ $script_info =~ ^(mandatory|optional)=([^=]+)=(.+)$ ]]; then
+                local type="${BASH_REMATCH[1]}"
+                local script="${BASH_REMATCH[2]}=${BASH_REMATCH[3]}"
+                if [[ $type == "mandatory" ]]; then
+                    mandatory_scripts+=("$script")
+                else
+                    optional_scripts+=("$script")
+                fi
             fi
         done
 
-        # Replace placeholders in script names
+        # Replace placeholders
         mandatory_scripts=("${mandatory_scripts[@]/\{format_type\}/$format_type}")
         mandatory_scripts=("${mandatory_scripts[@]/\{desktop_environment\}/$desktop_environment}")
-
         optional_scripts=("${optional_scripts[@]/\{format_type\}/$format_type}")
         optional_scripts=("${optional_scripts[@]/\{desktop_environment\}/$desktop_environment}")
 
@@ -1005,21 +1009,35 @@ should_run_optional_script() {
 parse_stages_toml() {
     local toml_file="$ARCH_DIR/stages.toml"
     local current_stage=""
+    local script_type=""
 
     declare -gA INSTALL_SCRIPTS
 
+    print_message DEBUG "Parsing stages TOML file: $toml_file"
+
     while IFS= read -r line; do
-        if [[ $line =~ ^\[([^]]+)\]$ ]]; then
+        if [[ $line =~ ^\[([^.]+)\]$ ]]; then
             current_stage="${BASH_REMATCH[1]}"
             INSTALL_SCRIPTS["$current_stage"]=""
-        elif [[ $current_stage && $line =~ ^([^=]+)=(.+)$ ]]; then
+            script_type=""
+            print_message DEBUG "Found stage: $current_stage"
+        elif [[ $line =~ ^\[${current_stage}\.([^]]+)\]$ ]]; then
+            script_type="${BASH_REMATCH[1]}"
+            print_message DEBUG "Found script type for $current_stage: $script_type"
+        elif [[ $current_stage && $script_type && $line =~ ^([^=]+)=(.+)$ ]]; then
             local key="${BASH_REMATCH[1]}"
             local value="${BASH_REMATCH[2]}"
-            INSTALL_SCRIPTS["$current_stage"]+="${key}=${value};"
+            INSTALL_SCRIPTS["$current_stage"]+="${script_type}=${key}=${value};"
+            print_message DEBUG "Added to stage $current_stage ($script_type): $key=$value"
         fi
     done < "$toml_file"
 
-    [[ ${#INSTALL_SCRIPTS[@]} -eq 0 ]] && return 1
+    if [[ ${#INSTALL_SCRIPTS[@]} -eq 0 ]]; then
+        print_message ERROR "No stages found in TOML file"
+        return 1
+    fi
+
+    print_message DEBUG "Parsed ${#INSTALL_SCRIPTS[@]} stages"
     return 0
 }
 # @description Run command with dry run support.
