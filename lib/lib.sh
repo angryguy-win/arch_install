@@ -915,6 +915,15 @@ execute_script() {
 
     return 0
 }
+# @description Check if an optional script should run.
+# @arg $1 string Script name
+# @return 0 if the script should run, 1 otherwise   
+should_run_optional_script() {
+    local script="$1"
+    local config_var="INSTALL_$(echo "${script%.*}" | tr '[:lower:]' '[:upper:]' | tr '-' '_')"
+    local install_script=$(get_config_value "$config_var" "false")
+    [[ "$install_script" == "true" ]]
+}
 # @description Run install scripts.
 # @arg $1 string Format type
 # @arg $2 string Desktop environment
@@ -998,6 +1007,10 @@ check_and_run_scripts() {
     print_message INFO "Checking scripts for stage: $stage"
 
     for script in "${mandatory_scripts[@]}"; do
+        if [[ ! -f "$SCRIPTS_DIR/$stage/$script" ]]; then
+            print_message ERROR "Mandatory script not found: $stage/$script"
+            return 1
+        fi
         if ! execute_script "$stage" "$script" "$DRY_RUN"; then
             print_message ERROR "Failed to execute mandatory script: $stage/$script"
             return 1
@@ -1005,9 +1018,17 @@ check_and_run_scripts() {
     done
 
     for script in "${optional_scripts[@]}"; do
-        if ! execute_script "$stage" "$script" "$DRY_RUN"; then
-            print_message ERROR "Failed to execute optional script: $stage/$script"
-            return 1
+        if [[ -f "$SCRIPTS_DIR/$stage/$script" ]]; then
+            if should_run_optional_script "$script"; then
+                if ! execute_script "$stage" "$script" "$DRY_RUN"; then
+                    print_message WARNING "Failed to execute optional script: $stage/$script"
+                    # Don't return 1 here, as it's an optional script
+                fi
+            else
+                print_message INFO "Skipping optional script: $stage/$script"
+            fi
+        else
+            print_message INFO "Optional script not found, skipping: $stage/$script"
         fi
     done
 
