@@ -57,9 +57,15 @@ main() {
     # Print system information
     print_system_info
 
+    export STAGES_CONFIG="${STAGES_CONFIG:-$ARCH_DIR/stages.toml}"
     # Parse the stages TOML file
     parse_stages_toml "$STAGES_CONFIG" || { print_message ERROR "Failed to parse stages.toml"; exit 1; }
     print_message DEBUG "Parsed stages.toml: ${STAGES_CONFIG}"
+    # Debugging output for INSTALL_SCRIPTS
+    print_message DEBUG "Contents of INSTALL_SCRIPTS:"
+    for key in "${!INSTALL_SCRIPTS[@]}"; do
+        print_message DEBUG "  $key: ${INSTALL_SCRIPTS[$key]}"
+    done
     # Create a sorted list of stages
     readarray -t SORTED_STAGES < <(printf '%s\n' "${!INSTALL_SCRIPTS[@]}" | sort)
     print_message DEBUG "Sorted stages: ${SORTED_STAGES[*]}"
