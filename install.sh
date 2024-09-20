@@ -63,15 +63,22 @@ main() {
     # Debug: Print the contents of INSTALL_SCRIPTS
     print_message DEBUG "Contents of INSTALL_SCRIPTS:"
     for key in "${!INSTALL_SCRIPTS[@]}"; do
-        print_message DEBUG "  Stage: $key"
-        print_message DEBUG "    Scripts: ${INSTALL_SCRIPTS[$key]}"
+        print_message DEBUG "  $key: ${INSTALL_SCRIPTS[$key]}"
     done
 
     # Load configuration
     load_config  || { print_message ERROR "Failed to load config"; exit 1; }
-
+    export FORMAT_TYPE DESKTOP_ENVIRONMENT
     print_message DEBUG "FORMAT_TYPE: $FORMAT_TYPE"
     print_message DEBUG "DESKTOP_ENVIRONMENT: $DESKTOP_ENVIRONMENT"
+
+    if ! check_required_scripts; then
+        print_message ERROR "Missing required scripts. Aborting installation."
+        exit 1
+    fi
+
+    # If we reach this point, all required scripts are present
+    print_message OK "All required scripts are present."
 
     # Run install scripts
     run_install_scripts "$FORMAT_TYPE" "$DESKTOP_ENVIRONMENT" "$DRY_RUN" || {
