@@ -873,6 +873,7 @@ execute_process() {
 execute_script() {
     local stage="$1"
     local script="$2"
+    local dry_run="$3"
     local script_path
 
     # Both stage and script must be provided
@@ -895,7 +896,7 @@ execute_script() {
     print_message DEBUG "DRY_RUN value before execution:" "$DRY_RUN"
 
     # Execute the script
-    if [[ $DRY_RUN == true ]]; then
+    if [[ $dry_run == true ]]; then
         print_message ACTION "[DRY RUN] Would execute: bash $script_path (Script: $script)"
         
         # Simulate execution of commands in the script
@@ -906,7 +907,7 @@ execute_script() {
         done < "$script_path"
     else
         print_message ACTION "Executing script: $script_path"
-        if ! (export DRY_RUN="$DRY_RUN"; bash "$script_path"); then
+        if ! (export DRY_RUN="$dry_run"; bash "$script_path"); then
             print_message ERROR "Failed to execute $script in stage $stage"
             return 1
         fi
@@ -921,45 +922,67 @@ run_install_scripts() {
     local format_type="$1"
     local desktop_environment="$2"
     local dry_run="${3:=false}"
+    local mandatory_scripts
+    local optional_scripts
 
-    print_message DEBUG "Format type: " "$format_type"
-    print_message DEBUG "Desktop environment: " "$desktop_environment"
-    print_message DEBUG "DRY_RUN: " "$DRY_RUN"
+    print_message DEBUG "Format type: $format_type"
+    print_message DEBUG "Desktop environment: $desktop_environment"
+    print_message DEBUG "DRY_RUN: $DRY_RUN"
 
     for stage in "${SORTED_STAGES[@]}"; do
-        print_message INFO "Starting stage: " "$stage"
-        IFS=' ' read -ra scripts <<< "${INSTALL_SCRIPTS[$stage]}"
-        
-        for script in "${scripts[@]}"; do
-            print_message ACTION "Processing script: $stage/$script"
-            if [[ ! -f "$SCRIPTS_DIR/$stage/$script" ]]; then
-                print_message WARNING "Script not found: $SCRIPTS_DIR/$stage/$script"
-                continue
-            fi
-            if [[ $dry_run == true ]]; then
-                # Instead of just printing, we'll source the script in a subshell
-                # This allows us to run the script's functions without affecting the main shell
-                (
-                    source "$SCRIPTS_DIR/$stage/$script"
-                    # Assuming each script has a main function named after the script
-                    script_main="${script%.*}"  # Remove file extension
-                    if declare -f "$script_main" > /dev/null; then
-                        print_message ACTION "[DRY RUN] Executing main function of $script"
-                        $script_main
-                    else
-                        print_message WARNING "[DRY RUN] No main function found in $script"
-                    fi
-                )
-            else
-                if ! execute_script "$stage" "$script"; then
-                    print_message ERROR "Failed to execute: " "$script in stage $stage"
+        print_message INFO "Starting stage: $stage"
+
+        local -a mandatory_scripts=()
+        local -a optional_scripts=()
+
+        case "$stage" in
+            "1-pre")
+                mandatory_scripts=("pre-setup.sh")
+                optional_scripts=("run-checks.sh")
+                ;;
+            "2-drive")
+                if [[ "$format_type" == "btrfs" ]]; then
+                    mandatory_scripts=("partition-btrfs.sh" "format-btrfs.sh")
+                elif [[ "$format_type" == "ext4" ]]; then
+                    mandatory_scripts=("partition-ext4.sh" "format-ext4.sh")
+                else
+                    print_message ERROR "Invalid format type: $format_type"
                     return 1
                 fi
-            fi
-        done
+                ;;
+            "3-base")
+                mandatory_scripts=("bootstrap-pkgs.sh" "generate-fstab.sh")
+                ;;
+            "4-post")
+                mandatory_scripts=("system-config.sh" "system-pkgs.sh")
+                optional_scripts=("terminal.sh")
+                ;;
+            "5-desktop")
+                if [[ "$desktop_environment" == "none" ]]; then
+                    mandatory_scripts=("none.sh")
+                else
+                    mandatory_scripts=("${desktop_environment}.sh")
+                    optional_scripts=("${desktop_environment}.sh")
+                fi
+                ;;
+            "6-final")
+                mandatory_scripts=("last-cleanup.sh")
+                ;;
+            "7-post-optional")
+                optional_scripts=("post-setup.sh")
+                ;;
+        esac
+
+        # Convert arrays to delimited strings
+        mandatory_scripts_str=$(printf "%s|" "${mandatory_scripts[@]}")
+        optional_scripts_str=$(printf "%s|" "${optional_scripts[@]}")
+
+        if ! check_and_run_scripts "$stage" "${mandatory_scripts_str%|}" "${optional_scripts_str%|}"; then
+            print_message ERROR "Failed to process scripts for stage: $stage"
+            return 1
+        fi
     done
 
-    print_message OK "Installation completed successfully"
     return 0
 }
 # @description Check and run scripts for a given stage.
@@ -969,44 +992,22 @@ run_install_scripts() {
 # @return 0 on success, 1 on failure
 check_and_run_scripts() {
     local stage="$1"
-    local mandatory_scripts=("$2")
-    local optional_scripts=("$3")
-    
+    IFS='|' read -ra mandatory_scripts <<< "$2"
+    IFS='|' read -ra optional_scripts <<< "$3"
+
     print_message INFO "Checking scripts for stage: $stage"
 
-    # Check mandatory scripts
     for script in "${mandatory_scripts[@]}"; do
-        script_path="$SCRIPTS_DIR/$stage/$script"
-        if [[ ! -f "$script_path" ]]; then
-            print_message ERROR "Mandatory script not found: $script_path"
+        if ! execute_script "$stage" "$script" "$DRY_RUN"; then
+            print_message ERROR "Failed to execute mandatory script: $stage/$script"
             return 1
         fi
     done
 
-    # Check and potentially run optional scripts
     for script in "${optional_scripts[@]}"; do
-        script_path="$SCRIPTS_DIR/$stage/$script"
-        if [[ ! -f "$script_path" ]]; then
-            print_message WARNING "Optional script not found: $script_path"
-            continue
-        fi
-
-        # Check if there's a corresponding config variable
-        config_var="INSTALL_$(echo "$script" | tr '[:lower:]' '[:upper:]' | sed 's/\.SH$//')"
-        install_script=$(get_config_value "$config_var" "false")
-
-        if [[ "$install_script" == "true" ]]; then
-            print_message INFO "Running optional script: $script"
-            if [[ $DRY_RUN == true ]]; then
-                print_message ACTION "[DRY RUN] Would execute: $script_path"
-            else
-                if ! execute_script "$stage" "$script"; then
-                    print_message ERROR "Failed to execute optional script: $stage/$script"
-                    return 1
-                fi
-            fi
-        else
-            print_message INFO "Skipping optional script: $script"
+        if ! execute_script "$stage" "$script" "$DRY_RUN"; then
+            print_message ERROR "Failed to execute optional script: $stage/$script"
+            return 1
         fi
     done
 
@@ -1020,7 +1021,7 @@ parse_stages_toml() {
     local in_stages=false
     local stage
     local scripts
-    
+
     declare -gA INSTALL_SCRIPTS
 
     # Check if the TOML file exists
