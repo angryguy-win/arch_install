@@ -956,13 +956,39 @@ run_install_scripts() {
                 
                 # Handle format_type placeholder
                 if [[ $script == *"{format_type}"* ]]; then
-                    script="${script/\{format_type\}/$format_type}"
+                    if [[ -n "${FORMAT_TYPES[$format_type]}" ]]; then
+                        IFS=',' read -ra format_scripts <<< "${FORMAT_TYPES[$format_type]}"
+                        for format_script in "${format_scripts[@]}"; do
+                            if [[ $type == "mandatory" ]]; then
+                                mandatory_scripts+=("$format_script")
+                            else
+                                optional_scripts+=("$format_script")
+                            fi
+                        done
+                        continue
+                    else
+                        print_message WARNING "Unknown format type: $format_type"
+                    fi
                 fi
+                
                 # Handle desktop_environment placeholder
                 if [[ $script == *"{desktop_environment}"* ]]; then
-                    script="${script/\{desktop_environment\}/$desktop_environment}"
+                    if [[ -n "${DESKTOP_ENVIRONMENTS[$desktop_environment]}" ]]; then
+                        IFS=',' read -ra de_scripts <<< "${DESKTOP_ENVIRONMENTS[$desktop_environment]}"
+                        for de_script in "${de_scripts[@]}"; do
+                            if [[ $type == "mandatory" ]]; then
+                                mandatory_scripts+=("$de_script")
+                            else
+                                optional_scripts+=("$de_script")
+                            fi
+                        done
+                        continue
+                    else
+                        print_message WARNING "Unknown desktop environment: $desktop_environment"
+                    fi
                 fi
 
+                # If no placeholder, add the script as is
                 if [[ $type == "mandatory" ]]; then
                     mandatory_scripts+=("$script")
                 else
@@ -1060,11 +1086,7 @@ parse_stages_toml() {
         fi
     done < "$toml_file"
 
-    if [[ ${#INSTALL_SCRIPTS[@]} -eq 0 ]]; then
-        print_message ERROR "No stages found in TOML file"
-        return 1
-    fi
-
+    # Print debug information
     print_message DEBUG "Parsed ${#INSTALL_SCRIPTS[@]} stages"
     for stage in "${!INSTALL_SCRIPTS[@]}"; do
         print_message DEBUG "Stage $stage: ${INSTALL_SCRIPTS[$stage]}"
