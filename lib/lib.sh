@@ -407,10 +407,10 @@ process_init() {
     CURRENT_PROCESS_ID="$process_id"
 
     #initialize_scripts || { print_message ERROR "Failed to initialize script"; return 1; }
-    print_message DEBUG "======================= Starting $process_name Process ======================="
     process_init "Main Installation Process"
     print_message PROC "Starting process: " "$process_name (ID: $process_id)"
     printf "%b\n" "$process_id:$process_name:started" >> "$PROCESS_LOG"
+    print_message DEBUG "======================= Starting $process_name Process ======================="
 }
 # @description Run process.
 # @arg $1 string Process PID.
