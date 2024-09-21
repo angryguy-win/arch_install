@@ -100,7 +100,7 @@ INSTALL_GROUPS=(
 print_message() {
     local type=$1
     shift
-    echo "[$type] $*"
+    printf %s "[$type] $*\n"
 }
 # Function to execute commands with error handling
 # @description execute_process is a function that executes commands with error handling
@@ -121,7 +121,7 @@ execute_process() {
             --debug) debug=true; shift ;;
             --error-message) error_message="$2"; shift 2 ;;
             --success-message) success_message="$2"; shift 2 ;;
-            *) echo "Unknown option: $1"; return 1 ;;
+            *) printf %s "Unknown option: $1"; return 1 ;;
         esac
     done
 

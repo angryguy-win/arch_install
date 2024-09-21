@@ -13,7 +13,7 @@ LIB_PATH="$(dirname "$(dirname "$SCRIPT_DIR")")/lib/lib.sh"
 # Source the library functions
 # shellcheck source=../../lib/lib.sh
 if [ -f "$LIB_PATH" ]; then
-    source "$LIB_PATH"
+    . "$LIB_PATH"
 else
     echo "Error: Cannot find lib.sh at $LIB_PATH" >&2
     exit 1
@@ -25,17 +25,15 @@ export DRY_RUN="${DRY_RUN:-false}"
 
 
 terminal() {
-    local shell="bash"
-    local terminal="alacritty"
     
     print_message INFO "Installing Terminal"
     execute_process "Installing Terminal" \
         --error-message "Terminal installation failed" \
         --success-message "Terminal installation completed" \
-        "pacman -S --noconfirm --needed ${terminal} kitty ${shell} starship" \
-        "cp -r ${SCRIPT_DIR}/config/${terminal} ~/.config/${terminal}" \
+        "pacman -S --noconfirm --needed ${TERMINAL} kitty ${SHELL} starship" \
+        "cp -r ${SCRIPT_DIR}/config/${TERMINAL} ~/.config/${TERMINAL}" \
         "cp -r ${SCRIPT_DIR}/config/starship.toml ~/.config/starship.toml" \
-        "cp -r ${SCRIPT_DIR}/config/${shell}rc ~/.${shell}rc"
+        "cp -r ${SCRIPT_DIR}/config/${SHELL}rc ~/.${SHELL}rc"
 }
 
 main() {

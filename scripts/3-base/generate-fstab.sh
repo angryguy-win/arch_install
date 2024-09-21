@@ -11,8 +11,9 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 LIB_PATH="$(dirname "$(dirname "$SCRIPT_DIR")")/lib/lib.sh"
 
 # Source the library functions
+# shellcheck source=../../lib/lib.sh
 if [ -f "$LIB_PATH" ]; then
-    source "$LIB_PATH"
+    . "$LIB_PATH"
 else
     echo "Error: Cannot find lib.sh at $LIB_PATH" >&2
     exit 1

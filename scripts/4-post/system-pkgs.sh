@@ -13,7 +13,7 @@ LIB_PATH="$(dirname "$(dirname "$SCRIPT_DIR")")/lib/lib.sh"
 # Source the library functions
 # shellcheck source=../../lib/lib.sh
 if [ -f "$LIB_PATH" ]; then
-    source "$LIB_PATH"
+    . "$LIB_PATH"
 else
     echo "Error: Cannot find lib.sh at $LIB_PATH" >&2
     exit 1
@@ -107,10 +107,6 @@ main() {
     show_logo "System Packages"
     print_message INFO "Starting system packages process"
     print_message INFO "DRY_RUN in $(basename "$0") is set to: ${YELLOW}$DRY_RUN"
-
-    # Load configuration
-    local vars=(terminal)
-    load_config "${vars[@]}" || { print_message ERROR "Failed to load config"; return 1; }
 
     install_selected_packages || { print_message ERROR "System packages process failed"; return 1; }
 

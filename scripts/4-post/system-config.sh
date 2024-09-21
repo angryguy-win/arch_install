@@ -13,7 +13,7 @@ LIB_PATH="$(dirname "$(dirname "$SCRIPT_DIR")")/lib/lib.sh"
 # Source the library functions
 # shellcheck source=../../lib/lib.sh
 if [ -f "$LIB_PATH" ]; then
-    source "$LIB_PATH"
+    . "$LIB_PATH"
 else
     echo "Error: Cannot find lib.sh at $LIB_PATH" >&2
     exit 1
@@ -25,20 +25,6 @@ export DRY_RUN="${DRY_RUN:-false}"
 
 
 system_config() {
-
-    local hostname
-    local locale
-    local timezone
-    local keymap
-    local username
-    local password
-
-    hostname="$1"
-    locale="$2" 
-    timezone="$3"
-    keymap="$4"
-    username="$5"
-    password="$6"
 
     print_message INFO "Chroot operations"
     execute_process "System config" \
@@ -64,11 +50,7 @@ main() {
     print_message INFO "Starting system config process"
     print_message INFO "DRY_RUN in $(basename "$0") is set to: ${YELLOW}$DRY_RUN"
 
-    # Load configuration
-    local vars=(hostname locale timezone keymap username password)
-    load_config "${vars[@]}" || { print_message ERROR "Failed to load config"; return 1; }
-
-    system_config ${hostname} ${locale} ${timezone} ${keymap} ${username} ${password} || { print_message ERROR "System config process failed"; return 1; }
+    system_config || { print_message ERROR "System config process failed"; return 1; }
 
     print_message OK "System config process completed successfully"
     process_end $?

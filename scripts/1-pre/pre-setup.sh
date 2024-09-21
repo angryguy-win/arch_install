@@ -13,13 +13,11 @@ LIB_PATH="$(dirname "$(dirname "$SCRIPT_DIR")")/lib/lib.sh"
 # Source the library functions
 # shellcheck source=../../lib/lib.sh
 if [ -f "$LIB_PATH" ]; then
-    source "$LIB_PATH"
+    . "$LIB_PATH"
 else
     echo "Error: Cannot find lib.sh at $LIB_PATH" >&2
     exit 1
 fi
-
-
 
 initial_setup() {
     print_message INFO "Starting initial setup"
@@ -36,9 +34,7 @@ initial_setup() {
         "pacman -Syy"
 }
 mirror_setup() {
-    local country_iso
-    country_iso="$1"
-    # Mirror setup
+
     execute_process "Mirror setup" \
         --error-message "Mirror setup failed" \
         --success-message "Mirror setup completed" \
@@ -91,12 +87,8 @@ main() {
     print_message INFO "Starting pre-setup process"
     print_message INFO "DRY_RUN in $(basename "$0") is set to: ${YELLOW}$DRY_RUN"
 
-    # Load configuration
-    local vars=(COUNTRY_ISO)
-    load_config "${vars[@]}" || { print_message ERROR "Failed to load config"; return 1; }
-
     initial_setup || { print_message ERROR "Initial setup failed"; return 1; }
-    mirror_setup "$COUNTRY_ISO" || { print_message ERROR "Mirror setup failed"; return 1; }
+    mirror_setup || { print_message ERROR "Mirror setup failed"; return 1; }
     show_drive_list || { print_message ERROR "Drive selection failed"; return 1; }
     prepare_drive || { print_message ERROR "Drive preparation failed"; return 1; }
 

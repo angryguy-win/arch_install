@@ -36,10 +36,10 @@ export SCRIPTS_DIR="$ARCH_DIR/scripts"
 export CONFIG_FILE="$ARCH_DIR/arch_config.cfg"
 
 # Source the library functions
-# shellcheck source=./lib/lib.sh
+# shellcheck source=lib/lib.sh
 LIB_PATH="$SCRIPT_DIR/lib/lib.sh"
 if [ -f "$LIB_PATH" ]; then
-    source "$LIB_PATH"
+    . "$LIB_PATH"
 else
     echo "Error: Cannot find lib.sh at $LIB_PATH" >&2
     exit 1

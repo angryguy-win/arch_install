@@ -13,7 +13,7 @@ LIB_PATH="$(dirname "$(dirname "$SCRIPT_DIR")")/lib/lib.sh"
 # Source the library functions
 # shellcheck source=../../lib/lib.sh
 if [ -f "$LIB_PATH" ]; then
-    source "$LIB_PATH"
+    . "$LIB_PATH"
 else
     echo "Error: Cannot find lib.sh at $LIB_PATH" >&2
     exit 1
@@ -22,7 +22,6 @@ fi
 # Enable dry run mode for testing purposes (set to false to disable)
 # Ensure DRY_RUN is exported
 export DRY_RUN="${DRY_RUN:-false}"
-
 
 dwm() {
     

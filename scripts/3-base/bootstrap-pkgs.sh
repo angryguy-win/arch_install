@@ -11,8 +11,9 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 LIB_PATH="$(dirname "$(dirname "$SCRIPT_DIR")")/lib/lib.sh"
 
 # Source the library functions
+# shellcheck source=../../lib/lib.sh
 if [ -f "$LIB_PATH" ]; then
-    source "$LIB_PATH"
+    . "$LIB_PATH"
 else
     echo "Error: Cannot find lib.sh at $LIB_PATH" >&2
     exit 1
@@ -24,9 +25,6 @@ export DRY_RUN="${DRY_RUN:-false}"
 
 
 bootstrap_pkgs() {
-    local microcode
-    microcode="$1"
-
 
     execute_process "Installing base system" \
         --error-message "Base system installation failed" \
@@ -42,11 +40,7 @@ main() {
     print_message INFO "Starting bootstrap packages process"
     print_message INFO "DRY_RUN in $(basename "$0") is set to: ${YELLOW}$DRY_RUN"
 
-    # Load configuration
-    local vars=(microcode)
-    load_config "${vars[@]}" || { print_message ERROR "Failed to load config"; return 1; }
-
-    bootstrap_pkgs ${microcode} || { print_message ERROR "Bootstrap packages process failed"; return 1; }
+    bootstrap_pkgs || { print_message ERROR "Bootstrap packages process failed"; return 1; }
 
     print_message OK "Bootstrap packages process completed successfully"
     process_end $?

@@ -13,7 +13,7 @@ LIB_PATH="$(dirname "$(dirname "$SCRIPT_DIR")")/lib/lib.sh"
 # Source the library functions
 # shellcheck source=../../lib/lib.sh
 if [ -f "$LIB_PATH" ]; then
-    source "$LIB_PATH"
+    . "$LIB_PATH"
 else
     echo "Error: Cannot find lib.sh at $LIB_PATH" >&2
     exit 1
@@ -54,10 +54,6 @@ subvolumes_setup() {
 
 }
 mounting() {
-    local partition_root
-    local mount_options
-    partition_root="$1"
-    mount_options="$2"
 
     execute_process "Mounting subvolumes btrfs" \
         --error-message "Mounting subvolumes btrfs failed" \
@@ -77,13 +73,9 @@ main() {
     print_message INFO "Starting partition btrfs process"
     print_message INFO "DRY_RUN in $(basename "$0") is set to: ${YELLOW}$DRY_RUN"
 
-    # Load configuration
-    local vars=(partition_efi partition_root mount_options)
-    load_config "${vars[@]}" || { print_message ERROR "Failed to load config"; return 1; }
-
-    formating ${partition_efi} ${partition_root} ${mount_options} || { print_message ERROR "Formatting partitions btrfs failed"; return 1; }
+    formating || { print_message ERROR "Formatting partitions btrfs failed"; return 1; }
     subvolumes_setup || { print_message ERROR "Creating subvolumes failed"; return 1; }
-    mounting ${partition_root} ${mount_options} || { print_message ERROR "Mounting subvolumes btrfs failed"; return 1; }
+    mounting || { print_message ERROR "Mounting subvolumes btrfs failed"; return 1; }
 
     print_message OK "Partition btrfs process completed successfully"
     process_end $?
