@@ -121,7 +121,9 @@ log() {
     ensure_log_directory || return
 
     # Use tee to write to both console and log file
-    printf "%b\n" "$log_entry" | tee -a >(sed -r "s/\x1B\[([0-9]{1,3}(;[0-9]{1,3})*)?[mGK]//g" >> "$LOG_FILE")
+    printf "%b\n" "$log_entry" >> $LOG_FILE
+    exec | tee -a $PROCESS_LOG
+    
 }
 export -f log
 # @description Print formatted messages
@@ -1387,5 +1389,5 @@ check_internet_connection() {
 log_main() {
     local log_file="$1"
     shift
-    "$@" 2>&1 | sed -E "s/\x1B\[([0-9]{1,3}(;[0-9]{1,3})*)?[mGK]//g" | tee -a "$log_file"
+    sed -E "s/\x1B\[([0-9]{1,3}(;[0-9]{1,3})*)?[mGK]//g" | tee -a "$log_file"
 }

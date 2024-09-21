@@ -26,5 +26,5 @@ main() {
     process_end $?
 }
 
-main "$@" | log_main "$PROCESS_LOG"
+main "$@"
 exit $?
