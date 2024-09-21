@@ -47,6 +47,7 @@ fi
 
 # Main execution
 main() {
+    print_message DEBUG "======================= Start Main Installation Process ======================="
     process_init "Main Installation Process"
     show_logo "Arch Linux Installer"
     print_message INFO "Welcome to the Arch Linux installer script"
@@ -65,13 +66,14 @@ main() {
     for key in "${!INSTALL_SCRIPTS[@]}"; do
         print_message DEBUG "  $key: ${INSTALL_SCRIPTS[$key]}"
     done
-
+    # Reads config file arch_config.toml and copies it to arch_config.cfg
+    read_config || { print_message ERROR "Failed to read config"; exit 1; }
     # Load configuration
     load_config  || { print_message ERROR "Failed to load config"; exit 1; }
-    export FORMAT_TYPE DESKTOP_ENVIRONMENT
     print_message DEBUG "FORMAT_TYPE: $FORMAT_TYPE"
     print_message DEBUG "DESKTOP_ENVIRONMENT: $DESKTOP_ENVIRONMENT"
 
+    # Check if all required stages/scripts are present
     if ! check_required_scripts; then
         print_message ERROR "Missing required scripts. Aborting installation."
         exit 1

@@ -27,35 +27,6 @@ PROCESS_LOG="$LOG_DIR/process.log"
 mkdir -p "$LOG_DIR" || { echo "Failed to create log directory: $LOG_DIR"; exit 1; }
 touch "$LOG_FILE" "$PROCESS_LOG" || { echo "Failed to create log files"; exit 1; }
 
-# Global variables (use values from install.sh if set, otherwise use defaults)
-# @note the blank variables are used for the user spesific variables.
-# @note if the blank variables are not set by the load_config function, the script can not proceed.
-# @note all the other variable the defaults can be used
-export PARALLEL_JOBS="${PARALLEL_JOBS:-4}"
-export FORMAT_TYPE="${FORMAT_TYPE:-btrfs}"
-export COUNTRY_ISO="${COUNTRY_ISO:-US}"
-export DEVICE=""
-export PARTITION_BIOSBOOT=""
-export PARTITION_EFI=""
-export PARTITION_ROOT=""
-export PARTITION_HOME=""
-export PARTITION_SWAP=""
-export MOUNT_OPTIONS="${MOUNT_OPTIONS:-noatime,compress=zstd,ssd,commit=120}"
-export LOCALE="${LOCALE:-en_US.UTF-8}"
-export TIMEZONE="${TIMEZONE:-UTC}"
-export KEYMAP="${KEYMAP:-us}"
-export USERNAME="${USERNAME:-user}"
-export PASSWORD="${PASSWORD:-changeme}"
-export HOSTNAME="${HOSTNAME:-arch}"
-export MICROCODE=""
-export GPU_DRIVER=""
-export TERMINAL="${TERMINAL:-alacritty}"
-export SUBVOLUME="${SUBVOLUME:-@,@home,@var,@.snapshots}"
-export LUKS="${LUKS:-false}"
-export LUKS_PASSWORD="${LUKS_PASSWORD:-changeme}"
-export SHELL="${SHELL:-bash}"
-export DESKTOP_ENVIRONMENT="${DESKTOP_ENVIRONMENT:-none}"
-
 # @description Color codes
 export TERM=xterm-256color
 declare -A COLORS
@@ -597,9 +568,44 @@ load_config() {
     fi
 
     # Source the configuration file to load all variables
+    # This reads the config file and sets the variables in the current shell
     set -o allexport
     . "$CONFIG_FILE"
     set +o allexport
+
+    # Set default values for variables that might not be in the config file
+    export PARALLEL_JOBS="${PARALLEL_JOBS:-4}"
+    export FORMAT_TYPE="${FORMAT_TYPE:-btrfs}"
+    export COUNTRY_ISO="${COUNTRY_ISO:-US}"
+    export MOUNT_OPTIONS="${MOUNT_OPTIONS:-noatime,compress=zstd,ssd,commit=120}"
+    export LOCALE="${LOCALE:-en_US.UTF-8}"
+    export TIMEZONE="${TIMEZONE:-UTC}"
+    export KEYMAP="${KEYMAP:-us}"
+    export USERNAME="${USERNAME:-user}"
+    export PASSWORD="${PASSWORD:-changeme}"
+    export HOSTNAME="${HOSTNAME:-arch}"
+    export TERMINAL="${TERMINAL:-alacritty}"
+    export SUBVOLUME="${SUBVOLUME:-@,@home,@var,@.snapshots}"
+    export LUKS="${LUKS:-false}"
+    export LUKS_PASSWORD="${LUKS_PASSWORD:-changeme}"
+    export SHELL="${SHELL:-bash}"
+    export DESKTOP_ENVIRONMENT="${DESKTOP_ENVIRONMENT:-none}"
+
+    # Export variables without default values
+    export DEVICE
+    export PARTITION_BIOSBOOT
+    export PARTITION_EFI
+    export PARTITION_ROOT
+    export PARTITION_HOME
+    export PARTITION_SWAP
+    export MICROCODE
+    export GPU_DRIVER
+
+    # Debug output for all variables
+    print_message DEBUG "Configuration variables after loading:"
+    for var in PARALLEL_JOBS FORMAT_TYPE COUNTRY_ISO DEVICE PARTITION_BIOSBOOT PARTITION_EFI PARTITION_ROOT PARTITION_HOME PARTITION_SWAP MOUNT_OPTIONS LOCALE TIMEZONE KEYMAP USERNAME PASSWORD HOSTNAME MICROCODE GPU_DRIVER TERMINAL SUBVOLUME LUKS LUKS_PASSWORD SHELL DESKTOP_ENVIRONMENT; do
+        print_message DEBUG "  $var=${!var}"
+    done
 
     print_message OK "Configuration loaded successfully"
     return 0
@@ -644,7 +650,7 @@ get_config_value() {
     value="${value%\'}"
 
     print_message DEBUG "Final value for: " "$key=$value"
-    echo "$value"
+    printf "%b\n" "$value"
 }
 # @description Read config file.
 # @noargs
