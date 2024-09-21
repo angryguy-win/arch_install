@@ -46,6 +46,7 @@ gpu_setup() {
 
     execute_process "GPU Setup" \
         --use-chroot \
+        --critical \
         --error-message "GPU setup failed" \
         --success-message "GPU setup completed" \
         "${command}"
