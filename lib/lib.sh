@@ -149,7 +149,7 @@ log() {
     local log_entry="${timestamp} ${prefix} ${message}"
     ensure_log_directory || return
     # No need for a separate stripped_entry variable
-    if ! printf "%b" "$log_entry" | sed -r "s/\x1B\[([0-9]{1,3}(;[0-9]{1,3})*)?[mGK]//g" >> "$LOG_FILE"; then
+    if ! printf "%b\n" "$log_entry" | sed -r "s/\x1B\[([0-9]{1,3}(;[0-9]{1,3})*)?[mGK]//g" >> "$LOG_FILE"; then
         #echo "$log_entry" >> "$PROCESS_LOG" 
         print_message ERROR "Failed to write to log file: $LOG_FILE"
         return 1
