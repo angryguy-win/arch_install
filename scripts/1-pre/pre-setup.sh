@@ -46,9 +46,6 @@ mirror_setup() {
 prepare_drive() {
     print_message INFO "Preparing drive"
     
-    # Load the updated configuration
-    load_config || { print_message ERROR "Failed to load config"; return 1; }
-    
     # Determine if we're dealing with a hdd/virtio drive or an ssd/nvme drive
     if [[ "$INSTALL_DEVICE" == nvme* ]]; then
         # NVME/SSD  drive
