@@ -23,10 +23,23 @@ fi
 # Ensure DRY_RUN is exported
 export DRY_RUN="${DRY_RUN:-false}"
 
+set_microcode() {
+
+    local microcode
+    microcode=$(determine_microcode)
+    if [ -n "$MICROCODE" ]; then
+        print_message DEBUG "Microcode set to: ${MICROCODE}"
+    else
+        print_message WARNING "Microcode not set using probe: "
+        print_message ACTION "Setting MICROCODE to: ${microcode}"
+        export MICROCODE=$microcode
+    fi
+
+}       
 
 bootstrap_pkgs() {
 
-    print_message DEBUG "Bootstraping base system: ${MICROCODE}"
+    print_message DEBUG "Bootstraping microcode: ${MICROCODE}"
     execute_process "Installing base system" \
         --error-message "Base system installation failed" \
         --success-message "Base system installation completed" \
@@ -40,6 +53,7 @@ main() {
     print_message INFO "Starting bootstrap packages process"
     print_message INFO "DRY_RUN in $(basename "$0") is set to: ${YELLOW}$DRY_RUN"
 
+    set_microcode || { print_message ERROR "Setting microcode failed"; return 1; }  
     bootstrap_pkgs || { print_message ERROR "Bootstrap packages process failed"; return 1; }
 
     print_message OK "Bootstrap packages process completed successfully"

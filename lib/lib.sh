@@ -1162,13 +1162,13 @@ determine_microcode() {
 
     case "$cpu_vendor" in
         GenuineIntel)
-            echo "intel"
+            printf %s "intel"
             ;;
         AuthenticAMD)
-            echo "amd"
+            printf %s "amd"
             ;;
         *)
-            echo "unknown"
+            printf %s "unknown"
             ;;
     esac
 }
