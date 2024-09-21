@@ -47,7 +47,7 @@ fi
 
 # Main execution
 main() {
-    print_message DEBUG "======================= Start Main Installation Process ======================="
+    print_message DEBUG "========== Start Main Installation Process =========="
     process_init "Main Installation Process"
     show_logo "Arch Linux Installer"
     print_message INFO "Welcome to the Arch Linux installer script"
