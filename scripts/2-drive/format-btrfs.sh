@@ -70,16 +70,16 @@ mounting() {
 
 }
 main() {
-    process_init "Partition Btrfs"
-    show_logo "Partition Btrfs"
-    print_message INFO "Starting partition btrfs process"
+    process_init "Formatting partitions btrfs"
+    show_logo "Formatting partitions btrfs"
+    print_message INFO "Starting formatting partitions btrfs process"
     print_message INFO "DRY_RUN in $(basename "$0") is set to: ${YELLOW}$DRY_RUN"
 
     formating || { print_message ERROR "Formatting partitions btrfs failed"; return 1; }
     subvolumes_setup || { print_message ERROR "Creating subvolumes failed"; return 1; }
     mounting || { print_message ERROR "Mounting subvolumes btrfs failed"; return 1; }
 
-    print_message OK "Partition btrfs process completed successfully"
+    print_message OK "Formatting partitions btrfs process completed successfully"
     process_end $?
 }
 # Run the main function

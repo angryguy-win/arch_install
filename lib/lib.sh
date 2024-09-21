@@ -119,13 +119,9 @@ log() {
     # Construct the log message without color codes
     local log_entry="${timestamp} ${prefix} ${message}"
     ensure_log_directory || return
-    # No need for a separate stripped_entry variable
-    if ! printf "%b\n" "$log_entry" | sed -r "s/\x1B\[([0-9]{1,3}(;[0-9]{1,3})*)?[mGK]//g" >> "$LOG_FILE"; then
-        #echo "$log_entry" >> "$PROCESS_LOG" 
-        print_message ERROR "Failed to write to log file: $LOG_FILE"
-        return 1
-    fi
-    # TODO: Implement log rotation to manage log file size
+
+    # Use tee to write to both console and log file
+    printf "%b\n" "$log_entry" | tee -a >(sed -r "s/\x1B\[([0-9]{1,3}(;[0-9]{1,3})*)?[mGK]//g" >> "$LOG_FILE")
 }
 export -f log
 # @description Print formatted messages
