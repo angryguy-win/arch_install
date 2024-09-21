@@ -1302,7 +1302,7 @@ ensure_log_directory() {
 check_required_scripts() {
     local missing_required_scripts=()
     local missing_optional_scripts=()
-    
+    print_message DEBUG "=== Checking for missing required scripts ===="
     # Check for missing required scripts
     for stage in "${!INSTALL_SCRIPTS[@]}"; do
         local stage_name="${stage%,*}"
