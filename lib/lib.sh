@@ -407,9 +407,9 @@ process_init() {
     CURRENT_PROCESS_ID="$process_id"
 
     #initialize_scripts || { print_message ERROR "Failed to initialize script"; return 1; }
-    process_init "Main Installation Process"
     print_message PROC "Starting process: " "$process_name (ID: $process_id)"
     printf "%b\n" "$process_id:$process_name:started" >> "$PROCESS_LOG"
+    print_message DEBUG "======================= Starting $process_name  ======================="
 }
 # @description Run process.
 # @arg $1 string Process PID.
@@ -436,6 +436,7 @@ process_end() {
         print_message PROC "ERROR: Process failed: " "$process_name (ID: $process_id, Exit code: $exit_code)"
         printf "%b\n" "$process_id:$process_name:failed:$exit_code" >> "$PROCESS_LOG"
     fi
+    print_message DEBUG "======================= Ending $process_name  ======================="
 
     print_message INFO "All processes allmost completed....." 
     sleep 5
@@ -1299,7 +1300,7 @@ ensure_log_directory() {
 check_required_scripts() {
     local missing_required_scripts=()
     local missing_optional_scripts=()
-    print_message DEBUG "=== Checking for missing required scripts ====="
+    print_message DEBUG "=== Checking for missing required scripts ==="
     # Check for missing required scripts
     for stage in "${!INSTALL_SCRIPTS[@]}"; do
         local stage_name="${stage%,*}"

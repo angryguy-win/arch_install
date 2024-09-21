@@ -47,6 +47,7 @@ fi
 
 # Main execution
 main() {
+    print_message DEBUG "======================= Starting Main Installation Process ======================="
     process_init "Main Installation Process"
     show_logo "Arch Linux Installer"
     print_message INFO "Welcome to the Arch Linux installer script"
@@ -72,7 +73,6 @@ main() {
     print_message DEBUG "FORMAT_TYPE: $FORMAT_TYPE"
     print_message DEBUG "DESKTOP_ENVIRONMENT: $DESKTOP_ENVIRONMENT"
 
-    # Check if all required stages/scripts are present
     if ! check_required_scripts; then
         print_message ERROR "Missing required scripts. Aborting installation."
         exit 1
