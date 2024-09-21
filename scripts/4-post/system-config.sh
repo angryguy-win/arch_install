@@ -23,7 +23,33 @@ fi
 # Ensure DRY_RUN is exported
 export DRY_RUN="${DRY_RUN:-false}"
 
+gpu_setup() {
+   gpu_type=$(lspci | grep -E "VGA|3D|Display")
+    # Graphics Drivers find and install
+    if printf "%s" "${gpu_type}" | grep -E "NVIDIA|GeForce"; then
+        print_message ACTION "Installing NVIDIA drivers: nvidia-lts"
+        command="pacman -S --noconfirm --needed nvidia-lts"
+    elif printf "%s" "${gpu_type}" | grep 'VGA' | grep -E "Radeon|AMD"; then
+        print_message ACTION "Installing AMD drivers: xf86-video-amdgpu"
+        command="pacman -S --noconfirm --needed xf86-video-amdgpu"
+    elif printf "%s" "${gpu_type}" | grep -E "Integrated Graphics Controller"; then
+        print_message ACTION "Installing Intel drivers:"
+        command="pacman -S --noconfirm --needed libva-intel-driver libvdpau-va-gl lib32-vulkan-intel vulkan-intel libva-intel-driver libva-utils lib32-mesa"
+    elif printf "%s" "${gpu_type}" | grep -E "Intel Corporation UHD"; then
+        print_message ACTION "Installing Intel UHD drivers:"
+        command="pacman -S --noconfirm --needed libva-intel-driver libvdpau-va-gl lib32-vulkan-intel vulkan-intel libva-intel-driver libva-utils lib32-mesa"
+    else
+        print_message WARNING "No matching GPU type found. Skipping driver installation."
+        return 0
+    fi
+    print_message DEBUG "GPU type: ${gpu_type}"
 
+    execute_process "GPU Setup" \
+        --use-chroot \
+        --error-message "GPU setup failed" \
+        --success-message "GPU setup completed" \
+        "${command}"
+}
 system_config() {
 
     print_message DEBUG "Chroot operations: $HOSTNAME, $LOCALE, $TIMEZONE, $KEYMAP, $USERNAME, $PASSWORD"
@@ -50,6 +76,7 @@ main() {
     print_message INFO "Starting system config process"
     print_message INFO "DRY_RUN in $(basename "$0") is set to: ${YELLOW}$DRY_RUN"
 
+    gpu_setup || { print_message ERROR "GPU setup failed"; return 1; }
     system_config || { print_message ERROR "System config process failed"; return 1; }
 
     print_message OK "System config process completed successfully"

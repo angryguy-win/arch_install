@@ -20,7 +20,7 @@ main() {
     process_init "None"
     print_message INFO "Starting none process"
 
-    # Add your none logic here
+    gpu_setup || { print_message ERROR "GPU setup failed"; return 1; }
 
     print_message OK "None process completed successfully"
     process_end $?
