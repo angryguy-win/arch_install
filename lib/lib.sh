@@ -1390,3 +1390,47 @@ log_main() {
     shift
     sed -E "s/\x1B\[([0-9]{1,3}(;[0-9]{1,3})*)?[mGK]//g" | tee -a "$log_file"
 }
+# @description Ask for passwords.
+# @return 0 on success, 1 on failure
+ask_passwords() {
+    if [ "$LUKS_PASSWORD" == "ask" ]; then
+        ask_password "LUKS" "LUKS_PASSWORD"
+    fi
+
+    if [ -n "$WIFI_INTERFACE" ] && [ "$WIFI_KEY" == "ask" ]; then
+        ask_password "WIFI" "WIFI_KEY"
+    fi
+
+    if [ "$ROOT_PASSWORD" == "ask" ]; then
+        ask_password "root" "ROOT_PASSWORD"
+    fi
+
+    if [ "$USER_PASSWORD" == "ask" ]; then
+        ask_password "user" "USER_PASSWORD"
+    fi
+
+    for I in "${!ADDITIONAL_USERS[@]}"; do
+        local VALUE=${ADDITIONAL_USERS[$I]}
+        local S=()
+        IFS='=' read -ra S <<< "$VALUE"
+        local USER=${S[0]}
+        local PASSWORD=${S[1]}
+        local PASSWORD_RETYPE=""
+
+        if [ "$PASSWORD" == "ask" ]; then
+            local PASSWORD_TYPED="false"
+            while [ "$PASSWORD_TYPED" != "true" ]; do
+                read -r -sp "Type user ($USER) password: " PASSWORD
+                echo ""
+                read -r -sp "Retype user ($USER) password: " PASSWORD_RETYPE
+                echo ""
+                if [ "$PASSWORD" == "$PASSWORD_RETYPE" ]; then
+                    local PASSWORD_TYPED="true"
+                    ADDITIONAL_USERS[I]="$USER=$PASSWORD"
+                else
+                    echo "User ($USER) password don't match. Please, type again."
+                fi
+            done
+        fi
+    done
+}
