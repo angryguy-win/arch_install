@@ -1369,3 +1369,23 @@ check_required_scripts() {
 
     return 0
 }
+# @description Check internet connection.   
+# @return 0 if internet connection is available, 1 if not
+check_internet_connection() {
+    print_message INFO "Checking internet connection..."
+    if ping -c 1 archlinux.org &> /dev/null; then
+        print_message OK "Internet connection is available"
+    else
+        print_message ERROR "No internet connection. Please check your network settings."
+        exit 1
+    fi
+}
+# @description Log main function.
+# @arg $1 string Log file
+# @arg $@ string Command to log
+# @return 0 on success, 1 on failure
+log_main() {
+    local log_file="$1"
+    shift
+    "$@" 2>&1 | sed -E "s/\x1B\[([0-9]{1,3}(;[0-9]{1,3})*)?[mGK]//g" | tee -a "$log_file"
+}

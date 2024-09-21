@@ -61,5 +61,5 @@ main() {
 }
 
 # Run the main function
-main "$@"
+main "$@" | log_main "$PROCESS_LOG"
 exit $?
