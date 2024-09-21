@@ -439,7 +439,7 @@ process_end() {
     print_message DEBUG "======================= Ending $process_name  ======================="
 
     print_message INFO "All processes allmost completed....." 
-    sleep 5
+    sleep 2
     # Reset the current process variables
     CURRENT_PROCESS=""
     CURRENT_PROCESS_ID=""

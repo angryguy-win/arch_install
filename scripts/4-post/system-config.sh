@@ -26,7 +26,7 @@ export DRY_RUN="${DRY_RUN:-false}"
 
 system_config() {
 
-    print_message INFO "Chroot operations"
+    print_message DEBUG "Chroot operations: $HOSTNAME, $LOCALE, $TIMEZONE, $KEYMAP, $USERNAME, $PASSWORD"
     execute_process "System config" \
         --use-chroot \
         --error-message "System config failed" \
