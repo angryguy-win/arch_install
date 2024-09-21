@@ -407,6 +407,8 @@ process_init() {
     CURRENT_PROCESS_ID="$process_id"
 
     #initialize_scripts || { print_message ERROR "Failed to initialize script"; return 1; }
+    print_message DEBUG "======================= Starting $process_name Process ======================="
+    process_init "Main Installation Process"
     print_message PROC "Starting process: " "$process_name (ID: $process_id)"
     printf "%b\n" "$process_id:$process_name:started" >> "$PROCESS_LOG"
 }
@@ -418,6 +420,8 @@ process_end() {
     local process_name
     local process_id
 
+    print_message DEBUG "======================= Ending $process_name Process ======================="
+
     # Set the variables
     exit_code=$1
     process_name="$CURRENT_PROCESS"
@@ -425,7 +429,7 @@ process_end() {
 
     # Add this debug message
     if [[ $DEBUG_MODE == true ]]; then
-        print_message DEBUG "Starting process: " "$process_name (Script: $SCRIPT_NAME)"
+        print_message DEBUG "Ending process: " "$process_name (Script: $SCRIPT_NAME)"
     fi
     # Check if the process completed successfully
     if [ "$exit_code" -eq 0 ]; then
@@ -436,7 +440,8 @@ process_end() {
         printf "%b\n" "$process_id:$process_name:failed:$exit_code" >> "$PROCESS_LOG"
     fi
 
-    print_message INFO "All processes allmost completed....." sleep 5
+    print_message INFO "All processes allmost completed....." 
+    sleep 5
     # Reset the current process variables
     CURRENT_PROCESS=""
     CURRENT_PROCESS_ID=""
