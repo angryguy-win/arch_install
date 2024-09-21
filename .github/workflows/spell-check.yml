@@ -1,36 +1,30 @@
-   name: spell-check
+name: ShellCheck
 
-   on:
-     push:
-       branches: [ main ]
-     pull_request:
-       branches: [ main ]
+on:
+  pull_request:
+    paths:
+      - 'scripts/**/*.sh'
+      - '*.sh'
+  workflow_dispatch:
 
-   jobs:
-     build:
-       runs-on: ${{ matrix.os }}
-       strategy:
-         matrix:
-           os: [ubuntu-latest, arch-latest]
+jobs:
+  shellcheck:
+    name: Shellcheck
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - run: git fetch origin ${{ github.base_ref }}
 
-       steps:
-         - name: Checkout repository
-           uses: actions/checkout@v3
-
-         - name: Install ShellCheck
-           run: sudo apt-get install -y shellcheck
-
-         - name: Run ShellCheck
-           run: |
-             shellcheck scripts/*.sh lib/*.sh
-             
-         - name: Run ShellCheck
-           id: shellcheck
-           run: |
-             shellcheck scripts/*.sh lib/*.sh > shellcheck_output.txt || true
-             echo "::set-output name=output::$(cat shellcheck_output.txt)"
-
-         - name: Upload ShellCheck Output
-           with:
-             name: shellcheck-output
-             path: shellcheck_output.txt
+      - name: Download and set up shellcheck
+        run : |
+          wget https://github.com/koalaman/shellcheck/releases/download/v0.10.0/shellcheck-v0.10.0.linux.x86_64.tar.xz
+          tar -xf shellcheck-v0.10.0.linux.x86_64.tar.xz
+          cd shellcheck-v0.10.0
+          chmod +x shellcheck
+      - name: Run shellcheck
+        run: |
+          for file in $(git diff --name-only origin/${{ github.base_ref }} HEAD core/tabs); do
+              if [[ "$file" == *.sh ]] && [[ -f "$file" ]]; then
+                  ./shellcheck-v0.10.0/shellcheck -S error "$file"
+              fi
+          done

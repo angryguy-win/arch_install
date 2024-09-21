@@ -1,36 +1,32 @@
-   # .github/workflows/ci.yml
-   name: CI
+name: Check for bashisms
 
-   on:
-     push:
-       branches: [ main ]  # Adjust based on your default branch
-     pull_request:
-       branches: [ main ]
+on:
+  # push:
+  #   paths:
+  #     - core/tabs/**
+  #   branches: [ "main" ]
+  pull_request:
+    paths:
+      - script/**
+      - /**
+  merge_group:
+  workflow_dispatch:
 
-   jobs:
-     build:
-       runs-on: ubuntu-latest
+jobs:
+  check-bashisms:
+    runs-on: ubuntu-latest
 
-       steps:
-         - name: Checkout repository
-           uses: actions/checkout@latest
+    steps:
+      - uses: actions/checkout@v4
+      - run: git fetch origin ${{ github.base_ref }}
+      
+      - name: Install devscripts
+        run: sudo apt-get update && sudo apt-get install devscripts
 
-         - name: Set up Python for Ansible (Optional)
-           uses: actions/setup-python@lateest
-           with:
-             python-version: '3.x'
-
-         - name: Install Dependencies
-           run: |
-             sudo apt-get update
-             sudo apt-get install -y bats
-
-         - name: Run ShellCheck
-           uses: ludeeus/action-shellcheck@latest
-           with:
-             folder: scripts/  # Path to your scripts
-             severity: error
-
-         - name: Run Bats Tests
-           run: |
-             bats tests/
+      - name: Check for bashisms in changed files
+        run: |
+          for file in $(git diff --name-only origin/${{ github.base_ref }} HEAD core/tabs); do
+              if [[ "$file" == *.sh ]] && [[ -f "$file" ]]; then
+                  checkbashisms "$file"
+              fi
+          done
