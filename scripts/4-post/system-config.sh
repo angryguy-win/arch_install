@@ -24,24 +24,27 @@ fi
 export DRY_RUN="${DRY_RUN:-false}"
 
 gpu_setup() {
-   gpu_type=$(lspci | grep -E "VGA|3D|Display")
-    # Graphics Drivers find and install
-    if printf "%s" "${gpu_type}" | grep -E "NVIDIA|GeForce"; then
-        print_message ACTION "Installing NVIDIA drivers: nvidia-lts"
-        command="pacman -S --noconfirm --needed nvidia-lts"
-    elif printf "%s" "${gpu_type}" | grep 'VGA' | grep -E "Radeon|AMD"; then
-        print_message ACTION "Installing AMD drivers: xf86-video-amdgpu"
-        command="pacman -S --noconfirm --needed xf86-video-amdgpu"
-    elif printf "%s" "${gpu_type}" | grep -E "Integrated Graphics Controller"; then
-        print_message ACTION "Installing Intel drivers:"
-        command="pacman -S --noconfirm --needed libva-intel-driver libvdpau-va-gl lib32-vulkan-intel vulkan-intel libva-intel-driver libva-utils lib32-mesa"
-    elif printf "%s" "${gpu_type}" | grep -E "Intel Corporation UHD"; then
-        print_message ACTION "Installing Intel UHD drivers:"
-        command="pacman -S --noconfirm --needed libva-intel-driver libvdpau-va-gl lib32-vulkan-intel vulkan-intel libva-intel-driver libva-utils lib32-mesa"
-    else
-        print_message WARNING "No matching GPU type found. Skipping driver installation."
-        return 0
-    fi
+    local gpu_info
+    gpu_info=$(lspci | grep -E "VGA|Display")
+
+    case "$gpu_info" in
+        *NVIDIA*|*GeForce*)
+            print_message ACTION "Installing NVIDIA drivers"
+            command="pacman -S --noconfirm --needed nvidia-dkms nvidia-utils lib32-nvidia-utils"
+            ;;
+        *AMD*|*ATI*)
+            print_message ACTION "Installing AMD drivers"
+            command="pacman -S --noconfirm --needed xf86-video-amdgpu mesa lib32-mesa vulkan-radeon lib32-vulkan-radeon"
+            ;;
+        *Intel*)
+            print_message ACTION "Installing Intel drivers"
+            command="pacman -S --noconfirm --needed xf86-video-intel mesa lib32-mesa vulkan-intel lib32-vulkan-intel"
+            ;;
+        *)
+            print_message WARNING "Unknown GPU. Installing generic drivers"
+            command="pacman -S --noconfirm --needed xf86-video-vesa mesa"
+            ;;
+    esac
     print_message DEBUG "GPU type: ${gpu_type}"
 
     execute_process "GPU Setup" \
