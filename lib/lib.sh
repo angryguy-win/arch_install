@@ -403,6 +403,9 @@ process_init() {
     CURRENT_PROCESS="$process_name"
     CURRENT_PROCESS_ID="$process_id"
 
+    START_TIMESTAMP=$(date -u +"%F %T")
+    print_message DEBUG "Start time: " "$START_TIMESTAMP"
+
     #initialize_scripts || { print_message ERROR "Failed to initialize script"; return 1; }
     print_message PROC "Starting process: " "$process_name (ID: $process_id)"
     printf "%b\n" "$process_id:$process_name:started" >> "$PROCESS_LOG"
@@ -415,6 +418,7 @@ process_end() {
     local exit_code
     local process_name
     local process_id
+
 
     # Set the variables
     exit_code=$1
@@ -433,6 +437,11 @@ process_end() {
         print_message PROC "ERROR: Process failed: " "$process_name (ID: $process_id, Exit code: $exit_code)"
         printf "%b\n" "$process_id:$process_name:failed:$exit_code" >> "$PROCESS_LOG"
     fi
+
+    END_TIMESTAMP=$(date -u +"%F %T")
+    INSTALLATION_TIME=$(date -u -d @$(($(date -d "$END_TIMESTAMP" '+%s') - $(date -d "$START_TIMESTAMP" '+%s'))) '+%T')
+    printf "%b\n" " Process start ${WHITE}$START_TIMESTAMP${NC}, end ${WHITE}$END_TIMESTAMP${NC}, time ${WHITE}$INSTALLATION_TIME${NC}"
+
     print_message DEBUG "======================= Ending $process_name  ======================="
 
     print_message INFO "All processes allmost completed....." 

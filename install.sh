@@ -47,12 +47,12 @@ fi
 
 # Main execution
 main() {
-    local START_TIMESTAMP
-    local END_TIMESTAMP
-    local INSTALLATION_TIME
+    local MAIN_START_TIMESTAMP
+    local MAIN_END_TIMESTAMP
+    local MAIN_INSTALLATION_TIME
 
 
-    START_TIMESTAMP=$(date -u +"%F %T")
+    MAIN_START_TIMESTAMP=$(date -u +"%F %T")
     print_message DEBUG "======================= Starting Main Installation Process ======================="
     process_init "Main Installation Process"
     show_logo "Arch Linux Installer"
@@ -94,9 +94,9 @@ main() {
     }
 
     print_message OK "Arch Linux installation completed successfully"
-    END_TIMESTAMP=$(date -u +"%F %T")
-    INSTALLATION_TIME=$(date -u -d @$(($(date -d "$END_TIMESTAMP" '+%s') - $(date -d "$START_TIMESTAMP" '+%s'))) '+%T')
-    echo -e "Installation start ${WHITE}$START_TIMESTAMP${NC}, end ${WHITE}$END_TIMESTAMP${NC}, time ${WHITE}$INSTALLATION_TIME${NC}"
+    MAIN_END_TIMESTAMP=$(date -u +"%F %T")
+    MAIN_INSTALLATION_TIME=$(date -u -d @$(($(date -d "$MAIN_END_TIMESTAMP" '+%s') - $(date -d "$MAIN_START_TIMESTAMP" '+%s'))) '+%T')
+    printf "%b\n" "Installation start ${WHITE}$MAIN_START_TIMESTAMP${NC}, end ${WHITE}$MAIN_END_TIMESTAMP${NC}, time ${WHITE}$MAIN_INSTALLATION_TIME${NC}"
     process_end $?
 }
 
