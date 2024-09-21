@@ -30,14 +30,18 @@ luks_setup() {
 }
 formating() {
 
+    print_message DEBUG "Before Format $PARTITION_ROOT as btrfs"
+    print_message DEBUG "Before Format $PARTITION_EFI as vfat"
+
     execute_process "Formatting partitions btrfs" \
         --error-message "Formatting partitions btrfs failed" \
         --success-message "Formatting partitions btrfs completed" \
         "mkfs.vfat -F32 -n EFIBOOT $PARTITION_EFI" \
         "mkfs.btrfs -f -L ROOT $PARTITION_ROOT" \
         "mount -t btrfs $PARTITION_ROOT /mnt" 
-        print_message INFO "Format $PARTITION_ROOT as btrfs"
-        print_message INFO "Format $PARTITION_EFI as vfat"
+
+    print_message DEBUG "After Format $PARTITION_ROOT as btrfs"
+    print_message DEBUG "After Format $PARTITION_EFI as vfat"
     
 }
 subvolumes_setup() {

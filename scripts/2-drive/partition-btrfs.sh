@@ -49,7 +49,7 @@ main() {
     print_message INFO "Starting partition btrfs process"
     print_message INFO "DRY_RUN in $(basename "$0") is set to: ${YELLOW}$DRY_RUN"
 
-    partitioning ${DEVICE} || { print_message ERROR "Partitioning failed"; return 1; }
+    partitioning || { print_message ERROR "Partitioning failed"; return 1; }
 
     print_message OK "Partition btrfs process completed successfully"
     process_end $?
