@@ -122,7 +122,6 @@ log() {
 
     # Use tee to write to both console and log file
     printf "%b\n" "$log_entry" >> $LOG_FILE
-    exec | tee -a $PROCESS_LOG
     
 }
 export -f log
@@ -160,7 +159,7 @@ print_message() {
 
     # Compose the message
     local formatted_message="${prefix_color}${prefix} ${COLORS[RESET]:-} ${message}"
-    printf "%b\n" "$formatted_message"
+    printf "%b\n" "$formatted_message" | tee -a >(sed -E "s/\x1B\[([0-9]{1,3}(;[0-9]{1,3})*)?[mGK]//g" >> "$PROCESS_LOG")
     #printf "%b%s%b %s\n" "$prefix_color" "$prefix" "${COLORS[RESET]:-}" "$message"
 
     # Append to log file
