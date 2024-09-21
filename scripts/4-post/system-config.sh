@@ -27,32 +27,28 @@ gpu_setup() {
     local gpu_info
     gpu_info=$(lspci | grep -E "VGA|Display")
 
-    case "$gpu_info" in
-        *NVIDIA*|*GeForce*)
-            print_message ACTION "Installing NVIDIA drivers"
-            command="pacman -S --noconfirm --needed nvidia-dkms nvidia-utils lib32-nvidia-utils"
-            ;;
-        *AMD*|*ATI*)
-            print_message ACTION "Installing AMD drivers"
-            command="pacman -S --noconfirm --needed xf86-video-amdgpu mesa lib32-mesa vulkan-radeon lib32-vulkan-radeon"
-            ;;
-        *Intel*)
-            print_message ACTION "Installing Intel drivers"
-            command="pacman -S --noconfirm --needed xf86-video-intel mesa lib32-mesa vulkan-intel lib32-vulkan-intel"
-            ;;
-        *)
-            print_message WARNING "Unknown GPU. Installing generic drivers"
-            command="pacman -S --noconfirm --needed xf86-video-vesa mesa"
-            ;;
-    esac
-    print_message DEBUG "GPU type: ${gpu_type}"
+    print_message DEBUG "Detected GPUs: $gpu_info"
+
+    if echo "$gpu_info" | grep -q "AMD\|ATI"; then
+        print_message ACTION "Installing AMD drivers"
+        command="pacman -S --noconfirm --needed xf86-video-amdgpu mesa lib32-mesa vulkan-radeon lib32-vulkan-radeon"
+    elif echo "$gpu_info" | grep -q "NVIDIA\|GeForce"; then
+        print_message ACTION "Installing NVIDIA drivers"
+        command="pacman -S --noconfirm --needed nvidia-dkms nvidia-utils lib32-nvidia-utils"
+    elif echo "$gpu_info" | grep -q "Intel"; then
+        print_message ACTION "Installing Intel drivers"
+        command="pacman -S --noconfirm --needed xf86-video-intel mesa lib32-mesa vulkan-intel lib32-vulkan-intel"
+    else
+        print_message WARNING "Unknown GPU. Installing generic drivers"
+        command="pacman -S --noconfirm --needed xf86-video-vesa mesa"
+    fi
 
     execute_process "GPU Setup" \
         --use-chroot \
         --critical \
         --error-message "GPU setup failed" \
         --success-message "GPU setup completed" \
-        "${command}"
+        "$command"
 }
 system_config() {
 
