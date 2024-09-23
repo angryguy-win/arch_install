@@ -875,6 +875,13 @@ execute_process() {
     fi
     return $exit_code
 }
+# @description Execute step.
+# @arg $1 string Step
+execute_step() {
+    local STEP="$1"
+    eval "$STEP"
+    printf "%b\n" "${BLUE}# ${STEP} step${NC}"
+}
 # @description Execute scripts for a given stage.
 # @arg $1 string Stage (directory name)
 # @arg $2 string Script name
@@ -1442,4 +1449,105 @@ ask_passwords() {
             done
         fi
     done
+}
+# @description Ask for password.
+# @arg $1 string Password name
+# @arg $2 string Password variable
+# @return 0 on success, 1 on failure
+ask_password() {
+    local PASSWORD_NAME="$1"
+    PASSWORD_VARIABLE="$2"
+    read -r -sp "Type ${PASSWORD_NAME} password: " PASSWORD1
+    echo ""
+    read -r -sp "Retype ${PASSWORD_NAME} password: " PASSWORD2
+    echo ""
+    if [[ "$PASSWORD1" == "$PASSWORD2" ]]; then
+        declare -n VARIABLE="${PASSWORD_VARIABLE}"
+        VARIABLE="$PASSWORD1"
+    else
+        echo "${PASSWORD_NAME} password don't match. Please, type again."
+        ask_password "${PASSWORD_NAME}" "${PASSWORD_VARIABLE}"
+    fi
+}
+# @description Configure network.
+# @return 0 on success, 1 on failure
+configure_network() {
+    if [ -n "$WIFI_INTERFACE" ]; then
+        iwctl --passphrase "$WIFI_KEY" station "$WIFI_INTERFACE" connect "$WIFI_ESSID"
+        sleep 10
+    fi
+
+    # only one ping -c 1, ping gets stuck if -c 5
+    if ! ping -c 1 -i 2 -W 5 -w 30 "$PING_HOSTNAME"; then
+        print_message ERROR "Network ping check failed. Cannot continue."
+        return 1
+    fi
+}
+# @description Get system facts.
+# @return 0 on success, 1 on failure
+facts_commons() {
+    if [ -d /sys/firmware/efi ]; then
+        BIOS_TYPE="uefi"
+    else
+        BIOS_TYPE="bios"
+    fi
+
+    if lscpu | grep -q "GenuineIntel"; then
+        CPU_VENDOR="intel"
+    elif lscpu | grep -q "AuthenticAMD"; then
+        CPU_VENDOR="amd"
+    else
+        CPU_VENDOR=""
+    fi
+
+    if lspci -nn | grep "\[03" | grep -qi "intel"; then
+        GPU_VENDOR="intel"
+    elif lspci -nn | grep "\[03" | grep -qi "amd"; then
+        GPU_VENDOR="amd"
+    elif lspci -nn | grep "\[03" | grep -qi "nvidia"; then
+        GPU_VENDOR="nvidia"
+    else
+        GPU_VENDOR=""
+    fi
+
+    INITRD_MICROCODE=""
+        if [ "$CPU_VENDOR" == "intel" ]; then
+            INITRD_MICROCODE="intel-ucode.img"
+        elif [ "$CPU_VENDOR" == "amd" ]; then
+            INITRD_MICROCODE="amd-ucode.img"
+        fi
+
+    USER_NAME_INSTALL="$(whoami)"
+    if [ "$USER_NAME_INSTALL" == "root" ]; then
+        SYSTEM_INSTALLATION="true"
+    else
+        SYSTEM_INSTALLATION="false"
+    fi
+}
+
+init_log_trace() {
+    local ENABLE="$1"
+    if [ "$ENABLE" == "true" ]; then
+        set -o xtrace
+    fi
+}
+
+init_log_file() {
+    local ENABLE="$1"
+    local FILE="$2"
+    if [ "$ENABLE" == "true" ]; then
+        exec &> >(tee -a "$FILE")
+    fi
+}
+ask_for_password() {
+
+    password=$(dialog --stdout --passwordbox "Enter admin password" 0 0) || exit 1
+    clear
+    : ${password:?"password cannot be empty"}
+    password2=$(dialog --stdout --passwordbox "Enter admin password again" 0 0) || exit 1
+    clear
+    [[ "$password" == "$password2" ]] || ( echo "Passwords did not match"; exit 1; )
+    devicelist=$(lsblk -dplnx size -o name,size | grep -Ev "boot|rpmb|loop" | tac)
+    device=$(dialog --stdout --menu "Select installation disk" 0 0 0 ${devicelist}) || exit 1
+    clear
 }
