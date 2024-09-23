@@ -30,6 +30,7 @@ main() {
     print_message INFO "Starting run checks process"
 
     run_checks
+    ask_for_password
 
     print_message OK "Run checks process completed successfully"
     process_end $?
