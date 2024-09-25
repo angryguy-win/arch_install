@@ -9,7 +9,7 @@ PARTITION_SWAP = "/dev/vda5"
 MOUNT_OPTIONS = "noatime,compress=zstd,nossd,commit=120"
 LOCALE = "en_US.UTF-8"
 TIMEZONE = "America/Toronto"
-KEYMAP = "us"n
+KEYMAP = "us"
 USERNAME = "ssnow"
 PASSWORD = "changeme"
 HOSTNAME = "hostname"
