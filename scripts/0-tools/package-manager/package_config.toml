@@ -1,0 +1,44 @@
+# @file package_config.toml
+# @brief Configuration file for package management
+# @author ssnow
+# @version 0.1
+# @date 2024-02-20  
+
+[official]
+install = [
+    "ranger",
+    "xterm",
+    "gitg",
+    "glances",
+    "yazi"
+]
+uninstall = [
+    "ranger",
+    "xterm",
+    "gitg",
+    "glances",
+    "yazi"
+]
+
+[aur]
+install = [
+    "sublime-merge"
+]
+uninstall = [
+    "sublime-merge"
+]
+
+[groups]
+install = [
+    # Add any package groups to install here
+]
+uninstall = [
+    # Add any package groups to uninstall here
+]
+
+# Make sure to use the package name as it is in the package manager
+# Use the official repositories first, then the AUR
+# If a package is in both, the official version will be used
+# If a package is in the AUR, it will be installed from the AUR
+# Make sure to use this template to add/remove packages
+# 💥

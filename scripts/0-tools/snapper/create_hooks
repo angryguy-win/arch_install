@@ -1,0 +1,77 @@
+#!/bin/bash
+
+# Source the library functions
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+LIB_PATH="$(dirname "$(dirname "$SCRIPT_DIR")")/lib/lib.sh"
+source "$LIB_PATH"
+
+# Set up error handling
+setup_error_handling
+
+create_hook_directories() {
+    local commands=(
+        "mkdir -p /etc/pacman.d/hooks"
+    )
+
+    local messages=(
+        "Creating pacman hooks directory"
+    )
+
+    execute_process "Creating Hook Directories" \
+        --debug \
+        --error-handler "Failed to create hook directories" \
+        --success-handler "Hook directories created successfully" \
+        "${commands[@]}" "${messages[@]}"
+}
+
+# Function to create pacman hooks
+create_pacman_hooks() {
+    cat > /etc/pacman.d/hooks/95-bootbackup_pre.hook << EOF
+[Trigger]
+Operation = Upgrade
+Operation = Install
+Operation = Remove
+Type = Path
+Target = usr/lib/modules/*/vmlinuz
+
+[Action]
+Depends = rsync
+Description = Backing up pre /boot...
+When = PreTransaction
+Exec = /usr/bin/bash -c 'rsync -a --mkpath --delete /boot/ "/.bootbackup/$(date +%Y_%m_%d_%H.%M.%S)_pre"/'
+EOF
+
+    cat > /etc/pacman.d/hooks/95-bootbackup_post.hook << EOF
+[Trigger]
+Operation = Upgrade
+Operation = Install
+Operation = Remove
+Type = Path
+Target = usr/lib/modules/*/vmlinuz
+
+[Action]
+Depends = rsync
+Description = Backing up post /boot...
+When = PostTransaction
+Exec = /usr/bin/bash -c 'rsync -a --mkpath --delete /boot/ "/.bootbackup/$(date +%Y_%m_%d_%H.%M.%S)_post"/'
+EOF
+
+    print_message OK "Bootbackup hooks created successfully"
+}
+
+# Main function
+main() {
+    process_init "setup boot-backup hooks"
+    show_logo "Snapper Bootbackup Hooks Setup"
+    print_message INFO "Setting up Snapper install/remove hooks"
+
+    create_hook_directories || { print_message ERROR "Failed to create hook directories"; return 1; }
+    create_pacman_hooks || { print_message ERROR "Failed to create pacman hooks"; return 1; }
+
+    print_message OK "Snapper hooks setup completed successfully"
+    process_end $?
+}
+
+# Run the main function
+main "$@"
+exit $?

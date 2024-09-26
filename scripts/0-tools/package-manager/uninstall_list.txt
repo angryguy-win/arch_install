@@ -1,0 +1,6 @@
+gnome-extra
+xterm
+sublime-merge
+gitg
+glances
+ranger

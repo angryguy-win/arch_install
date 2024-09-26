@@ -20,38 +20,19 @@ fi
 
 
 ask_passwords() {
-    passwords=""
+    local passwords=""
     print_message INFO "Setting up the necessary passwords"
-    # User password
-    if [ "$PASSWORD" = "changeme" ]; then
-        passwords="${passwords}PASSWORD:$USERNAME:true\n"
-    fi
 
-    # LUKS password
-    if [ "$LUKS" = "true" ]; then
-        passwords="${passwords}LUKS_PASSWORD:LUKS:true\n"
-    fi 
+    # Build the passwords string
+    [ "$PASSWORD" = "changeme" ] && passwords+="PASSWORD:$USERNAME "
+    [ "$LUKS" = "true" ] && passwords+="LUKS_PASSWORD:LUKS "
+    [ "$ROOT_SAME_AS_USER_PASSWORD" != "true" ] && [ "$ROOT_PASSWORD" = "changeme" ] && passwords+="ROOT_PASSWORD:root "
+    [ -n "$WIFI_INTERFACE" ] && [ "$WIFI_KEY" = "ask" ] && passwords+="WIFI_KEY:WIFI "
 
-    # Root password
-    if [ "$ROOT_SAME_AS_USER_PASSWORD" = "true" ]; then
-        ROOT_PASSWORD="$PASSWORD"
-    elif [ "$ROOT_PASSWORD" = "changeme" ]; then
-        passwords="${passwords}ROOT_PASSWORD:root:true\n"
-    fi
-
-    # WiFi password
-    if ! check_and_setup_internet; then
-        if [ -n "$WIFI_INTERFACE" ] && [ "$WIFI_KEY" = "ask" ]; then
-            passwords="${passwords}WIFI_KEY:WIFI:true\n"
-            setup_wifi
-        fi
-    fi
-
-    printf '%s' "$passwords" | while IFS=: read -r var_name context condition
-    do
-        case "$condition" in
-            true) ask_password "$context" "$var_name" ;;
-        esac
+    # Process each password
+    for password_info in $passwords; do
+        IFS=':' read -r var_name context <<< "$password_info"
+        ask_password "$context" "$var_name"
     done
 }
 
@@ -62,6 +43,7 @@ check_and_setup_internet() {
         return 0
     else
         print_message WARNING "No internet connection. Attempting to set up WiFi..."
+        setup_wifi
         return 1
     fi
 }
@@ -140,9 +122,8 @@ setup_wifi() {
     fi
 }
 run_checks() {
-
+    print_message INFO "Running checks..."
     show_system_info
-    check_disk_space
 }
 
 main() {
@@ -153,6 +134,7 @@ main() {
     ask_passwords
     check_and_setup_internet
     facts_commons
+    #ask_for_password
 
     print_message OK "Run checks process completed successfully"
     process_end $?

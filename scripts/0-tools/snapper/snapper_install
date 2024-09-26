@@ -1,0 +1,81 @@
+#!/bin/bash
+
+# Source the library functions
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+LIB_PATH="$(dirname "$(dirname "$SCRIPT_DIR")")/lib/lib.sh"
+source "$LIB_PATH"
+
+# Set up error handling
+setup_error_handling
+
+# Function to install Snapper and dependencies
+install_dependencies() {
+    local commands=(
+        "pacman -S --noconfirm --needed snapper snap-pac snapper-gui-git grub-btrfs btrfs-assistant"
+    )
+    local messages=(
+        "Installing Snapper and dependencies"
+    )
+
+    execute_process "Snapper Installation" \
+        --debug \
+        --error-handler "Snapper installation failed" \
+        --success-handler "Snapper installation completed successfully" \
+        "${commands[@]}" "${messages[@]}"
+}
+
+# Function to configure Snapper
+configure_snapper() {
+    local commands=(
+        "mkdir -p /etc/snapper/configs/"
+        "cp -rfv ${SCRIPT_DIR}/root /etc/snapper/configs/"
+        "cp -rfv ${SCRIPT_DIR}/snapper /etc/conf.d/"
+    )
+    local messages=(
+        "Creating Snapper configuration directory"
+        "Copying root configuration"
+        "Copying Snapper configuration"
+    )
+
+    execute_process "Snapper Configuration" \
+        --debug \
+        --error-handler "Snapper configuration failed" \
+        --success-handler "Snapper configuration completed successfully" \
+        "${commands[@]}" "${messages[@]}"
+}
+
+# Function to enable Snapper services
+enable_snapper_services() {
+    local commands=(
+        "systemctl enable --now snapper-timeline.timer"
+        "systemctl enable --now snapper-cleanup.timer"
+    )
+    local messages=(
+        "Enabling Snapper timeline service"
+        "Enabling Snapper cleanup service"
+    )
+
+    execute_process "Enabling Snapper Services" \
+        --debug \
+        --error-handler "Enabling Snapper services failed" \
+        --success-handler "Snapper services enabled successfully" \
+        "${commands[@]}" "${messages[@]}"
+}
+
+# Main function
+main() {
+    process_init "Snapper Installation and Configuration"
+    show_logo "Snapper Setup"
+    print_message INFO "Starting Snapper installation and configuration"
+
+    install_dependencies || { print_message ERROR "Snapper installation failed"; return 1; }
+    configure_snapper || { print_message ERROR "Snapper configuration failed"; return 1; }
+    enable_snapper_services || { print_message ERROR "Enabling Snapper services failed"; return 1; }
+
+    print_message OK "Snapper installation and configuration completed successfully"
+    process_end $?
+}
+
+# Run the main function
+main "$@"
+exit $?

@@ -1,0 +1,6 @@
+ranger
+yazi
+xterm
+sublime-merge
+gitg
+glances

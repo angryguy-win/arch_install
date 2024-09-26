@@ -182,7 +182,7 @@ verbose_print() {
 export -f verbose_print
 # @description Print debug information
 # @noargs
-print_system_info() {
+show_system_info() {
     # Define variables
     local INSTALL_SCRIPT
     local ARCH_CONFIG_TOML
@@ -288,96 +288,10 @@ cpu() {
 }
 gpu_type() {
     local gpu_type
-    gpu_type=$(lspci | grep -E "VGA|3D|Display")
+    # gpu_type=$(lspci | grep -E "VGA|3D|Display" | awk -F': ' '{print $2}' | awk -F' (' '{print $1}')
+    gpu_type=$(lspci | grep -E "VGA|3D|Display" | awk -F'[][]' '/AMD|NVIDIA|Intel/ {print $2 " " $4}')
     set_option "GPU_TYPE" "$gpu_type" || { print_message ERROR "Failed to set GPU_TYPE"; return 1; }
     print_message INFO "GPU Type: " "$gpu_type"
-
-}
-# @description Get GPU information
-# @noargs
-gpu() {
-    if command -v lspci >/dev/null 2>&1; then
-        # Get the relevant GPU lines
-        GPU_INFO=$(lspci | grep -E "VGA compatible controller|Audio device" | grep -i "AMD/ATI")
-
-        if [[ -n "$GPU_INFO" ]]; then
-            # Loop through each line of GPU information
-            while IFS= read -r line; do
-                # Extract GPU Location
-                GPU_LOCATION=$(printf "%b" "$line" | cut -d' ' -f1-3)  # Get the first three fields (including the colon)
-
-                # Extract GPU Details
-                GPU_DETAILS=$(printf "%b" "$line" | cut -d':' -f2- | sed 's/^[ \t]*//')  # Get everything after the first colon and trim leading spaces
-
-                # Remove any unwanted prefixes from GPU Details
-                GPU_DETAILS=$(printf "%b" "$GPU_DETAILS" | sed 's/^[0-9]*\.[0-9]* //')  # Remove leading "00.0" or "00.1"
-
-                # Print formatted output
-                print_message INFO "GPU Location:  " "${GPU_LOCATION}"
-                print_message INFO "GPU Details:   " "${GPU_DETAILS}"
-            done <<< "$GPU_INFO"
-        else
-            print_message WARNING "No AMD/ATI GPU information found in lspci output"
-        fi
-    else
-        print_message WARNING "lspci not available"
-    fi
-
-    # Function to check command availability
-    if command -v lspci >/dev/null 2>&1; then
-        if GPU_INFO=$(lspci -v | grep -A 10 -i "VGA\|Display\|3D" 2>/dev/null); then
-            # Extract the full GPU line
-            GPU_LINE=$(printf "%b" "$GPU_INFO" | head -n1)
-
-            # Split the GPU information at the desired point
-            GPU_PART1=$(printf "%b" "$GPU_LINE" | cut -d'[' -f1 | sed 's/ $//')
-            GPU_PART2=$(printf "%b" "$GPU_LINE" | sed -n 's/.*\(\[AMD.*\)/\1/p')
-
-            # Format and print the information
-            print_message INFO "GPU Part 1: " "${GPU_PART1}"
-            print_message INFO "GPU Part 2: " "${GPU_PART2}"
-
-            # Additional information (if needed)
-            GPU_MEMORY=$(printf "%b" "$GPU_INFO" | grep -i "Memory at" | head -1 | awk '{print $5}')
-            if [[ -n "$GPU_MEMORY" ]]; then
-                print_message INFO "GPU Memory: " "${GPU_MEMORY}"
-            fi
-        else
-            print_message WARNING "No GPU information found in lspci output"
-        fi
-    else
-        print_message WARNING "lspci not available"
-    fi
-
-    # Try glxinfo
-    if command -v glxinfo >/dev/null 2>&1; then
-        print_message DEBUG "Attempting to use glxinfo"
-        if GPU_INFO=$(glxinfo 2>&1 | grep "OpenGL renderer"); then
-            print_message INFO "GPU (from glxinfo): " "$GPU_INFO"
-        else
-            print_message WARNING "glxinfo failed or no OpenGL renderer found"
-        fi
-    else
-        print_message WARNING "glxinfo not available"
-    fi
-
-    # Try reading from /sys
-    if [[ -d /sys/class/graphics/fb0 ]]; then
-        print_message DEBUG "Attempting to read from /sys/class/graphics/fb0"
-        if [[ -f /sys/class/graphics/fb0/name ]]; then
-            GPU_NAME=$(cat /sys/class/graphics/fb0/name)
-            print_message INFO "GPU (from /sys): " "$GPU_NAME"
-        else
-            print_message WARNING "Unable to read GPU name from /sys"
-        fi
-    else
-        print_message WARNING "/sys/class/graphics/fb0 not available"
-    fi
-
-    # If all methods fail
-    if [[ -z "$GPU_LINE" && -z "$GPU_INFO" && -z "$GPU_NAME" ]]; then
-        print_message ERROR "Unable to determine GPU information using any method"
-    fi
 }
 # @description Check if a file exists
 # This function checks if a file exists
@@ -395,6 +309,9 @@ file_exists() {
 # @description Initialize process.
 # @arg $1 string Process name.
 # @noargs
+# @description Initialize process.
+# @arg $1 string Process name.
+# @noargs
 process_init() {
     local process_name
     local process_id
@@ -406,7 +323,12 @@ process_init() {
     START_TIMESTAMP=$(date -u +"%F %T")
     print_message DEBUG "Start time: " "$START_TIMESTAMP"
 
-    #initialize_scripts || { print_message ERROR "Failed to initialize script"; return 1; }
+    #init_log_trace true
+
+    # Set up error handling for this process
+    set -o errtrace
+    trap 'error_handler $? $LINENO $BASH_LINENO "$BASH_COMMAND" $(printf "::%s" ${FUNCNAME[@]:-})' ERR
+
     print_message PROC "Starting process: " "$process_name (ID: $process_id)"
     printf "%b\n" "$process_id:$process_name:started" >> "$PROCESS_LOG"
     print_message DEBUG "======================= Starting $process_name  ======================="
@@ -438,6 +360,9 @@ process_end() {
         printf "%b\n" "$process_id:$process_name:failed:$exit_code" >> "$PROCESS_LOG"
     fi
 
+    #init_log_trace false
+    trap 'exit_handler $?' EXIT
+
     END_TIMESTAMP=$(date -u +"%F %T")
     INSTALLATION_TIME=$(date -u -d @$(($(date -d "$END_TIMESTAMP" '+%s') - $(date -d "$START_TIMESTAMP" '+%s'))) '+%T')
     printf "%b\n" " Process start ${WHITE}$START_TIMESTAMP${NC}, end ${WHITE}$END_TIMESTAMP${NC}, time ${WHITE}$INSTALLATION_TIME${NC}"
@@ -455,13 +380,27 @@ process_end() {
 # @arg $2 string Highlight.
 debug() {
     [ $DEBUG == true ] && log "DEBUG" "$1" "$2"
-} 
-# @description Setup error handling
-# @noargs
-setup_error_handling() {
-    set -o errtrace
-    trap 'error_handler $? $LINENO $BASH_LINENO "$BASH_COMMAND" $(printf "::%s" ${FUNCNAME[@]:-})' ERR
-    trap 'exit_handler $?' EXIT
+}
+# @description Initialize log trace.
+# @arg $1 bool Enable   
+init_log_trace() {
+    local ENABLE="$1"
+    if [ "$ENABLE" == "true" ]; then
+        set -o xtrace
+    fi
+}
+# @description Exit handler
+# @arg $1 int Exit code
+exit_handler() {
+    local exit_code
+    exit_code=$1
+
+    print_message INFO "Exit handler called with exit code: " "$exit_code"
+    if [ "$exit_code" -eq 0 ]; then
+        print_message INFO "Script execution completed successfully"
+    else
+        print_message ERROR "Script execution failed with exit code: " "$exit_code"
+    fi
 }
 # @description Error handler function
 # @arg $1 int Exit code
@@ -494,19 +433,6 @@ error_handler() {
     ERROR_COMMAND="$command"
     ERROR_CODE="$exit_code"
 }
-# @description Exit handler function
-# @arg $1 int Exit code
-exit_handler() {
-    local exit_code
-    exit_code=$1
-
-    print_message INFO "Exit handler called with exit code: " "$exit_code"
-    if [ "$exit_code" -eq 0 ]; then
-        print_message INFO "Script execution completed successfully"
-    else
-        print_message ERROR "Script execution failed with exit code: " "$exit_code"
-    fi
-}
 # @description Cleanup handler
 # @param None
 # @return None
@@ -519,43 +445,6 @@ cleanup_handler() {
         verbose_print "Exit code: ${COLORS[GREEN]}$exit_code${COLORS[RESET]}"
         print_message "INFO" "Script completed successfully"
     fi
-}
-# @description Trap error.
- 
-trap_error() {
-    local error_message
-    error_message="Command '${BASH_COMMAND}' failed with exit code $? in function '${1}' (line ${2})"
-    print_message ERROR "Failed: " "$error_message"
-    printf "%b\n" "$error_message" > "$ERROR_LOG"
-}
-# @description Trap exit.
-# Read error msg from file (written in error trap)
-trap_exit() {
-    local result_code
-    local error_message
-
-    result_code="$?"
-    error_message=""
-
-    # Read error msg from file (written in error trap)
-    [ -f "$LOG_FILE" ] && error_message=$(<"$LOG_FILE")
-
-    # cleanup
-
-    # When ctrl + c pressed exit without other stuff below
-    [ "$result_code" = "130" ] && print_message WARNING "Exit..." && exit 1
-
-    # Check if failed and print error
-    if [ "$result_code" -gt "0" ]; then
-        if [ -n "$error_message" ]; then
-            print_message ERROR "$error_message"
-        else
-            print_message ERROR "Arch Installation failed"
-        fi
-        print_message WARNING "For more information see: " "$FILE_LOG"
-    fi
-
-    exit "$result_code"
 }
 # @description Clean up temporary files and reset system state.
 cleanup() {
@@ -703,9 +592,7 @@ set_option() {
     value="$2"
     config_file="$CONFIG_FILE"
 
-    if [[ "${DRY_RUN:-false}" == true ]]; then
-        print_message ACTION "[DRY RUN] Would set: " "$key=$value in $config_file"
-    fi
+    print_message ACTION "Setting: " "$key=$value in $config_file"
 
     # Always update the config file, even in DRY_RUN mode
     if grep -q "^$key=" "$config_file"; then
@@ -882,48 +769,98 @@ execute_step() {
     eval "$STEP"
     printf "%b\n" "${BLUE}# ${STEP} step${NC}"
 }
+# @description Process installation stages.
+# @arg $1 string Format type
+# @arg $2 string Desktop environment
+process_installation_stages() {
+    local format_type="$1"
+    local desktop_environment="$2"
+    local stage_name
+    local stage_type
+    local scripts
+    local script
+    local script_path
+
+    # Define the stages and their corresponding scripts
+    declare -A stages=(
+        ["1-pre,o"]="run-checks.sh"
+        ["1-pre,m"]="pre-setup.sh"
+        ["2-drive,m"]="partition-{format_type}.sh format-{format_type}.sh"
+        ["3-base,m"]="bootstrap-pkgs.sh generate-fstab.sh"
+        ["4-post,o"]="terminal.sh"
+        ["4-post,m"]="system-config.sh system-pkgs.sh"
+        ["5-desktop,m"]="{desktop_environment}.sh"
+        ["6-final,m"]="last-cleanup.sh"
+        ["7-post-setup,o"]="post-setup.sh"
+    )
+    # Process installation stages
+    for stage in $(printf "%s\n" "${!stages[@]}" | sort); do
+        stage_name="${stage%,*}"
+        stage_type="${stage##*,}"
+        # Check if the stage directory exists
+        [[ ! -d "${SCRIPTS_DIR}/${stage_name}" ]] && {
+            print_message WARNING "Stage directory not found: ${SCRIPTS_DIR}/${stage_name}"
+            continue
+        }
+        # Read the scripts into an array    
+        IFS=' ' read -ra scripts <<< "${stages[$stage]}"
+        for script in "${scripts[@]}"; do
+            script=${script//\{format_type\}/$format_type}
+            script=${script//\{desktop_environment\}/$desktop_environment}
+            script_path="${SCRIPTS_DIR}/${stage_name}/${script}"
+
+            print_message INFO "Executing: ${stage_name}/${script}"
+
+            # Check if the script exists
+            [[ ! -f "$script_path" ]] && {
+                print_message ERROR "Script not found: $script_path"
+                print_message DEBUG "Directory contents: $(ls -la "$(dirname "$script_path")")"
+                return 1
+            }
+            # Execute the script
+            if bash "$script_path"; then
+                print_message ACTION "Successfully executed: $script_path"
+            else
+                print_message ERROR "Failed to execute: $script_path"
+                return 1
+            fi
+        done
+    done
+
+    return 0
+}
 # @description Execute scripts for a given stage.
 # @arg $1 string Stage (directory name)
 # @arg $2 string Script name
 execute_script() {
     local stage="$1"
     local script="$2"
-    local script_path="$SCRIPTS_DIR/$stage/$script"
+    local script_path="${SCRIPTS_DIR}/$stage/$script"
 
-        # Both stage and script must be provided
-    if [[ -z "$stage" || -z "$script" ]]; then
-        print_message ERROR "Both stage and script must be provided for execute_script"
-        return 1
+    if [[ "$DRY_RUN" == "true" ]]; then
+        print_message ACTION "[DRY-RUN] Would execute: $script_path"
+        return 0
     fi
-    # Check if the script file exists
+
     if [[ ! -f "$script_path" ]]; then
-        print_message ERROR "Script file not found: " "$script_path"
+        print_message ERROR "Error: Script not found: $script_path"
+        print_message DEBUG "Current directory contents:"
+        ls -la "$(dirname "$script_path")"
         return 1
     fi
 
-    print_message INFO "Executing: $stage/$script"
-    print_message DEBUG "Script path: $script_path"
-    print_message DEBUG "DRY_RUN value before execution: $DRY_RUN"
-
-    # Execute the script
-    if [[ $DRY_RUN == true ]]; then
-        print_message ACTION "[DRY RUN] Would execute: bash $script_path (Script: $script)"
-        
-        # Simulate execution of commands in the script
-        while IFS= read -r line; do
-            if [[ ! -z "$line" && "$line" != \#* ]]; then  # Ignore empty lines and comments
-                print_message ACTION "[DRY RUN] Would execute: $line"
-            fi
-        done < "$script_path"
-    else
-        print_message ACTION "Executing script: $script_path"
-        if ! (export DRY_RUN="$DRY_RUN"; bash "$script_path"); then
-            print_message ERROR "Failed to execute $script in stage $stage"
-            return 1
-        fi
+    if [[ ! -x "$script_path" ]]; then
+        print_message ERROR "Error: Script is not executable: $script_path"
+        return 1
     fi
 
-    return 0
+    if bash "$script_path"; then
+        print_message ACTION "Successfully executed: $script_path"
+        return 0
+    else
+        print_message ERROR "Failed to execute: $script_path"
+        return 1
+    fi
 }
 # @description Run install scripts.
 # @arg $1 string Format type
@@ -932,62 +869,32 @@ execute_script() {
 run_install_scripts() {
     local format_type="$1"
     local desktop_environment="$2"
-    local dry_run="${3:-false}"
-    local stage_name
-    local stage_type
-    local scripts
-    local script
-    local script_main   
 
-    print_message DEBUG "Format type: " "$format_type"
-    print_message DEBUG "Desktop environment: " "$desktop_environment"
-    print_message DEBUG "DRY_RUN: " "$DRY_RUN"
-
-    # Get all the stages from the INSTALL_SCRIPTS array and sort them
-    for stage in $(printf "%s\n" "${!INSTALL_SCRIPTS[@]}" | tr ' ' '\n' | sort | uniq); do
+    for stage in $(printf "%s\n" "${!INSTALL_SCRIPTS[@]}" | sort); do
         stage_name="${stage%,*}"
         stage_type="${stage##*,}"
 
         print_message INFO "Processing stage: $stage_name ($stage_type)"
 
-        # Get the scripts for the current stage and split them into an array    
         IFS=' ' read -ra scripts <<< "${INSTALL_SCRIPTS[$stage]}"
-        # Loop through each script in the stage
         for script in "${scripts[@]}"; do
             script=$(replace_placeholders "$script" "$format_type" "$desktop_environment")
-            # If the stage is optional and the script should not run, skip it
-            if [[ "$stage_type" == "o" ]] && ! should_run_optional_script "$script"; then
-                print_message INFO "Skipping optional script: $stage_name/$script"
-                continue
+            
+            if [[ "$stage_type" == "o" ]]; then
+                print_message INFO "Optional script: $stage_name/$script"
             fi
 
             print_message INFO "Executing: $stage_name/$script"
-            if [[ $dry_run == true ]]; then
-                # Instead of just printing, we'll source the script in a subshell
-                # This allows us to run the script's functions without affecting the main shell
-                (
-                    . "$SCRIPTS_DIR/$stage_name/$script"
-                    # Assuming each script has a main function named after the script
-                    script_main="${script%.*}"  # Remove file extension
-                    # Check if the main function exists and execute it
-                    if declare -f "$script_main" > /dev/null; then
-                        print_message ACTION "[DRY RUN] Executing main function of $script"
-                        $script_main
-                    else
-                        print_message WARNING "[DRY RUN] No main function found in $script"
-                    fi
-                )
-            else
-                # Execute the script
-                if ! execute_script "$stage_name" "$script"; then
+            if ! execute_script "$stage_name" "$script"; then
+                if [[ $DRY_RUN == true ]]; then
+                    print_message WARNING "Dry run: Continuing despite error in $script"
+                else
                     print_message ERROR "Failed to execute: $script in stage $stage_name"
                     return 1
                 fi
             fi
         done
     done
-
-    print_message DEBUG "Finished run_install_scripts"
 }
 # @description Replace placeholders in script names.
 # @arg $1 string Script name
@@ -1012,7 +919,8 @@ should_run_optional_script() {
     local install_script
 
     config_var="INSTALL_$(printf "%s" "${script%.*}" | tr '[:lower:]' '[:upper:]' | tr '-' '_')"
-    install_script=$(get_config_value "$config_var" "false")
+    install_script=$(get_config_value "$config_var" "true")
+    print_message DEBUG "Checking optional script: $script, config_var: $config_var, value: $install_script"
     [ "$install_script" == "true" ] && return 0 || return 1
 }
 # @description Parse TOML file and populate INSTALL_SCRIPTS
@@ -1269,31 +1177,6 @@ handle_critical_error() {
 }
 # @description Check disk space
 # @arg $1 string Mount point to check
-# @return 0 if space is sufficient, 1 if space is low
-check_disk_space() {
-    local mount_point="$1"
-    local available_space
-    local total_space
-    local used_percentage
-
-    available_space=$(df -k "$mount_point" | awk 'NR==2 {print $4}')
-    total_space=$(df -k "$mount_point" | awk 'NR==2 {print $2}')
-    used_percentage=$(df -h "$mount_point" | awk 'NR==2 {print $5}' | sed 's/%//')
-
-    print_message INFO "Disk space check for $mount_point:"
-    print_message INFO "Total space: $(( total_space / 1024 )) MB"
-    print_message INFO "Available space: $(( available_space / 1024 )) MB"
-    print_message INFO "Used percentage: $used_percentage%"
-
-    if [[ $used_percentage -gt 90 ]]; then
-        print_message WARNING "Disk space is critically low on $mount_point"
-        return 1
-    elif [[ $used_percentage -gt 80 ]]; then
-        print_message WARNING "Disk space is running low on $mount_point"
-    fi
-
-    return 0
-}
 # @description Ensure log directory exists.
 # @return 0 on success, 1 on failure
 ensure_log_directory() {
@@ -1397,59 +1280,6 @@ check_internet_connection() {
         exit 1
     fi
 }
-# @description Log main function.
-# @arg $1 string Log file
-# @arg $@ string Command to log
-# @return 0 on success, 1 on failure
-log_main() {
-    local log_file="$1"
-    shift
-    sed -E "s/\x1B\[([0-9]{1,3}(;[0-9]{1,3})*)?[mGK]//g" | tee -a "$log_file"
-}
-# @description Ask for passwords.
-# @return 0 on success, 1 on failure
-ask_passwords() {
-    if [ "$LUKS_PASSWORD" == "ask" ]; then
-        ask_password "LUKS" "LUKS_PASSWORD"
-    fi
-
-    if [ -n "$WIFI_INTERFACE" ] && [ "$WIFI_KEY" == "ask" ]; then
-        ask_password "WIFI" "WIFI_KEY"
-    fi
-
-    if [ "$ROOT_PASSWORD" == "ask" ]; then
-        ask_password "root" "ROOT_PASSWORD"
-    fi
-
-    if [ "$USER_PASSWORD" == "ask" ]; then
-        ask_password "user" "USER_PASSWORD"
-    fi
-
-    for I in "${!ADDITIONAL_USERS[@]}"; do
-        local VALUE=${ADDITIONAL_USERS[$I]}
-        local S=()
-        IFS='=' read -ra S <<< "$VALUE"
-        local USER=${S[0]}
-        local PASSWORD=${S[1]}
-        local PASSWORD_RETYPE=""
-
-        if [ "$PASSWORD" == "ask" ]; then
-            local PASSWORD_TYPED="false"
-            while [ "$PASSWORD_TYPED" != "true" ]; do
-                read -r -sp "Type user ($USER) password: " PASSWORD
-                echo ""
-                read -r -sp "Retype user ($USER) password: " PASSWORD_RETYPE
-                echo ""
-                if [ "$PASSWORD" == "$PASSWORD_RETYPE" ]; then
-                    local PASSWORD_TYPED="true"
-                    ADDITIONAL_USERS[I]="$USER=$PASSWORD"
-                else
-                    echo "User ($USER) password don't match. Please, type again."
-                fi
-            done
-        fi
-    done
-}
 # @description Ask for password.
 # @arg $1 string Password name
 # @arg $2 string Password variable
@@ -1491,6 +1321,7 @@ facts_commons() {
     else
         BIOS_TYPE="bios"
     fi
+    set_option "BIOS_TYPE" "$BIOS_TYPE"
 
     if lscpu | grep -q "GenuineIntel"; then
         CPU_VENDOR="intel"
@@ -1499,6 +1330,7 @@ facts_commons() {
     else
         CPU_VENDOR=""
     fi
+    set_option "CPU_VENDOR" "$CPU_VENDOR"
 
     if lspci -nn | grep "\[03" | grep -qi "intel"; then
         GPU_VENDOR="intel"
@@ -1509,13 +1341,15 @@ facts_commons() {
     else
         GPU_VENDOR=""
     fi
+    set_option "GPU_VENDOR" "$GPU_VENDOR"
 
     INITRD_MICROCODE=""
-        if [ "$CPU_VENDOR" == "intel" ]; then
+    if [ "$CPU_VENDOR" == "intel" ]; then
             INITRD_MICROCODE="intel-ucode.img"
         elif [ "$CPU_VENDOR" == "amd" ]; then
             INITRD_MICROCODE="amd-ucode.img"
         fi
+    set_option "INITRD_MICROCODE" "$INITRD_MICROCODE"
 
     USER_NAME_INSTALL="$(whoami)"
     if [ "$USER_NAME_INSTALL" == "root" ]; then
@@ -1523,31 +1357,75 @@ facts_commons() {
     else
         SYSTEM_INSTALLATION="false"
     fi
+    set_option "SYSTEM_INSTALLATION" "$SYSTEM_INSTALLATION"
 }
-
-init_log_trace() {
-    local ENABLE="$1"
-    if [ "$ENABLE" == "true" ]; then
-        set -o xtrace
-    fi
-}
-
+# @description Initialize log file.
+# @arg $1 bool Enable
+# @arg $2 string File
 init_log_file() {
     local ENABLE="$1"
     local FILE="$2"
     if [ "$ENABLE" == "true" ]; then
-        exec &> >(tee -a "$FILE")
+        # Create a file descriptor for the log file
+        exec 3>"$FILE"
+        # Tee stdout and stderr to both console and log file, stripping color codes for the log file
+        exec 1> >(tee >(sed -r "s/\x1B\[([0-9]{1,3}(;[0-9]{1,3})*)?[mGK]//g" >&3))
+        exec 2> >(tee >(sed -r "s/\x1B\[([0-9]{1,3}(;[0-9]{1,3})*)?[mGK]//g" >&3) >&2)
     fi
 }
+# @description Check if dialog is installed.
+# @return 0 if dialog is installed, 1 if not
+check_dialog() {
+    if ! command -v dialog >/dev/null 2>&1; then
+        print_message WARNING "dialog is not installed. Attempting to install it..."
+        if command -v pacman >/dev/null 2>&1; then
+            if ! sudo pacman -Sy --noconfirm dialog; then
+                print_message WARNING "Failed to install dialog. Falling back to basic input method."
+                return 1
+            fi
+        elif command -v apt-get >/dev/null 2>&1; then
+            if ! (sudo apt-get update && sudo apt-get install -y dialog); then
+                print_message WARNING "Failed to install dialog. Falling back to basic input method."
+                return 1
+            fi
+        else
+            print_message WARNING "Unable to install dialog. Falling back to basic input method."
+            return 1
+        fi
+    fi
+    return 0
+}
+# @description Ask for password.
+# @return 0 on success, 1 on failure
 ask_for_password() {
+    if check_dialog; then
+        password=$(dialog --stdout --passwordbox "Enter admin password" 0 0) || exit 1
+        clear
+        : ${password:?"password cannot be empty"}
+        password2=$(dialog --stdout --passwordbox "Enter admin password again" 0 0) || exit 1
+        clear
+        [[ "$password" == "$password2" ]] || ( echo "Passwords did not match"; exit 1; )
+        set_option "PASSWORD" "$password"
+        devicelist=$(lsblk -dplnx size -o name,size | grep -Ev "boot|rpmb|loop" | tac)
+        device=$(dialog --stdout --menu "Select installation disk" 0 0 0 ${devicelist}) || exit 1
+        clear
+        set_option "DEVICE" "$device"
+    else
+        # Fallback to basic input method
+        read -s -p "Enter admin password: " password
+        echo
+        read -s -p "Enter admin password again: " password2
+        echo
+        [[ "$password" == "$password2" ]] || ( echo "Passwords did not match"; exit 1; )
+        : ${password:?"password cannot be empty"}
+        
+        echo "Available devices:"
+        lsblk -dplnx size -o name,size | grep -Ev "boot|rpmb|loop" | nl
+        read -p "Enter the number of the device you want to use: " device_number
+        device=$(lsblk -dplnx size -o name,size | grep -Ev "boot|rpmb|loop" | sed -n "${device_number}p" | awk '{print $1}')
+    fi
 
-    password=$(dialog --stdout --passwordbox "Enter admin password" 0 0) || exit 1
-    clear
-    : ${password:?"password cannot be empty"}
-    password2=$(dialog --stdout --passwordbox "Enter admin password again" 0 0) || exit 1
-    clear
-    [[ "$password" == "$password2" ]] || ( echo "Passwords did not match"; exit 1; )
-    devicelist=$(lsblk -dplnx size -o name,size | grep -Ev "boot|rpmb|loop" | tac)
-    device=$(dialog --stdout --menu "Select installation disk" 0 0 0 ${devicelist}) || exit 1
-    clear
+    # Export the variables for use in other parts of the script
+    export PASSWORD="$password"
+    export DEVICE="$device"
 }

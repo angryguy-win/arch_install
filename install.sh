@@ -15,24 +15,18 @@ export VERBOSE=${VERBOSE:-false}
 # Parse command-line options
 while [[ "$#" -gt 0 ]]; do
     case $1 in
-        --dry-run) export DRY_RUN=true ;;
-        --verbose) export VERBOSE=true ;;
+        -d|--dry-run) export DRY_RUN=true ;;
+        -v|--verbose) export VERBOSE=true ;;
         *) echo "Unknown parameter passed: $1"; exit 1 ;;
     esac
     shift
 done
 
-# Check for root privileges only if not in dry-run mode
-if [[ "$DRY_RUN" != "true" && $EUID -ne 0 ]]; then
-   echo "This script must be run as root for actual installation. Use --dry-run for testing without root." 
-   exit 1
-fi
 
 # Set up important directories and files
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 export ARCH_DIR="$SCRIPT_DIR"
 export SCRIPTS_DIR="$ARCH_DIR/scripts"
- 
 export CONFIG_FILE="$ARCH_DIR/arch_config.cfg"
 
 # Source the library functions
@@ -43,6 +37,11 @@ if [ -f "$LIB_PATH" ]; then
 else
     echo "Error: Cannot find lib.sh at $LIB_PATH" >&2
     exit 1
+fi
+
+init_log_file true "$ARCH_DIR/process.log"
+if [ -f "$ARCH_DIR/process.log" ]; then
+    touch "$ARCH_DIR/process.log"
 fi
 
 # Main execution
@@ -64,14 +63,14 @@ main() {
     export STAGES_CONFIG="${STAGES_CONFIG:-$ARCH_DIR/stages.toml}"
 
     # Parse the stages TOML file
-    parse_stages_toml "$STAGES_CONFIG" || { print_message ERROR "Failed to parse stages.toml"; exit 1; }
-    print_message DEBUG "Parsed stages.toml: ${STAGES_CONFIG}"
+    #parse_stages_toml "$STAGES_CONFIG" || { print_message ERROR "Failed to parse stages.toml"; exit 1; }
+    #print_message DEBUG "Parsed stages.toml: ${STAGES_CONFIG}"
 
     # Debug: Print the contents of INSTALL_SCRIPTS
-    print_message DEBUG "Contents of INSTALL_SCRIPTS:"
-    for key in "${!INSTALL_SCRIPTS[@]}"; do
-        print_message DEBUG "  $key: ${INSTALL_SCRIPTS[$key]}"
-    done
+    #print_message DEBUG "Contents of INSTALL_SCRIPTS:"
+    #for key in "${!INSTALL_SCRIPTS[@]}"; do
+    #    print_message DEBUG "  $key: ${INSTALL_SCRIPTS[$key]}"
+    #done
     # Reads config file arch_config.toml and copies it to arch_config.cfg
     read_config || { print_message ERROR "Failed to read config"; exit 1; }
     # Load configuration
@@ -88,7 +87,7 @@ main() {
     print_message OK "All required scripts are present."
 
     # Run install scripts
-    run_install_scripts "$FORMAT_TYPE" "$DESKTOP_ENVIRONMENT" "$DRY_RUN" || {
+    process_installation_stages "$FORMAT_TYPE" "$DESKTOP_ENVIRONMENT" || {
         print_message ERROR "Installation failed"
         exit 1
     }
