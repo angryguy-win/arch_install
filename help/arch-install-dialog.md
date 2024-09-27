@@ -138,7 +138,7 @@ this install also has some flags:
     parse_stages_toml()
     backup_config()
     backup_fstab()
-    handle)critical_error()
+    handle_critical_error()
     check_disk_space()
     ensure_log_directory()
     check_required_script()

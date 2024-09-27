@@ -23,57 +23,33 @@ setup_error_handling
 
 # Function template
 function_name() {
-    # Initialize the function
-    local commands
-    local messages
-    local var1
-    local var2
-    local var3
-    # Set the variables
-    var1="$1"
-    var2="$2"
-    var3="$3"
-    # Set the commands
-    commands=(
-        "command1 $var1"
-        "command2 $var2"
-        "command3 $var3"
-    )
-    # Set the messages
-    messages=(
-        "Executing command 1"
-        "Executing command 2"
-        "Executing command 3"
-    )
+
     # Execute the function
     execute_process "Function Name" \
         --debug \
         --error-message "- Function failed" \
         --success-message "- Function completed successfully" \
-        "${commands[@]}" "${messages[@]}"
-        # --use-chroot # Uncomment to use chroot optional
+        "run some commands"
+        "run an other command"
+
+
+        # --use-chroot # to use chroot optional
 }
 
 # Another function template
 another_function() {
     local commands
-    local messages
 
     commands=(
         "command4"
         "command5"
     )
 
-    messages=(
-        "Executing command 4"
-        "Executing command 5"
-    )
-
     execute_process "Another Function" \
         --debug \
         --error-message "- Another function failed" \
         --success-message "- Another function completed successfully" \
-        "${commands[@]}" "${messages[@]}"
+        "${commands[@]}"
         # --use-chroot # Uncomment to use chroot optional
 }
 
