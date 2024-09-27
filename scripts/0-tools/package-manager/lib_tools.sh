@@ -360,15 +360,15 @@ handle_uninstallation() {
 check_package() {
     local pkg="$1"
     if [[ -z "$pkg" ]]; then
-        echo "ERROR"
+        printf "%s\n" "ERROR"
         return
     fi
     if is_package_installed "$pkg"; then
-        echo "SKIP"
+        printf "%s\n" "SKIP"
     elif [[ " ${SELECTED_PACKAGES[*]} " =~ " ${pkg} " ]] || [[ ${#SELECTED_PACKAGES[@]} -eq 0 ]]; then
-        echo "INSTALL"
+        printf "%s\n" "INSTALL"
     else
-        echo "EXCLUDE"
+        printf "%s\n" "EXCLUDE"
     fi
 }
 export -f check_package
@@ -824,7 +824,7 @@ check_for_updates() {
         print_message "INFO" "Your system is up to date."
     else
         print_message "INFO" "There are $update_count package(s) that can be upgraded:"
-        echo "$updates"
+        printf "%s\n" "$updates"
     fi
 }
 confirm_installation() {
@@ -832,7 +832,7 @@ confirm_installation() {
     print_message "INFO" "The following packages will be installed:"
     printf '  %s\n' "${packages[@]}"
     read -p "Do you want to proceed? [Y/n] " -n 1 -r
-    echo
+    printf "\n"
     if [[ $REPLY =~ ^[Yy]$ ]] || [[ -z $REPLY ]]; then
         return 0
     else

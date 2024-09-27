@@ -11,7 +11,7 @@ LIB_FILE="$ARCH_DIR/lib/lib.sh"
 
 # Function to clean up on exit
 cleanup() {
-    log_info "Cleaning up..."
+    print_message INFO "Cleaning up..."
     # Add any necessary cleanup logic here
 }
 
@@ -20,7 +20,7 @@ trap cleanup EXIT
 
 # Function to handle errors
 handle_error() {
-    log_error "An error occurred on line $1"
+    print_message ERROR "An error occurred on line $1"
     exit 1
 }
 
@@ -31,13 +31,13 @@ trap 'handle_error $LINENO' ERR
 install_package() {
     local package=$1
     if pacman -Qi "$package" &> /dev/null; then
-        log_note "$package is already installed"
+        print_message NOTE "$package is already installed"
     else
-        log_info "Installing $package"
+        print_message INFO "Installing $package"
         if sudo pacman -S --noconfirm "$package"; then
-            log_ok "$package installed successfully"
+            print_message OK "$package installed successfully"
         else
-            log_error "Failed to install $package"
+            print_message ERROR "Failed to install $package"
             return 1
         fi
     fi
@@ -53,7 +53,7 @@ install_neovim() {
         "fd"
     )
 
-    log_info "Installing Neovim and its dependencies"
+    print_message INFO "Installing Neovim and its dependencies"
     for package in "${neovim_packages[@]}"; do
         install_package "$package"
     done
@@ -68,13 +68,13 @@ configure_neovim() {
 
     # Create Neovim config directory
     mkdir -p "$config_dir"
-    log_ok "Created Neovim config directory: $config_dir"
+    print_message OK "Created Neovim config directory: $config_dir"
 
     # Download Kickstart configuration
     if curl -fLo "$config_dir/init.lua" --create-dirs "$kickstart_url"; then
-        log_ok "Downloaded Kickstart Neovim configuration"
+        print_message OK "Downloaded Kickstart Neovim configuration"
     else
-        log_error "Failed to download Kickstart configuration"
+        print_message ERROR "Failed to download Kickstart configuration"
         return 1
     fi
 
@@ -82,27 +82,27 @@ configure_neovim() {
     local packer_dir="$HOME/.local/share/nvim/site/pack/packer/start/packer.nvim"
     if [ ! -d "$packer_dir" ]; then
         git clone --depth 1 https://github.com/wbthomason/packer.nvim "$packer_dir"
-        log_ok "Installed Packer plugin manager"
+        print_message OK "Installed Packer plugin manager"
     else
-        log_note "Packer plugin manager already installed"
+        print_message NOTE "Packer plugin manager already installed"
     fi
 
     # Run Neovim to install plugins
-    log_info "Installing Neovim plugins (this may take a while)..."
+    print_message INFO "Installing Neovim plugins (this may take a while)..."
     nvim --headless -c 'autocmd User PackerComplete quitall' -c 'PackerSync'
-    log_ok "Neovim plugins installed"
+    print_message OK "Neovim plugins installed"
 
     return 0
 }
 
 # Main function
 main() {
-    log_info "Starting Neovim installation and configuration process"
+    print_message INFO "Starting Neovim installation and configuration process"
 
     if install_neovim && configure_neovim; then
-        log_ok "Neovim installed and configured successfully with Kickstart"
+        print_message OK "Neovim installed and configured successfully with Kickstart"
     else
-        log_error "Failed to install or configure Neovim"
+        print_message ERROR "Failed to install or configure Neovim"
         exit 1
     fi
 }

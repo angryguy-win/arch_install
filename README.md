@@ -246,9 +246,11 @@ You are limited to this template or you could add more to it.
 
 --debug
 --use-chroot
+--critical
 --error-handler
 --success-handler
---command
+commands
+
 
 ```
 ```bash
@@ -308,6 +310,7 @@ You can create your own package list.toml file. for different scenarios and your
 just follow the format.
 
 ```bash
+# /scripts/0-tools/package_manager/package_manager.sh
 bash package_manager.sh -h
 Usage: package_manager.sh [OPTIONS]
 
@@ -357,6 +360,7 @@ You can also check for system-wide updates.
 keep track of the updates.
 
 ```bash
+# /scripts/0-tools/package-manager/check_update.sh
 bash check_update.sh -h
 Usage: check_update.sh [options] [package1] [package2] ...
 Options:

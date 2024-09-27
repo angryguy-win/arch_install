@@ -9,19 +9,12 @@ source "$LIB_PATH"
 setup_error_handling
 
 create_hook_directories() {
-    local commands=(
-        "mkdir -p /etc/pacman.d/hooks"
-    )
-
-    local messages=(
-        "Creating pacman hooks directory"
-    )
 
     execute_process "Creating Hook Directories" \
         --debug \
         --error-handler "Failed to create hook directories" \
         --success-handler "Hook directories created successfully" \
-        "${commands[@]}" "${messages[@]}"
+        "mkdir -p /etc/pacman.d/hooks"
 }
 
 # Function to create pacman hooks

@@ -11,7 +11,7 @@ LIB_FILE="$ARCH_DIR/lib/lib.sh"
 
 # Function to clean up on exit
 cleanup() {
-    log_info "Cleaning up..."
+    print_message INFO "Cleaning up..."
     # Add any necessary cleanup logic here
 }
 
@@ -20,7 +20,7 @@ trap cleanup EXIT
 
 # Function to handle errors
 handle_error() {
-    log_error "An error occurred on line $1"
+    print_message ERROR "An error occurred on line $1"
     exit 1
 }
 
@@ -31,13 +31,13 @@ trap 'handle_error $LINENO' ERR
 install_package() {
     local package=$1
     if pacman -Qi "$package" &> /dev/null; then
-        log_note "$package is already installed"
+        print_message NOTE "$package is already installed"
     else
-        log_info "Installing $package"
+        print_message INFO "Installing $package"
         if sudo pacman -S --noconfirm "$package"; then
-            log_ok "$package installed successfully"
+            print_message OK "$package installed successfully"
         else
-            log_error "Failed to install $package"
+            print_message ERROR "Failed to install $package"
             return 1
         fi
     fi
@@ -47,13 +47,13 @@ install_package() {
 install_aur_package() {
     local package=$1
     if pacman -Qi "$package" &> /dev/null; then
-        log_note "$package is already installed"
+        print_message NOTE "$package is already installed"
     else
-        log_info "Installing AUR package $package"
+        print_message INFO "Installing AUR package $package"
         if yay -S --noconfirm "$package"; then
-            log_ok "$package installed successfully"
+            print_message OK "$package installed successfully"
         else
-            log_error "Failed to install AUR package $package"
+            print_message ERROR "Failed to install AUR package $package"
             return 1
         fi
     fi
@@ -88,7 +88,7 @@ install_dependencies() {
 
     # Install yay if not already installed
     if ! command -v yay &> /dev/null; then
-        log_info "Installing yay..."
+        print_message INFO "Installing yay..."
         git clone https://aur.archlinux.org/yay.git
         cd yay
         makepkg -si --noconfirm
@@ -98,45 +98,45 @@ install_dependencies() {
 
     for package in "${aur_packages[@]}"; do
         install_aur_package "$package"
-    end
+    done
 
     # Install Rust and Cargo
     if ! command -v rustc &> /dev/null; then
-        log_info "Installing Rust and Cargo..."
+        print_message INFO "Installing Rust and Cargo..."
         curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y
         source $HOME/.cargo/env
     fi
 
     # Install Atuin
     if ! command -v atuin &> /dev/null; then
-        log_info "Installing Atuin..."
+        print_message INFO "Installing Atuin..."
         cargo install atuin
     fi
 
     # Install fzf-bash-completion
     if [ ! -f "$HOME/.local/share/fzf/fzf-bash-completion.sh" ]; then
-        log_info "Installing fzf-bash-completion..."
+        print_message INFO "Installing fzf-bash-completion..."
         mkdir -p "$HOME/.local/share/fzf"
         curl -o "$HOME/.local/share/fzf/fzf-bash-completion.sh" https://raw.githubusercontent.com/lincheney/fzf-tab-completion/master/bash/fzf-bash-completion.sh
     fi
 
     # Install Starship prompt
     if ! command -v starship &> /dev/null; then
-        log_info "Installing Starship prompt..."
+        print_message INFO "Installing Starship prompt..."
         curl -sS https://starship.rs/install.sh | sh -s -- -y
     fi
 
-    log_ok "All dependencies installed successfully"
+    print_message OK "All dependencies installed successfully"
 }
 
 # Main function
 main() {
-    log_info "Starting dependency installation process"
+    print_message INFO "Starting dependency installation process"
 
     if install_dependencies; then
         log_ok "All dependencies installed and configured successfully"
     else
-        log_error "Failed to install dependencies"
+        print_message ERROR "Failed to install dependencies"
         exit 1
     fi
 }
