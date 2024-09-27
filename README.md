@@ -5,12 +5,13 @@
 
 run the install script ` bash install.sh `
 The script is broken down into 6 parts
-1. PreInstall
+1. Pre             Install
 2. Drives
-3. Base install and system
-4. Post install
+3. Base            install and system
+4. Post            install
 5. Desktop
-6. Final and clean up
+6. Final           clean up
+7. post-setup
 
 For example it could be used whit somthing like this:
 ( https://github.com/angryguy-win/Rust-Arch-menu )
@@ -57,13 +58,15 @@ Or it could just be edited manualy for use with other scripts.
     - kde.sh
   - 6-final
     - last-cleanuo.sh
+  - 7-post-setup
+    - post-setup.sh
 - |
 - gitignore
 - acrh_config.cfg
 - arch_config.toml
 - install.conf
 - install.sh
-- test_config.sh
+- quick-dirty.sh
 - LICENSE
 - README.md
 - stages.toml
@@ -75,6 +78,10 @@ DRY_RUN is a true/false variable that is used to enable or disable dry run mode.
 When set to true, the script will not execute any commands and will only print 
 the commands that would have been executed.
 ```bash
+-v --verbose
+-d --dry-run
+
+
 sudo bash install.sh --dry-run
 # Example output
 [INFO] Starting stage:  1-pre
@@ -126,6 +133,7 @@ device_type = 'ssd'
 grub_theme = 'CyberRe'
 load_themes = true
 
+
 ```
 
 ### Install script
@@ -143,29 +151,33 @@ Ensure that the TOML file follows the expected format.
 stages.toml
 ```shell
 [stages]
-"1-pre" = ["pre-setup.sh", "run-checks.sh"]
-"2-drive" = ["partition-btrfs.sh", "format-btrfs.sh"]
-"3-base" = ["bootstrap-pkgs.sh", "generate-fstab.sh"]
-"4-post" = ["system-conf.sh", "system-pkgs.sh", "terminal.sh"]
-"5-desktop" = ["gnome.sh"]
-"6-final" = ["last-cleanup.sh"]
+"1-pre" = { mandatory = ["pre-setup.sh"], optional = ["run-checks.sh"] }
+"2-drive" = { mandatory = ["partition-{format_type}.sh", "format-{format_type}.sh"] }
+"3-base" = { mandatory = ["bootstrap-pkgs.sh", "generate-fstab.sh"] }
+"4-post" = { mandatory = ["system-config.sh", "system-pkgs.sh"], optional = ["terminal.sh"] }
+"5-desktop" = { mandatory = ["{desktop_environment}.sh"] }
+"6-final" = { mandatory = ["last-cleanup.sh"] } 
+"7-post-optional" = { optional = ["post-setup.sh"] }
+
+[format_types]
+btrfs = ["partition-btrfs.sh", "format-btrfs.sh"]
+ext4 = ["partition-ext4.sh", "format-ext4.sh"]
+
+[desktop_environments]
+none = ["none.sh"]
+gnome = ["gnome.sh"]
+kde = ["kde.sh"]
+cosmic = ["cosmic.sh"]
+dwm = ["dwm.sh"]    
 ```
 
 ```shell
-# Parse the stages TOML file
-parse_stages_toml "$STAGES_CONFIG" || print_message ERROR "Failed to parse stages.toml" exit 1
+read_config
+# Load configuration
+load_config
 
-# Create a sorted list of stages
-readarray -t SORTED_STAGES < <(printf '%s\n' "${!INSTALL_SCRIPTS[@]}" | sort)
-
-# Print the INSTALL_SCRIPTS array for verification
-print_message INFO "Installation Stages and Scripts:"
-for stage in "${SORTED_STAGES[@]}"; do
-    print_message INFO "  $stage: ${INSTALL_SCRIPTS[$stage]}"
-done
-# ---------------
-# Run the install scripts is run in main()
-run_install_scripts "$format_type" "$desktop_environment" || { print_message ERROR "Installation failed"; return 1; }
+check_required_scripts
+process_installation_stages "$FORMAT_TYPE" "$DESKTOP_ENVIRONMENT" 
 
 ```
 
@@ -231,56 +243,59 @@ You can use this function to run multiple commands and messages.
 There are other ways of using these functions.
 You are limited to this template or you could add more to it.
 ```bash
+
+--debug
+--use-chroot
 --error-handler
 --success-handler
---debug
---dry-run
 --command
---message
---pre-command-hook
---post-command-hook
---use-chroot
 
 ```
 ```bash
 example_function() {
-    local commands
-    local messages
 
-    commands=(
-        "command4"
-        "command5"
-    )
-
-    messages=(
-        "Executing command 4"
-        "Executing command 5"
-    )
-
-    for i in "${!commands[@]}"; do
-        args+=(--command "${commands[$i]}" --message "${messages[$i]}")
-    done
-    execute_process "Network Setup Configuration" \
+    execute_process "Mirror setup" \
         --debug \
-        --error-message "Failed to setup network" \
-        --success-message "Network setup completed successfully" \
-        "${args[@]}"
-        # --use-chroot # Uncomment to use chroot optional
+        #--use-chroot \ you can use chroot if you want to run the commands in a chroot environment.
+        --error-message "Mirror setup failed" \
+        --success-message "Mirror setup completed" \
+        "curl -4 'https://ifconfig.co/country-iso' > COUNTRY_ISO" \
+        "cp /etc/pacman.d/mirrorlist /etc/pacman.d/mirrorlist.backup"
 }
 ```
 There are other ways to use this function.
 ```bash
 
-    # Common settings
-    commands+=("set_option partition1 \"${install_device}1\"")
-    messages+=("Setting partition1")
-    commands+=("set_option partition2 \"${install_device}2\"")
-    messages+=("Setting partition2")
+gpu_setup() {
+    local gpu_info
+    gpu_info=${GPU_DRIVER}
 
-    for script in "${INSTALL_SCRIPTS[@]}"; do
-        commands+=("bash $SCRIPTS_DIR/$script")
-        messages+=("Executing $script")
-    done
+    case "$gpu_info" in
+        *NVIDIA*|*GeForce*)
+            print_message ACTION "Installing NVIDIA drivers"
+            command="pacman -S --noconfirm --needed nvidia-dkms nvidia-utils lib32-nvidia-utils"
+            ;;
+        *AMD*|*ATI*)
+            print_message ACTION "Installing AMD drivers"
+            command="pacman -S --noconfirm --needed xf86-video-amdgpu mesa lib32-mesa vulkan-radeon lib32-vulkan-radeon"
+            ;;
+        *Intel*)
+            print_message ACTION "Installing Intel drivers"
+            command="pacman -S --noconfirm --needed xf86-video-intel mesa lib32-mesa vulkan-intel lib32-vulkan-intel"
+            ;;
+        *)
+            print_message WARNING "Unknown GPU. Installing generic drivers"
+            command="pacman -S --noconfirm --needed xf86-video-vesa mesa"
+            ;;
+    esac
+    print_message DEBUG "GPU type: ${gpu_info}"
+
+    execute_process "GPU Setup" \
+        --use-chroot \
+        --error-message "GPU setup failed" \
+        --success-message "GPU setup completed" \
+        "${command}"
+}
 ```
 
 ## Package-manager

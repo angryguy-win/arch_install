@@ -81,7 +81,7 @@ main() {
     # Initialize the script
     process_init "Script Name"
     # Show the logo
-    show_logo "Script Name"
+    show_logo "Script Name"    
     # Print a message to the console
     print_message INFO "Starting script execution"
     # Load configuration variables from the key=value arch_config.cfg file
