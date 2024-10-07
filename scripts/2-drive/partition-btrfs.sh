@@ -53,7 +53,7 @@ partitioning() {
 
     # Initialize partition commands
     print_message ACTION "Wiping the partition table on $DEVICE"
-    command+=("sgdisk --zap-all $DEVICE")
+    command+=("sgdisk -Z $DEVICE")
     command+=("sgdisk -o $DEVICE")
     command+=("wipefs -a -f $DEVICE")
     command+=("partprobe -s $DEVICE")
