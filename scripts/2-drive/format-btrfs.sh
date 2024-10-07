@@ -87,7 +87,7 @@ create_subvolumes() {
     local partition_root="$1"
     local subvol
     local command=()
-    local subvolumes=("${SUBVOLUMES//,/ }")  # Convert to array, splitting by comma
+    local subvolumes=(${SUBVOLUMES//,/ })  # Convert to array, splitting by comma
 
     # Convert SUBVOLUMES to a space-separated string for POSIX compliance
     #subvolumes=$(echo "$SUBVOLUMES" | tr ',' ' ')  # Convert to space-separated
