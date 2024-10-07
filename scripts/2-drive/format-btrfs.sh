@@ -87,7 +87,10 @@ create_subvolumes() {
     local partition_root="$1"
     local subvol
     local command=()
-    local subvolumes=(${SUBVOLUMES//,/ })  # Convert to array, splitting by comma
+    local subvolumes=("${SUBVOLUMES//,/ }")  # Convert to array, splitting by comma
+
+    # Convert SUBVOLUMES to a space-separated string for POSIX compliance
+    #subvolumes=$(echo "$SUBVOLUMES" | tr ',' ' ')  # Convert to space-separated
 
     print_message ACTION "Creating subvolumes on $partition_root"
     # Mount the root partition  
@@ -156,11 +159,10 @@ partition_mount() {
     local partition_root="$2"
     local partition_home="$3"
     local command=()
-    local subvolumes    #=(${SUBVOLUMES//,/ })  # Convert to array, splitting by comma
-    local subvol
+    IFS=',' read -ra subvolumes <<< "$SUBVOLUMES"  # Safely split into array
+    #local subvolumes=(${SUBVOLUMES//,/ })  # Convert to array, splitting by comma if you add quotes it break this
+    local subvol                           
 
-        # Convert SUBVOLUMES to a space-separated string for POSIX compliance
-    subvolumes=$(echo "$SUBVOLUMES" | tr ',' ' ')  # Convert to space-separated
 
     # Add this check for LUKS
     if [[ "$LUKS" == "true" ]]; then
@@ -207,9 +209,10 @@ partition_mount() {
         fi
     fi
 
-    execute_process "Mounting partitions" \
-        --error-message "Mounting failed" \
-        --success-message "Mounting completed successfully" \
+    # Execute the commands
+    execute_process "Enabling swap" \
+        --error-message "Enabling swap failed" \
+        --success-message "Swap enabled successfully" \
         "${command[@]}"
 }
 

@@ -1,6 +1,6 @@
   [DEBUG]  ======================= Starting Main Installation Process =======================
-  [DEBUG]  Start time:  2024-10-07 10:07:17
- [PROC]  Starting process:  Main Installation Process (ID: 1728295637) 2024-10-07 10:07:17
+  [DEBUG]  Start time:  2024-10-07 20:45:45
+ [PROC]  Starting process:  Main Installation Process (ID: 1728333945) 2024-10-07 20:45:45
   [DEBUG]  ======================= Starting Main Installation Process  =======================
  
 -------------------------------------------------------------------------
@@ -67,8 +67,8 @@
   [DEBUG]  === Checking for missing required scripts ===
   [OK]  All required scripts are present.
  [INFO]  Executing: 1-pre/pre-setup.sh
-  [DEBUG]  Start time:  2024-10-07 10:07:17
- [PROC]  Starting process:  Pre-setup (ID: 1728295637) 2024-10-07 10:07:17
+  [DEBUG]  Start time:  2024-10-07 20:45:45
+ [PROC]  Starting process:  Pre-setup (ID: 1728333945) 2024-10-07 20:45:45
   [DEBUG]  ======================= Starting Pre-setup  =======================
  
 -------------------------------------------------------------------------
@@ -78,4 +78,793 @@
                 ███████║██████╔╝██║     ███████║ 
                 ██╔══██║██╔══██╗██║     ██╔══██║
                 ██║  ██║██║  ██║╚██████╗██║  ██║
-                ╚═╝  ╚═╝╚═╝  ╚═╝ ╚
+                ╚═╝  ╚═╝╚═╝  ╚═╝ ╚═════╝╚═╝  ╚═╝
+------------------------------------------------------------------------
+                 Pre-setup
+------------------------------------------------------------------------
+
+ [INFO]  Starting pre-setup process
+ [INFO]  DRY_RUN in pre-setup.sh is set to: true
+ [INFO]  Starting initial setup
+ [INFO]  Starting: Initial setup
+ [ACTION]  [DRY RUN] Would execute: timedatectl set-ntp true
+ [ACTION]  [DRY RUN] Would execute: pacman -Sy archlinux-keyring --noconfirm
+ [ACTION]  [DRY RUN] Would execute: pacman -S --noconfirm --needed pacman-contrib terminus-font rsync reflector gptfdisk btrfs-progs glibc
+ [ACTION]  [DRY RUN] Would execute: setfont ter-v22b
+ [ACTION]  [DRY RUN] Would execute: sed -i -e '/^#ParallelDownloads/s/^#//' -e '/^#Color/s/^#//' /etc/pacman.conf
+ [ACTION]  [DRY RUN] Would execute: pacman -Syy
+  [OK]  Initial setup completed Initial setup completed
+ [INFO]  Starting: Mirror setup
+ [ACTION]  [DRY RUN] Would execute: curl -4 'https://ifconfig.co/country-iso' > COUNTRY_ISO
+ [ACTION]  [DRY RUN] Would execute: cp /etc/pacman.d/mirrorlist /etc/pacman.d/mirrorlist.backup
+  [OK]  Mirror setup completed Mirror setup completed
+ [INFO]  Here a list of availble drives[]
+      1) sda     931.5G Samsung SSD 870 QVO 1TB
+      2) nvme0n1   1.8T Samsung SSD 980 PRO 2TB
+      3) nvme1n1 931.5G Samsung SSD 980 PRO 1TB
+      4) nvme3n1 931.5G Sabrent SB-RKT4P-1TB
+      5) nvme2n1 476.9G Samsung SSD 960 PRO 512GB
+ [ACTION]  You selected drive:  nvme0n1
+ [ACTION]  Setting:  INSTALL_DEVICE=nvme0n1 in /home/ssnow/Documents/GitHub/arch_install/arch_config.cfg
+  [DEBUG]  Updated:  INSTALL_DEVICE=nvme0n1 in /home/ssnow/Documents/GitHub/arch_install/arch_config.cfg
+ [ACTION]  INSTALL_DEVICE set to:  nvme0n1
+ [INFO]  Preparing drive
+ [ACTION]  Setting:  DEVICE=/dev/nvme0n1 in /home/ssnow/Documents/GitHub/arch_install/arch_config.cfg
+  [DEBUG]  Updated:  DEVICE=/dev/nvme0n1 in /home/ssnow/Documents/GitHub/arch_install/arch_config.cfg
+ [ACTION]  Drive set to:  /dev/nvme0n1
+ [ACTION]  Partitions string set to:  /dev/nvme0n1p2, /dev/nvme0n1p3
+ [ACTION]  Setting:  DEVICE=/dev/nvme0n1 in /home/ssnow/Documents/GitHub/arch_install/arch_config.cfg
+  [DEBUG]  Updated:  DEVICE=/dev/nvme0n1 in /home/ssnow/Documents/GitHub/arch_install/arch_config.cfg
+ [ACTION]  Setting:  PARTITION_EFI=/dev/nvme0n1p2 in /home/ssnow/Documents/GitHub/arch_install/arch_config.cfg
+  [DEBUG]  Updated:  PARTITION_EFI=/dev/nvme0n1p2 in /home/ssnow/Documents/GitHub/arch_install/arch_config.cfg
+ [ACTION]  Setting:  PARTITION_ROOT=/dev/nvme0n1p3 in /home/ssnow/Documents/GitHub/arch_install/arch_config.cfg
+  [DEBUG]  Updated:  PARTITION_ROOT=/dev/nvme0n1p3 in /home/ssnow/Documents/GitHub/arch_install/arch_config.cfg
+ [ACTION]  Setting:  PARTITION_HOME=/dev/nvme0n1p4 in /home/ssnow/Documents/GitHub/arch_install/arch_config.cfg
+  [DEBUG]  Updated:  PARTITION_HOME=/dev/nvme0n1p4 in /home/ssnow/Documents/GitHub/arch_install/arch_config.cfg
+ [ACTION]  Setting:  PARTITION_SWAP=/dev/nvme0n1p5 in /home/ssnow/Documents/GitHub/arch_install/arch_config.cfg
+  [DEBUG]  Updated:  PARTITION_SWAP=/dev/nvme0n1p5 in /home/ssnow/Documents/GitHub/arch_install/arch_config.cfg
+ [ACTION]  Setting:  MOUNT_OPTIONS=noatime,compress=zstd,ssd,commit=120 in /home/ssnow/Documents/GitHub/arch_install/arch_config.cfg
+  [DEBUG]  Updated:  MOUNT_OPTIONS=noatime,compress=zstd,ssd,commit=120 in /home/ssnow/Documents/GitHub/arch_install/arch_config.cfg
+  [DEBUG]  Exported variable: 
+  [DEBUG]  PARALLEL_JOBS=8
+  [DEBUG]  SYSTEM_INSTALLATION=false
+  [DEBUG]  COUNTRY_ISO=CA
+  [DEBUG]  FILE_SYSTEM_TYPE=btrfs
+  [DEBUG]  INSTALL_DEVICE=nvme0n1
+  [DEBUG]  DEVICE=/dev/nvme0n1
+  [DEBUG]  PARTITION_BIOSBOOT=/dev/vda
+  [DEBUG]  PARTITION_EFI=/dev/nvme0n1p2
+  [DEBUG]  PARTITION_ROOT=/dev/nvme0n1p3
+  [DEBUG]  PARTITION_HOME=/dev/nvme0n1p4
+  [DEBUG]  PARTITION_SWAP=/dev/nvme0n1p5
+  [DEBUG]  MOUNT_OPTIONS=noatime,compress=zstd,ssd,commit=120
+  [DEBUG]  LOCALE=en_US.UTF-8
+  [DEBUG]  TIMEZONE=America/Toronto
+  [DEBUG]  KEYMAP=us
+  [DEBUG]  USERNAME=ssnow
+  [DEBUG]  PASSWORD=changeme
+  [DEBUG]  HOSTNAME=arch
+  [DEBUG]  MICROCODE=amd
+  [DEBUG]  GPU=amd
+  [DEBUG]  GPU_DRIVER=amdgpu
+  [DEBUG]  TERMINAL=alacritty
+  [DEBUG]  SHELL=bash
+  [DEBUG]  EDITOR=nvim
+  [DEBUG]  DESKTOP_ENVIRONMENT=gnome
+  [DEBUG]  FORMAT_TYPE=btrfs
+  [DEBUG]  SUBVOLUMES=@home,@var,@.snapshots
+  [DEBUG]  LUKS_PASSWORD=changeme
+  [DEBUG]  LUKS=false
+  [DEBUG]  SWAP=false
+  [DEBUG]  SWAP_SIZE=4
+  [DEBUG]  HOME=false
+  [DEBUG]  BIOS_TYPE=uefi
+  [DEBUG]  CPU_VENDOR=amd
+  [DEBUG]  GPU_VENDOR=amd
+  [DEBUG]  INITRD_MICROCODE=amd-ucode.img
+  [OK]  Configuration loaded successfully
+  [OK]  Pre-setup process completed successfully
+ [PROC]  Process completed successfully:  Pre-setup (ID: 1728333945)
+ Process start 2024-10-07 20:45:45, end 2024-10-07 20:45:48, time 00:00:03
+  [DEBUG]  ======================= Ending Pre-setup  =======================
+ [INFO]  All processes allmost completed.....
+ [INFO]  Exit handler called with exit code:  0
+ [INFO]  Script execution completed successfully
+ [ACTION]  Successfully executed: /home/ssnow/Documents/GitHub/arch_install/scripts/1-pre/pre-setup.sh
+ [INFO]  Executing: 1-pre/run-checks.sh
+  [DEBUG]  Start time:  2024-10-07 20:45:50
+ [PROC]  Starting process:  Run Checks (ID: 1728333950) 2024-10-07 20:45:50
+  [DEBUG]  ======================= Starting Run Checks  =======================
+ 
+-------------------------------------------------------------------------
+
+                 █████╗ ██████╗  ██████ ██╗  ██╗
+                ██╔══██╗██╔══██╗██╔════╝██║  ██║
+                ███████║██████╔╝██║     ███████║ 
+                ██╔══██║██╔══██╗██║     ██╔══██║
+                ██║  ██║██║  ██║╚██████╗██║  ██║
+                ╚═╝  ╚═╝╚═╝  ╚═╝ ╚═════╝╚═╝  ╚═╝
+------------------------------------------------------------------------
+                 Run Checks
+------------------------------------------------------------------------
+
+ [INFO]  Starting run checks process
+ [INFO]  Running checks...
+ [INFO]  --- System Information ---
+ [INFO]  Getting RAM information
+ [INFO]  RAM:  61.9 GB
+ [INFO]  Getting CPU information
+ [INFO]  CPU Model:  AMD Ryzen 9 7900X3D 12-Core Processor
+ [INFO]  CPU Cores:  24
+ [INFO]  CPU Threads:  24
+ [INFO]  The drive list
+  [DEBUG]  Getting the drive list
+      1) sda     931.5G Samsung SSD 870 QVO 1TB
+      2) nvme0n1   1.8T Samsung SSD 980 PRO 2TB
+      3) nvme1n1 931.5G Samsung SSD 980 PRO 1TB
+      4) nvme3n1 931.5G Sabrent SB-RKT4P-1TB
+      5) nvme2n1 476.9G Samsung SSD 960 PRO 512GB
+  [DEBUG]  Drive list completed successfully
+ [INFO]  Getting GPU information
+ [INFO]  GPU Type:  AMD/ATI Radeon RX 6800/6800 XT / 6900 XT
+AMD/ATI 
+ [INFO]  --- Debug Information ---
+ [INFO]  SCRIPT_NAME:  run-checks.sh
+ [INFO]  Current working directory:  /home/ssnow/Documents/GitHub/arch_install
+ [INFO]  Install Script:  /home/ssnow/Documents/GitHub/arch_install/install.sh ([SUCCESS] File/Directory EXISTS)
+ [INFO]  arch_config.toml:  /home/ssnow/Documents/GitHub/arch_install/arch_config.toml ([SUCCESS] File/Directory EXISTS)
+ [INFO]  arch_config.cfg:  /home/ssnow/Documents/GitHub/arch_install/arch_config.cfg ([SUCCESS] File/Directory EXISTS)
+ [INFO]  ARCH_DIR:  /home/ssnow/Documents/GitHub/arch_install ([SUCCESS] File/Directory EXISTS)
+ [INFO]  SCRIPT_DIR:  /home/ssnow/Documents/GitHub/arch_install ([SUCCESS] File/Directory EXISTS)
+ [INFO]  CONFIG_FILE:  /home/ssnow/Documents/GitHub/arch_install/arch_config.cfg ([SUCCESS] File/Directory EXISTS)
+ [INFO]  SCRIPT_VERSION:  1.0.0
+ [INFO]  DRY_RUN:  true
+ [INFO]  Bash version:  5.2.37(1)-release
+ [INFO]  User running the script:  ssnow
+ [INFO]  --------- Logs -----------
+ [INFO]  LOG_DIR:  /tmp/arch-install-logs ([SUCCESS] File/Directory EXISTS)
+ [INFO]  LOG_FILE:  /tmp/arch-install-logs/arch_install.log ([SUCCESS] File/Directory EXISTS)
+ [INFO]  PROCESS_LOG:  /tmp/arch-install-logs/process.log ([SUCCESS] File/Directory EXISTS)
+ [INFO]  ---Install config files---
+ [INFO]  Contents of arch_config.toml:
+ [INFO]      PARALLEL_JOBS = "8"
+ [INFO]      SYSTEM_INSTALLATION = false
+ [INFO]      COUNTRY_ISO = "CA"
+ [INFO]      FILE_SYSTEM_TYPE = "btrfs"
+ [INFO]      INSTALL_DEVICE = "nvme0n1"
+ [INFO]      DEVICE = "/dev/vda"
+ [INFO]      PARTITION_BIOSBOOT="/dev/vda"
+ [INFO]      PARTITION_EFI = "/dev/vda2"
+ [INFO]      PARTITION_ROOT = "/dev/vda3"
+ [INFO]      PARTITION_HOME = "/dev/vda4"
+ [INFO]      PARTITION_SWAP = "/dev/vda5"
+ [INFO]      MOUNT_OPTIONS = "noatime,compress=zstd,ssd,commit=120"
+ [INFO]      LOCALE = "en_US.UTF-8"
+ [INFO]      TIMEZONE = "America/Toronto"
+ [INFO]      KEYMAP = "us"
+ [INFO]      USERNAME = "ssnow"
+ [INFO]      PASSWORD = "changeme"
+ [INFO]      HOSTNAME = "arch"
+ [INFO]      MICROCODE = "amd"
+ [INFO]      GPU = "amd"
+ [INFO]      GPU_DRIVER = "amdgpu"
+ [INFO]      TERMINAL = "alacritty"
+ [INFO]      SHELL = "bash"
+ [INFO]      EDITOR = "nvim"
+ [INFO]      DESKTOP_ENVIRONMENT = "gnome"
+ [INFO]      FORMAT_TYPE = "btrfs"
+ [INFO]      SUBVOLUMES = "@home,@var,@.snapshots"
+ [INFO]      LUKS_PASSWORD = "changeme"
+ [INFO]      LUKS = false
+ [INFO]      SWAP = false
+ [INFO]      SWAP_SIZE = "4"
+ [INFO]      HOME = false
+ [INFO]      BIOS_TYPE = "uefi"
+ [INFO]      CPU_VENDOR = "amd"
+ [INFO]      GPU_VENDOR = "amd"
+ [INFO]      INITRD_MICROCODE = "amd-ucode.img"
+ [INFO]  Contents of arch_config.cfg:
+ [INFO]      PARALLEL_JOBS=8
+ [INFO]      SYSTEM_INSTALLATION=false
+ [INFO]      COUNTRY_ISO=CA
+ [INFO]      FILE_SYSTEM_TYPE=btrfs
+ [INFO]      INSTALL_DEVICE=nvme0n1
+ [INFO]      DEVICE=/dev/nvme0n1
+ [INFO]      PARTITION_BIOSBOOT=/dev/vda
+ [INFO]      PARTITION_EFI=/dev/nvme0n1p2
+ [INFO]      PARTITION_ROOT=/dev/nvme0n1p3
+ [INFO]      PARTITION_HOME=/dev/nvme0n1p4
+ [INFO]      PARTITION_SWAP=/dev/nvme0n1p5
+ [INFO]      MOUNT_OPTIONS=noatime,compress=zstd,ssd,commit=120
+ [INFO]      LOCALE=en_US.UTF-8
+ [INFO]      TIMEZONE=America/Toronto
+ [INFO]      KEYMAP=us
+ [INFO]      USERNAME=ssnow
+ [INFO]      PASSWORD=changeme
+ [INFO]      HOSTNAME=arch
+ [INFO]      MICROCODE=amd
+ [INFO]      GPU=amd
+ [INFO]      GPU_DRIVER=amdgpu
+ [INFO]      TERMINAL=alacritty
+ [INFO]      SHELL=bash
+ [INFO]      EDITOR=nvim
+ [INFO]      DESKTOP_ENVIRONMENT=gnome
+ [INFO]      FORMAT_TYPE=btrfs
+ [INFO]      SUBVOLUMES=@home,@var,@.snapshots
+ [INFO]      LUKS_PASSWORD=changeme
+ [INFO]      LUKS=false
+ [INFO]      SWAP=false
+ [INFO]      SWAP_SIZE=4
+ [INFO]      HOME=false
+ [INFO]      BIOS_TYPE=uefi
+ [INFO]      CPU_VENDOR=amd
+ [INFO]      GPU_VENDOR=amd
+ [INFO]      INITRD_MICROCODE=amd-ucode.img
+ [INFO]  ------------------------
+ [INFO]  Setting up the necessary passwords
+
+
+ [INFO]  Checking internet connection...
+  [OK]  Internet connection is available
+  [OK]  Run checks process completed successfully
+ [PROC]  Process completed successfully:  Run Checks (ID: 1728333950)
+ Process start 2024-10-07 20:45:50, end 2024-10-07 20:45:55, time 00:00:05
+  [DEBUG]  ======================= Ending Run Checks  =======================
+ [INFO]  All processes allmost completed.....
+ [INFO]  Exit handler called with exit code:  0
+ [INFO]  Script execution completed successfully
+ [ACTION]  Successfully executed: /home/ssnow/Documents/GitHub/arch_install/scripts/1-pre/run-checks.sh
+ [INFO]  Executing: 2-drive/partition-btrfs.sh
+  [DEBUG]  Start time:  2024-10-07 20:45:57
+ [PROC]  Starting process:  Partition the install device: nvme0n1 (ID: 1728333957) 2024-10-07 20:45:57
+  [DEBUG]  ======================= Starting Partition the install device: nvme0n1  =======================
+ 
+-------------------------------------------------------------------------
+
+                 █████╗ ██████╗  ██████ ██╗  ██╗
+                ██╔══██╗██╔══██╗██╔════╝██║  ██║
+                ███████║██████╔╝██║     ███████║ 
+                ██╔══██║██╔══██╗██║     ██╔══██║
+                ██║  ██║██║  ██║╚██████╗██║  ██║
+                ╚═╝  ╚═╝╚═╝  ╚═╝ ╚═════╝╚═╝  ╚═╝
+------------------------------------------------------------------------
+                 Partition the install device: nvme0n1
+------------------------------------------------------------------------
+
+ [INFO]  Starting partition process
+ [INFO]  DRY_RUN in partition-btrfs.sh is set to: true
+  [DEBUG]  Exported variable: 
+  [DEBUG]  PARALLEL_JOBS=8
+  [DEBUG]  SYSTEM_INSTALLATION=false
+  [DEBUG]  COUNTRY_ISO=CA
+  [DEBUG]  FILE_SYSTEM_TYPE=btrfs
+  [DEBUG]  INSTALL_DEVICE=nvme0n1
+  [DEBUG]  DEVICE=/dev/nvme0n1
+  [DEBUG]  PARTITION_BIOSBOOT=/dev/vda
+  [DEBUG]  PARTITION_EFI=/dev/nvme0n1p2
+  [DEBUG]  PARTITION_ROOT=/dev/nvme0n1p3
+  [DEBUG]  PARTITION_HOME=/dev/nvme0n1p4
+  [DEBUG]  PARTITION_SWAP=/dev/nvme0n1p5
+  [DEBUG]  MOUNT_OPTIONS=noatime,compress=zstd,ssd,commit=120
+  [DEBUG]  LOCALE=en_US.UTF-8
+  [DEBUG]  TIMEZONE=America/Toronto
+  [DEBUG]  KEYMAP=us
+  [DEBUG]  USERNAME=ssnow
+  [DEBUG]  PASSWORD=changeme
+  [DEBUG]  HOSTNAME=arch
+  [DEBUG]  MICROCODE=amd
+  [DEBUG]  GPU=amd
+  [DEBUG]  GPU_DRIVER=amdgpu
+  [DEBUG]  TERMINAL=alacritty
+  [DEBUG]  SHELL=bash
+  [DEBUG]  EDITOR=nvim
+  [DEBUG]  DESKTOP_ENVIRONMENT=gnome
+  [DEBUG]  FORMAT_TYPE=btrfs
+  [DEBUG]  SUBVOLUMES=@home,@var,@.snapshots
+  [DEBUG]  LUKS_PASSWORD=changeme
+  [DEBUG]  LUKS=false
+  [DEBUG]  SWAP=false
+  [DEBUG]  SWAP_SIZE=4
+  [DEBUG]  HOME=false
+  [DEBUG]  BIOS_TYPE=uefi
+  [DEBUG]  CPU_VENDOR=amd
+  [DEBUG]  GPU_VENDOR=amd
+  [DEBUG]  INITRD_MICROCODE=amd-ucode.img
+  [OK]  Configuration loaded successfully
+  [DEBUG]  Starting partitioning process
+ [INFO]  Install device set to: /dev/nvme0n1
+ [ACTION]  Wiping the partition table on /dev/nvme0n1
+ [ACTION]  Calculating partition sizes
+ [INFO]  Device size: 1863 GiB
+ [ACTION]  Partitioning /dev/nvme0n1 uefi drive
+ [ACTION]  BOOT uefi partition: +1G on /dev/nvme0n1 1
+ [ACTION]  Setting:  PARTITION_BOOT=/dev/nvme0n1p1 in /home/ssnow/Documents/GitHub/arch_install/arch_config.cfg
+  [DEBUG]  Updated:  PARTITION_BOOT=/dev/nvme0n1p1 in /home/ssnow/Documents/GitHub/arch_install/arch_config.cfg
+  [DEBUG]  Setting: BOOT partition: on 
+ [ACTION]  Creating root partition
+  [DEBUG]  Root partition:  on /dev/nvme0n1 2
+ [ACTION]  Setting:  PARTITION_ROOT=/dev/nvme0n1p2 in /home/ssnow/Documents/GitHub/arch_install/arch_config.cfg
+  [DEBUG]  Updated:  PARTITION_ROOT=/dev/nvme0n1p2 in /home/ssnow/Documents/GitHub/arch_install/arch_config.cfg
+  [DEBUG]  Setting: ROOT partition: on /dev/nvme0n1p3
+  [DEBUG]  Informing OS of partition table changes on /dev/nvme0n1 (partprobe)
+ [INFO]  Starting: Partitioning the install /dev/nvme0n1
+ [ACTION]  [DRY RUN] Would execute: sgdisk --zap-all /dev/nvme0n1
+ [ACTION]  [DRY RUN] Would execute: sgdisk -o /dev/nvme0n1
+ [ACTION]  [DRY RUN] Would execute: wipefs -a -f /dev/nvme0n1
+ [ACTION]  [DRY RUN] Would execute: partprobe -s /dev/nvme0n1
+ [ACTION]  [DRY RUN] Would execute: sgdisk -n1:0:+1G -t1:ef00 -c1:EFI_BOOT /dev/nvme0n1
+ [ACTION]  [DRY RUN] Would execute: sgdisk -n2:0:0 -t2:8300 -c2:ROOT /dev/nvme0n1
+ [ACTION]  [DRY RUN] Would execute: partprobe -s /dev/nvme0n1
+  [OK]  Partitioning completed successfully Partitioning the install /dev/nvme0n1 completed
+ [INFO]  Partitions created:
+NAME        MAJ:MIN RM  SIZE RO TYPE MOUNTPOINTS
+nvme0n1     259:0    0  1.8T  0 disk 
+└─nvme0n1p1 259:2    0    1M  0 part 
+  [OK]  Partition btrfs process completed successfully
+ [PROC]  Process completed successfully:  Partition the install device: nvme0n1 (ID: 1728333957)
+ Process start 2024-10-07 20:45:57, end 2024-10-07 20:45:58, time 00:00:01
+  [DEBUG]  ======================= Ending Partition the install device: nvme0n1  =======================
+ [INFO]  All processes allmost completed.....
+ [INFO]  Exit handler called with exit code:  0
+ [INFO]  Script execution completed successfully
+ [ACTION]  Successfully executed: /home/ssnow/Documents/GitHub/arch_install/scripts/2-drive/partition-btrfs.sh
+ [INFO]  Executing: 2-drive/format-btrfs.sh
+  [DEBUG]  Start time:  2024-10-07 20:46:00
+ [PROC]  Starting process:  Formatting on nvme0n1 whit btrfs (ID: 1728333960) 2024-10-07 20:46:00
+  [DEBUG]  ======================= Starting Formatting on nvme0n1 whit btrfs  =======================
+ 
+-------------------------------------------------------------------------
+
+                 █████╗ ██████╗  ██████ ██╗  ██╗
+                ██╔══██╗██╔══██╗██╔════╝██║  ██║
+                ███████║██████╔╝██║     ███████║ 
+                ██╔══██║██╔══██╗██║     ██╔══██║
+                ██║  ██║██║  ██║╚██████╗██║  ██║
+                ╚═╝  ╚═╝╚═╝  ╚═╝ ╚═════╝╚═╝  ╚═╝
+------------------------------------------------------------------------
+                 Formatting on nvme0n1 whit btrfs
+------------------------------------------------------------------------
+
+ [INFO]  Starting formatting partitions btrfs process
+ [INFO]  DRY_RUN in format-btrfs.sh is set to: true
+  [DEBUG]  Exported variable: 
+  [DEBUG]  PARALLEL_JOBS=8
+  [DEBUG]  SYSTEM_INSTALLATION=false
+  [DEBUG]  COUNTRY_ISO=CA
+  [DEBUG]  FILE_SYSTEM_TYPE=btrfs
+  [DEBUG]  INSTALL_DEVICE=nvme0n1
+  [DEBUG]  DEVICE=/dev/nvme0n1
+  [DEBUG]  PARTITION_BIOSBOOT=/dev/vda
+  [DEBUG]  PARTITION_EFI=/dev/nvme0n1p2
+  [DEBUG]  PARTITION_ROOT=/dev/nvme0n1p2
+  [DEBUG]  PARTITION_HOME=/dev/nvme0n1p4
+  [DEBUG]  PARTITION_SWAP=/dev/nvme0n1p5
+  [DEBUG]  MOUNT_OPTIONS=noatime,compress=zstd,ssd,commit=120
+  [DEBUG]  LOCALE=en_US.UTF-8
+  [DEBUG]  TIMEZONE=America/Toronto
+  [DEBUG]  KEYMAP=us
+  [DEBUG]  USERNAME=ssnow
+  [DEBUG]  PASSWORD=changeme
+  [DEBUG]  HOSTNAME=arch
+  [DEBUG]  MICROCODE=amd
+  [DEBUG]  GPU=amd
+  [DEBUG]  GPU_DRIVER=amdgpu
+  [DEBUG]  TERMINAL=alacritty
+  [DEBUG]  SHELL=bash
+  [DEBUG]  EDITOR=nvim
+  [DEBUG]  DESKTOP_ENVIRONMENT=gnome
+  [DEBUG]  FORMAT_TYPE=btrfs
+  [DEBUG]  SUBVOLUMES=@home,@var,@.snapshots
+  [DEBUG]  LUKS_PASSWORD=changeme
+  [DEBUG]  LUKS=false
+  [DEBUG]  SWAP=false
+  [DEBUG]  SWAP_SIZE=4
+  [DEBUG]  HOME=false
+  [DEBUG]  BIOS_TYPE=uefi
+  [DEBUG]  CPU_VENDOR=amd
+  [DEBUG]  GPU_VENDOR=amd
+  [DEBUG]  INITRD_MICROCODE=amd-ucode.img
+  [DEBUG]  PARTITION_BOOT=/dev/nvme0n1p1
+  [OK]  Configuration loaded successfully
+  [DEBUG]  The sublomuve are: 
+ [INFO]  Starting: Formatting boot partition
+ [ACTION]  [DRY RUN] Would execute: mkfs.vfat -F32 -n EFIBOOT /dev/nvme0n1p1
+  [OK]  Boot partition formatted successfully Formatting boot partition completed
+ [ACTION]  Formatting root partition on /dev/nvme0n1p2
+ [ACTION]  Formatting root partition with btrfs
+ [INFO]  Starting: Formatting root partition
+ [ACTION]  [DRY RUN] Would execute: mkfs.btrfs -L ROOT /dev/nvme0n1p2
+  [OK]  Root partition formatted successfully Formatting root partition completed
+ [ACTION]  Creating subvolumes on /dev/nvme0n1p2
+  [DEBUG]  Mounted /dev/nvme0n1p2 to /mnt
+  [DEBUG]  Creating subvolumes: @home,@var,@.snapshots
+  [DEBUG]  Umount the subvolumes
+ [INFO]  Starting: Umount the subvolumes
+ [ACTION]  [DRY RUN] Would execute: mount -t btrfs /dev/nvme0n1p2 /mnt
+ [ACTION]  [DRY RUN] Would execute: btrfs subvolume create /mnt/@
+ [ACTION]  [DRY RUN] Would execute: btrfs subvolume create /mnt/@home @var @.snapshots
+ [ACTION]  [DRY RUN] Would execute: umount /mnt
+  [OK]  Subvolume Unmounted /mnt successfully Umount the subvolumes completed
+  [DEBUG]  Creating directories: 
+  [DEBUG]  Mounted /dev/nvme0n1p2 to /mnt
+  [DEBUG]  Mounting boot partition
+ [INFO]  Starting: Enabling swap
+ [ACTION]  [DRY RUN] Would execute: mkdir -p /mnt/@home
+ [ACTION]  [DRY RUN] Would execute: mkdir -p /mnt/@var
+ [ACTION]  [DRY RUN] Would execute: mkdir -p /mnt/@.snapshots
+ [ACTION]  [DRY RUN] Would execute: mkdir -p /mnt/boot/efi
+ [ACTION]  [DRY RUN] Would execute: mount -o noatime,compress=zstd,ssd,commit=120,subvol=@ /dev/nvme0n1p2 /mnt
+ [ACTION]  [DRY RUN] Would execute: mount -o noatime,compress=zstd,ssd,commit=120,subvol=@home /dev/nvme0n1p2 /mnt/@home
+ [ACTION]  [DRY RUN] Would execute: mount -o noatime,compress=zstd,ssd,commit=120,subvol=@var /dev/nvme0n1p2 /mnt/@var
+ [ACTION]  [DRY RUN] Would execute: mount -o noatime,compress=zstd,ssd,commit=120,subvol=@.snapshots /dev/nvme0n1p2 /mnt/@.snapshots
+ [ACTION]  [DRY RUN] Would execute: mount -t vfat -L EFIBOOT /mnt/boot/efi
+  [OK]  Swap enabled successfully Enabling swap completed
+  [OK]  Formatting partitions btrfs process completed successfully
+ [PROC]  Process completed successfully:  Formatting on nvme0n1 whit btrfs (ID: 1728333960)
+ Process start 2024-10-07 20:46:00, end 2024-10-07 20:46:00, time 00:00:00
+  [DEBUG]  ======================= Ending Formatting on nvme0n1 whit btrfs  =======================
+ [INFO]  All processes allmost completed.....
+ [INFO]  Exit handler called with exit code:  0
+ [INFO]  Script execution completed successfully
+ [ACTION]  Successfully executed: /home/ssnow/Documents/GitHub/arch_install/scripts/2-drive/format-btrfs.sh
+ [INFO]  Executing: 3-base/bootstrap-pkgs.sh
+  [DEBUG]  Start time:  2024-10-07 20:46:02
+ [PROC]  Starting process:  Bootstrap Packages (ID: 1728333962) 2024-10-07 20:46:02
+  [DEBUG]  ======================= Starting Bootstrap Packages  =======================
+ 
+-------------------------------------------------------------------------
+
+                 █████╗ ██████╗  ██████ ██╗  ██╗
+                ██╔══██╗██╔══██╗██╔════╝██║  ██║
+                ███████║██████╔╝██║     ███████║ 
+                ██╔══██║██╔══██╗██║     ██╔══██║
+                ██║  ██║██║  ██║╚██████╗██║  ██║
+                ╚═╝  ╚═╝╚═╝  ╚═╝ ╚═════╝╚═╝  ╚═╝
+------------------------------------------------------------------------
+                 Bootstrap Packages
+------------------------------------------------------------------------
+
+ [INFO]  Starting bootstrap packages process
+ [INFO]  DRY_RUN in bootstrap-pkgs.sh is set to: true
+  [DEBUG]  Microcode set to: amd
+  [DEBUG]  Bootstraping microcode: amd
+ [INFO]  Starting: Installing base system
+ [ACTION]  [DRY RUN] Would execute: pacstrap /mnt base base-devel linux linux-firmware efibootmgr grub amd-ucode --noconfirm --needed
+  [OK]  Base system installation completed Installing base system completed
+  [OK]  Bootstrap packages process completed successfully
+ [PROC]  Process completed successfully:  Bootstrap Packages (ID: 1728333962)
+ Process start 2024-10-07 20:46:02, end 2024-10-07 20:46:02, time 00:00:00
+  [DEBUG]  ======================= Ending Bootstrap Packages  =======================
+ [INFO]  All processes allmost completed.....
+ [INFO]  Exit handler called with exit code:  0
+ [INFO]  Script execution completed successfully
+ [ACTION]  Successfully executed: /home/ssnow/Documents/GitHub/arch_install/scripts/3-base/bootstrap-pkgs.sh
+ [INFO]  Executing: 3-base/generate-fstab.sh
+  [DEBUG]  Start time:  2024-10-07 20:46:05
+ [PROC]  Starting process:  Generate Fstab (ID: 1728333965) 2024-10-07 20:46:05
+  [DEBUG]  ======================= Starting Generate Fstab  =======================
+ 
+-------------------------------------------------------------------------
+
+                 █████╗ ██████╗  ██████ ██╗  ██╗
+                ██╔══██╗██╔══██╗██╔════╝██║  ██║
+                ███████║██████╔╝██║     ███████║ 
+                ██╔══██║██╔══██╗██║     ██╔══██║
+                ██║  ██║██║  ██║╚██████╗██║  ██║
+                ╚═╝  ╚═╝╚═╝  ╚═╝ ╚═════╝╚═╝  ╚═╝
+------------------------------------------------------------------------
+                 Generate Fstab
+------------------------------------------------------------------------
+
+ [INFO]  Starting generate fstab process
+ [INFO]  DRY_RUN in generate-fstab.sh is set to: true
+ [INFO]  Generating fstab
+ [INFO]  Starting: Generating fstab
+ [ACTION]  [DRY RUN] Would execute: genfstab -U /mnt >> /mnt/etc/fstab
+  [OK]  fstab generation completed Generating fstab completed
+ [INFO]  Starting: Installing GRUB
+ [ACTION]  [DRY RUN] Would execute: grub-install --target=x86_64-efi --efi-directory=/boot/efi --bootloader-id=GRUB
+ [ACTION]  [DRY RUN] Would execute: grub-mkconfig -o /boot/grub/grub.cfg
+  [OK]  GRUB installation completed Installing GRUB completed
+  [OK]  Generate fstab process completed successfully
+ [PROC]  Process completed successfully:  Generate Fstab (ID: 1728333965)
+ Process start 2024-10-07 20:46:05, end 2024-10-07 20:46:05, time 00:00:00
+  [DEBUG]  ======================= Ending Generate Fstab  =======================
+ [INFO]  All processes allmost completed.....
+ [INFO]  Exit handler called with exit code:  0
+ [INFO]  Script execution completed successfully
+ [ACTION]  Successfully executed: /home/ssnow/Documents/GitHub/arch_install/scripts/3-base/generate-fstab.sh
+ [INFO]  Executing: 4-post/system-config.sh
+  [DEBUG]  Start time:  2024-10-07 20:46:07
+ [PROC]  Starting process:  System Config (ID: 1728333967) 2024-10-07 20:46:07
+  [DEBUG]  ======================= Starting System Config  =======================
+ 
+-------------------------------------------------------------------------
+
+                 █████╗ ██████╗  ██████ ██╗  ██╗
+                ██╔══██╗██╔══██╗██╔════╝██║  ██║
+                ███████║██████╔╝██║     ███████║ 
+                ██╔══██║██╔══██╗██║     ██╔══██║
+                ██║  ██║██║  ██║╚██████╗██║  ██║
+                ╚═╝  ╚═╝╚═╝  ╚═╝ ╚═════╝╚═╝  ╚═╝
+------------------------------------------------------------------------
+                 System Config
+------------------------------------------------------------------------
+
+ [INFO]  Starting system config process
+ [INFO]  DRY_RUN in system-config.sh is set to: true
+ [WARNING]  Unknown GPU. Installing generic drivers
+  [DEBUG]  GPU type: amdgpu
+ [INFO]  Starting: GPU Setup
+ [ACTION]  [DRY RUN] Would execute: pacman -S --noconfirm --needed xf86-video-vesa mesa
+  [OK]  GPU setup completed GPU Setup completed
+  [DEBUG]  Chroot operations: arch, en_US.UTF-8, America/Toronto, us, ssnow, changeme
+ [INFO]  Starting: System config
+ [ACTION]  [DRY RUN] Would execute: echo 'arch' > /etc/hostname
+ [ACTION]  [DRY RUN] Would execute: echo 'en_US.UTF-8 UTF-8' > /etc/locale.gen
+ [ACTION]  [DRY RUN] Would execute: locale-gen
+ [ACTION]  [DRY RUN] Would execute: echo 'LANG=en_US.UTF-8' > /etc/locale.conf
+ [ACTION]  [DRY RUN] Would execute: ln -sf /usr/share/zoneinfo/America/Toronto /etc/localtime
+ [ACTION]  [DRY RUN] Would execute: echo 'KEYMAP=us' > /etc/vconsole.conf
+ [ACTION]  [DRY RUN] Would execute: useradd -m -G wheel -s /bin/bash ssnow
+ [ACTION]  [DRY RUN] Would execute: echo 'root:changeme' | chpasswd
+ [ACTION]  [DRY RUN] Would execute: echo 'ssnow:changeme' | chpasswd
+ [ACTION]  [DRY RUN] Would execute: sed -i 's/^# %wheel ALL=(ALL) ALL/%wheel ALL=(ALL) ALL/' /etc/sudoers
+  [OK]  System config completed System config completed
+  [OK]  System config process completed successfully
+ [PROC]  Process completed successfully:  System Config (ID: 1728333967)
+ Process start 2024-10-07 20:46:07, end 2024-10-07 20:46:07, time 00:00:00
+  [DEBUG]  ======================= Ending System Config  =======================
+ [INFO]  All processes allmost completed.....
+ [INFO]  Exit handler called with exit code:  0
+ [INFO]  Script execution completed successfully
+ [ACTION]  Successfully executed: /home/ssnow/Documents/GitHub/arch_install/scripts/4-post/system-config.sh
+ [INFO]  Executing: 4-post/system-pkgs.sh
+  [DEBUG]  Start time:  2024-10-07 20:46:09
+ [PROC]  Starting process:  System Packages (ID: 1728333969) 2024-10-07 20:46:09
+  [DEBUG]  ======================= Starting System Packages  =======================
+ 
+-------------------------------------------------------------------------
+
+                 █████╗ ██████╗  ██████ ██╗  ██╗
+                ██╔══██╗██╔══██╗██╔════╝██║  ██║
+                ███████║██████╔╝██║     ███████║ 
+                ██╔══██║██╔══██╗██║     ██╔══██║
+                ██║  ██║██║  ██║╚██████╗██║  ██║
+                ╚═╝  ╚═╝╚═╝  ╚═╝ ╚═════╝╚═╝  ╚═╝
+------------------------------------------------------------------------
+                 System Packages
+------------------------------------------------------------------------
+
+ [INFO]  Starting system packages process
+ [INFO]  DRY_RUN in system-pkgs.sh is set to: true
+ [INFO]  Starting package installation
+ [INFO]  Installing group: base
+ [INFO]  Installing base packages: eza fzf zoxide bat exa
+ [INFO]  Starting: Install base packages
+ [ACTION]  [DRY RUN] Would execute: pacman -S --noconfirm --needed eza fzf zoxide bat exa
+  [OK]  base packages installed successfully Install base packages completed
+ [INFO]  Installing group: bluetooth
+ [INFO]  Installing bluetooth packages: bluez bluez-utils
+ [INFO]  Starting: Install bluetooth packages
+ [ACTION]  [DRY RUN] Would execute: pacman -S --noconfirm --needed bluez bluez-utils
+  [OK]  bluetooth packages installed successfully Install bluetooth packages completed
+ [INFO]  Installing group: audio
+ [INFO]  Installing audio packages: pipewire wireplumber pipewire-pulse pipewire-alsa pipewire-jack
+ [INFO]  Starting: Install audio packages
+ [ACTION]  [DRY RUN] Would execute: pacman -S --noconfirm --needed pipewire wireplumber pipewire-pulse pipewire-alsa pipewire-jack
+  [OK]  audio packages installed successfully Install audio packages completed
+ [INFO]  Installing group: utilities
+ [INFO]  Installing utilities packages: fastfetch ntp cronie alacritty kitty thunar
+ [INFO]  Starting: Install utilities packages
+ [ACTION]  [DRY RUN] Would execute: pacman -S --noconfirm --needed fastfetch ntp cronie alacritty kitty thunar
+  [OK]  utilities packages installed successfully Install utilities packages completed
+ [INFO]  Installing group: browser
+ [INFO]  Installing browser packages: firefox
+ [INFO]  Starting: Install browser packages
+ [ACTION]  [DRY RUN] Would execute: pacman -S --noconfirm --needed firefox
+  [OK]  browser packages installed successfully Install browser packages completed
+ [INFO]  Installing group: desktop
+ [INFO]  Installing desktop packages: gnome gnome-tweaks gdm
+ [INFO]  Starting: Install desktop packages
+ [ACTION]  [DRY RUN] Would execute: pacman -S --noconfirm --needed gnome gnome-tweaks gdm
+  [OK]  desktop packages installed successfully Install desktop packages completed
+ [INFO]  Installing group: development
+ [INFO]  Installing development packages: git vim neovim
+ [INFO]  Starting: Install development packages
+ [ACTION]  [DRY RUN] Would execute: pacman -S --noconfirm --needed git vim neovim
+  [OK]  development packages installed successfully Install development packages completed
+ [INFO]  Installing group: office
+ [INFO]  Installing office packages: libreoffice-fresh pinta
+ [INFO]  Starting: Install office packages
+ [ACTION]  [DRY RUN] Would execute: pacman -S --noconfirm --needed libreoffice-fresh pinta
+  [OK]  office packages installed successfully Install office packages completed
+ [INFO]  Installing group: multimedia
+ [INFO]  Installing multimedia packages: vlc
+ [INFO]  Starting: Install multimedia packages
+ [ACTION]  [DRY RUN] Would execute: pacman -S --noconfirm --needed vlc
+  [OK]  multimedia packages installed successfully Install multimedia packages completed
+ [INFO]  Installing group: communication
+ [INFO]  Installing communication packages: discord thunderbird
+ [INFO]  Starting: Install communication packages
+ [ACTION]  [DRY RUN] Would execute: pacman -S --noconfirm --needed discord thunderbird
+  [OK]  communication packages installed successfully Install communication packages completed
+ [INFO]  Installing group: security
+ [INFO]  Installing security packages: bitwarden
+ [INFO]  Starting: Install security packages
+ [ACTION]  [DRY RUN] Would execute: pacman -S --noconfirm --needed bitwarden
+  [OK]  security packages installed successfully Install security packages completed
+ [INFO]  Installing group: networking
+ [INFO]  Installing networking packages: networkmanager network-manager-applet dhclient
+ [INFO]  Starting: Install networking packages
+ [ACTION]  [DRY RUN] Would execute: pacman -S --noconfirm --needed networkmanager network-manager-applet dhclient
+  [OK]  networking packages installed successfully Install networking packages completed
+ [INFO]  Installing group: printer
+ [INFO]  Installing printer packages: cups
+ [INFO]  Starting: Install printer packages
+ [ACTION]  [DRY RUN] Would execute: pacman -S --noconfirm --needed cups
+  [OK]  printer packages installed successfully Install printer packages completed
+ [INFO]  Installing group: fonts
+ [INFO]  Installing fonts packages: terminus-font ttf-font-awesome ttf-nerd-fonts-symbols ttf-jetbrains-mono-nerd ttf-meslo-nerd ttf-firacode-nerd ttf-nerd-fonts-symbols-common
+ [INFO]  Starting: Install fonts packages
+ [ACTION]  [DRY RUN] Would execute: pacman -S --noconfirm --needed terminus-font ttf-font-awesome ttf-nerd-fonts-symbols ttf-jetbrains-mono-nerd ttf-meslo-nerd ttf-firacode-nerd ttf-nerd-fonts-symbols-common
+  [OK]  fonts packages installed successfully Install fonts packages completed
+ [INFO]  Installing group: filesystem
+ [INFO]  Installing filesystem packages: btrfs-progs dosfstools ntfs-3g
+ [INFO]  Starting: Install filesystem packages
+ [ACTION]  [DRY RUN] Would execute: pacman -S --noconfirm --needed btrfs-progs dosfstools ntfs-3g
+  [OK]  filesystem packages installed successfully Install filesystem packages completed
+ [INFO]  Installing group: xdg
+ [INFO]  Installing xdg packages: xdg-user-dirs
+ [INFO]  Starting: Install xdg packages
+ [ACTION]  [DRY RUN] Would execute: pacman -S --noconfirm --needed xdg-user-dirs
+  [OK]  xdg packages installed successfully Install xdg packages completed
+  [OK]  Package installation completed
+  [OK]  System packages process completed successfully
+ [PROC]  Process completed successfully:  System Packages (ID: 1728333969)
+ Process start 2024-10-07 20:46:09, end 2024-10-07 20:46:09, time 00:00:00
+  [DEBUG]  ======================= Ending System Packages  =======================
+ [INFO]  All processes allmost completed.....
+ [INFO]  Exit handler called with exit code:  0
+ [INFO]  Script execution completed successfully
+ [ACTION]  Successfully executed: /home/ssnow/Documents/GitHub/arch_install/scripts/4-post/system-pkgs.sh
+ [INFO]  Executing: 4-post/terminal.sh
+  [DEBUG]  Start time:  2024-10-07 20:46:11
+ [PROC]  Starting process:  Terminal: alacritty (ID: 1728333971) 2024-10-07 20:46:11
+  [DEBUG]  ======================= Starting Terminal: alacritty  =======================
+ 
+-------------------------------------------------------------------------
+
+                 █████╗ ██████╗  ██████ ██╗  ██╗
+                ██╔══██╗██╔══██╗██╔════╝██║  ██║
+                ███████║██████╔╝██║     ███████║ 
+                ██╔══██║██╔══██╗██║     ██╔══██║
+                ██║  ██║██║  ██║╚██████╗██║  ██║
+                ╚═╝  ╚═╝╚═╝  ╚═╝ ╚═════╝╚═╝  ╚═╝
+------------------------------------------------------------------------
+                 Terminal: alacritty
+------------------------------------------------------------------------
+
+ [INFO]  Starting Terminal process
+ [INFO]  DRY_RUN in terminal.sh is set to: true
+ [INFO]  Installing Terminal
+ [INFO]  Starting: Installing Terminal
+ [ACTION]  [DRY RUN] Would execute: pacman -S --noconfirm --needed alacritty kitty bash starship
+ [ACTION]  [DRY RUN] Would execute: cp -r /home/ssnow/Documents/GitHub/arch_install/scripts/4-post/config/alacritty ~/.config/alacritty
+ [ACTION]  [DRY RUN] Would execute: cp -r /home/ssnow/Documents/GitHub/arch_install/scripts/4-post/config/starship.toml ~/.config/starship.toml
+ [ACTION]  [DRY RUN] Would execute: cp -r /home/ssnow/Documents/GitHub/arch_install/scripts/4-post/config/bashrc ~/.bashrc
+  [OK]  Terminal installation completed Installing Terminal completed
+  [OK]  Terminal installation completed successfully
+ [PROC]  Process completed successfully:  Terminal: alacritty (ID: 1728333971)
+ Process start 2024-10-07 20:46:11, end 2024-10-07 20:46:11, time 00:00:00
+  [DEBUG]  ======================= Ending Terminal: alacritty  =======================
+ [INFO]  All processes allmost completed.....
+ [INFO]  Exit handler called with exit code:  0
+ [INFO]  Script execution completed successfully
+ [ACTION]  Successfully executed: /home/ssnow/Documents/GitHub/arch_install/scripts/4-post/terminal.sh
+ [INFO]  Executing: 5-desktop/gnome.sh
+  [DEBUG]  Start time:  2024-10-07 20:46:13
+ [PROC]  Starting process:  Installing: Gnome OS (ID: 1728333973) 2024-10-07 20:46:13
+  [DEBUG]  ======================= Starting Installing: Gnome OS  =======================
+ 
+-------------------------------------------------------------------------
+
+                 █████╗ ██████╗  ██████ ██╗  ██╗
+                ██╔══██╗██╔══██╗██╔════╝██║  ██║
+                ███████║██████╔╝██║     ███████║ 
+                ██╔══██║██╔══██╗██║     ██╔══██║
+                ██║  ██║██║  ██║╚██████╗██║  ██║
+                ╚═╝  ╚═╝╚═╝  ╚═╝ ╚═════╝╚═╝  ╚═╝
+------------------------------------------------------------------------
+                 Installing: Gnome OS
+------------------------------------------------------------------------
+
+ [INFO]  Starting gnome OS process
+ [INFO]  DRY_RUN in gnome.sh is set to: true
+ [INFO]  Installing Gnome OS
+ [INFO]  Starting: Installing Gnome OS
+ [ACTION]  [DRY RUN] Would execute: pacman -S --noconfirm --needed gnome gnome-tweaks gdm
+  [OK]  Gnome OS installation completed Installing Gnome OS completed
+  [OK]  Gnome OS installation completed successfully
+ [PROC]  Process completed successfully:  Installing: Gnome OS (ID: 1728333973)
+ Process start 2024-10-07 20:46:13, end 2024-10-07 20:46:13, time 00:00:00
+  [DEBUG]  ======================= Ending Installing: Gnome OS  =======================
+ [INFO]  All processes allmost completed.....
+ [INFO]  Exit handler called with exit code:  0
+ [INFO]  Script execution completed successfully
+ [ACTION]  Successfully executed: /home/ssnow/Documents/GitHub/arch_install/scripts/5-desktop/gnome.sh
+ [INFO]  Executing: 6-final/last-cleanup.sh
+  [DEBUG]  Start time:  2024-10-07 20:46:15
+ [PROC]  Starting process:  Last cleanup (ID: 1728333975) 2024-10-07 20:46:15
+  [DEBUG]  ======================= Starting Last cleanup  =======================
+ 
+-------------------------------------------------------------------------
+
+                 █████╗ ██████╗  ██████ ██╗  ██╗
+                ██╔══██╗██╔══██╗██╔════╝██║  ██║
+                ███████║██████╔╝██║     ███████║ 
+                ██╔══██║██╔══██╗██║     ██╔══██║
+                ██║  ██║██║  ██║╚██████╗██║  ██║
+                ╚═╝  ╚═╝╚═╝  ╚═╝ ╚═════╝╚═╝  ╚═╝
+------------------------------------------------------------------------
+                 Last cleanup
+------------------------------------------------------------------------
+
+ [INFO]  Starting last cleanup process
+ [INFO]  DRY_RUN in last-cleanup.sh is set to: true
+ [INFO]  Enable and start services
+ [INFO]  Starting: Enable and start services
+ [ACTION]  [DRY RUN] Would execute: systemctl enable NetworkManager
+ [ACTION]  [DRY RUN] Would execute: systemctl enable sshd
+ [ACTION]  [DRY RUN] Would execute: systemctl enable cronie
+ [ACTION]  [DRY RUN] Would execute: systemctl enable bluetooth
+ [ACTION]  [DRY RUN] Would execute: systemctl enable gdm
+  [OK]  Enable and start services completed Enable and start services completed
+ [INFO]  Last cleanup
+ [INFO]  Starting: Last cleanup
+ [ACTION]  [DRY RUN] Would execute: 
+  [OK]  Last cleanup completed Last cleanup completed
+  [OK]  Last cleanup completed successfully
+  [OK]  Arch Linux installation completed. You can now reboot into your new system.
+ [PROC]  Process completed successfully:  Last cleanup (ID: 1728333975)
+ Process start 2024-10-07 20:46:15, end 2024-10-07 20:46:15, time 00:00:00
+  [DEBUG]  ======================= Ending Last cleanup  =======================
+ [INFO]  All processes allmost completed.....
+ [INFO]  Exit handler called with exit code:  0
+ [INFO]  Script execution completed successfully
+ [ACTION]  Successfully executed: /home/ssnow/Documents/GitHub/arch_install/scripts/6-final/last-cleanup.sh
+ [INFO]  Executing: 7-post-setup/post-setup.sh
+  [DEBUG]  Start time:  2024-10-07 20:46:17
+ [PROC]  Starting process:  Post Setup (ID: 1728333977) 2024-10-07 20:46:17
+  [DEBUG]  ======================= Starting Post Setup  =======================
+ 
+-------------------------------------------------------------------------
+
+                 █████╗ ██████╗  ██████ ██╗  ██╗
+                ██╔══██╗██╔══██╗██╔════╝██║  ██║
+                ███████║██████╔╝██║     ███████║ 
+                ██╔══██║██╔══██╗██║     ██╔══██║
+                ██║  ██║██║  ██║╚██████╗██║  ██║
+                ╚═╝  ╚═╝╚═╝  ╚═╝ ╚═════╝╚═╝  ╚═╝
+------------------------------------------------------------------------
+                 Post Setup
+------------------------------------------------------------------------
+
+ [INFO]  Starting post setup process
+  [OK]  Post setup process completed successfully
+ [PROC]  Process completed successfully:  Post Setup (ID: 1728333977)
+ Process start 2024-10-07 20:46:17, end 2024-10-07 20:46:18, time 00:00:01
+  [DEBUG]  ======================= Ending Post Setup  =======================
+ [INFO]  All processes allmost completed.....
+ [INFO]  Exit handler called with exit code:  0
+ [INFO]  Script execution completed successfully
+ [ACTION]  Successfully executed: /home/ssnow/Documents/GitHub/arch_install/scripts/7-post-setup/post-setup.sh
+  [OK]  Arch Linux installation completed successfully
+Installation start 2024-10-07 20:45:45, end 2024-10-07 20:46:20, time 00:00:35
+ [PROC]  Process completed successfully:  Main Installation Process (ID: 1728333945)
+ Process start 2024-10-07 20:45:45, end 2024-10-07 20:46:20, time 00:00:35
+  [DEBUG]  ======================= Ending Main Installation Process  =======================
+ [INFO]  All processes allmost completed.....
+ [INFO]  Exit handler called with exit code:  0
+ [INFO]  Script execution completed successfully
+Enter the number of the drive you want to use: Type ssnow password: Retype ssnow password: 
