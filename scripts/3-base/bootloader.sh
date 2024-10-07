@@ -212,8 +212,7 @@ create_efistub_entry() {
 }
 
 main() {
-    process_init "Configure Bootloader"
-    show_logo "Configure Bootloader"
+    process_init "Configure Bootloader $BOOTLOADER"
     print_message INFO "Starting bootloader configuration process"
     print_message INFO "DRY_RUN in $(basename "$0") is set to: ${YELLOW}$DRY_RUN"
 

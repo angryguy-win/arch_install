@@ -19,7 +19,7 @@ else
 fi
 
 main() {
-    process_init "None"
+    process_init "Installing: no Desktop Environment"
     print_message INFO "Starting none process"
 
 

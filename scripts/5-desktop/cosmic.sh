@@ -35,8 +35,7 @@ cosmic_os() {
 }
 
 main() {
-    process_init "Cosmic OS"
-    show_logo "Cosmic OS"
+    process_init "Installing Cosmic OS"
     print_message INFO "Starting cosmic OS process"
     print_message INFO "DRY_RUN in $(basename "$0") is set to: ${YELLOW}$DRY_RUN"
 

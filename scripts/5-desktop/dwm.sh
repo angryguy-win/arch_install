@@ -34,8 +34,7 @@ dwm() {
 }
 
 main() {
-    process_init "DWM"
-    show_logo "DWM"
+    process_init "Installing: DWM"
     print_message INFO "Starting DWM process"
     print_message INFO "DRY_RUN in $(basename "$0") is set to: ${YELLOW}$DRY_RUN"
 

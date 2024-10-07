@@ -35,8 +35,7 @@ kde_plasma() {
 }
 
 main() {
-    process_init "KDE Plasma"
-    show_logo "KDE Plasma"
+    process_init "Installing: KDE Plasma"
     print_message INFO "Starting KDE Plasma process"
     print_message INFO "DRY_RUN in $(basename "$0") is set to: ${YELLOW}$DRY_RUN"
 

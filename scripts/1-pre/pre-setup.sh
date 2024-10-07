@@ -80,7 +80,6 @@ prepare_drive() {
 }
 main() {
     process_init "Pre-setup"
-    show_logo "Pre-setup"
     print_message INFO "Starting pre-setup process"
     print_message INFO "DRY_RUN in $(basename "$0") is set to: ${YELLOW}$DRY_RUN"
 

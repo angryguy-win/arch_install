@@ -45,7 +45,6 @@ grub_setup() {
 }
 main() {
     process_init "Generate Fstab"
-    show_logo "Generate Fstab"
     print_message INFO "Starting generate fstab process"
     print_message INFO "DRY_RUN in $(basename "$0") is set to: ${YELLOW}$DRY_RUN"
 

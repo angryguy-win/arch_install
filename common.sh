@@ -15,25 +15,13 @@
 
 set -eu
 
-# common static variables
-CONF_FILE="install.conf"
-LOG_FILE="install.log"
-RECOVERY_CONF_FILE="recovery.conf"
-RECOVERY_LOG_FILE="recovery.log"
-RECOVERY_ASCIINEMA_FILE="recovery.asciinema"
-PACKAGES_CONF_FILE="packages.conf"
-PACKAGES_LOG_FILE="packages.log"
-COMMONS_CONF_FILE="common.conf"
-PROVISION_DIRECTORY="files/"
-
-
-    # set variables
-    BOOT_DIRECTORY=/boot
-    ESP_DIRECTORY=/boot
-    UUID_BOOT=$(blkid -s UUID -o value "$PARTITION_BOOT")
-    UUID_ROOT=$(blkid -s UUID -o value "$PARTITION_ROOT")
-    PARTUUID_BOOT=$(blkid -s PARTUUID -o value "$PARTITION_BOOT")
-    PARTUUID_ROOT=$(blkid -s PARTUUID -o value "$PARTITION_ROOT")
+# set variables
+BOOT_DIRECTORY=/boot
+ESP_DIRECTORY=/boot
+UUID_BOOT=$(blkid -s UUID -o value "$PARTITION_BOOT")
+UUID_ROOT=$(blkid -s UUID -o value "$PARTITION_ROOT")
+PARTUUID_BOOT=$(blkid -s PARTUUID -o value "$PARTITION_BOOT")
+PARTUUID_ROOT=$(blkid -s PARTUUID -o value "$PARTITION_ROOT")
 
 
 sanitize_variable() {
@@ -501,35 +489,3 @@ exec 2> >(tee "stderr.log")
 }
 
 
-
-
-    set -uo pipefail
-    trap 's=$?; echo "$0: Error on line "$LINENO": $BASH_COMMAND"; exit $s' ERR
-
-ask_for_password() {
-
-    password=$(dialog --stdout --passwordbox "Enter admin password" 0 0) || exit 1
-    clear
-    : ${password:?"password cannot be empty"}
-    password2=$(dialog --stdout --passwordbox "Enter admin password again" 0 0) || exit 1
-    clear
-    [[ "$password" == "$password2" ]] || ( echo "Passwords did not match"; exit 1; )
-    devicelist=$(lsblk -dplnx size -o name,size | grep -Ev "boot|rpmb|loop" | tac)
-    device=$(dialog --stdout --menu "Select installation disk" 0 0 0 ${devicelist}) || exit 1
-    clear
-}
-ask_password() {
-    PASSWORD_NAME="$1"
-    PASSWORD_VARIABLE="$2"
-    read -r -sp "Type ${PASSWORD_NAME} password: " PASSWORD1
-    echo ""
-    read -r -sp "Retype ${PASSWORD_NAME} password: " PASSWORD2
-    echo ""
-    if [[ "$PASSWORD1" == "$PASSWORD2" ]]; then
-        declare -n VARIABLE="${PASSWORD_VARIABLE}"
-        VARIABLE="$PASSWORD1"
-    else
-        echo "${PASSWORD_NAME} password don't match. Please, type again."
-        ask_password "${PASSWORD_NAME}" "${PASSWORD_VARIABLE}"
-    fi
-}

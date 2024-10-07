@@ -131,9 +131,10 @@ main() {
     print_message INFO "Starting run checks process"
 
     run_checks
+    #facts_commons
+    #ask_for_installation_info
     ask_passwords
     check_and_setup_internet
-    facts_commons
     #ask_for_password
 
     print_message OK "Run checks process completed successfully"

@@ -53,7 +53,6 @@ last_cleanup() {
 
 main() {
     process_init "Last cleanup"
-    show_logo "Last cleanup"
     print_message INFO "Starting last cleanup process"
     print_message INFO "DRY_RUN in $(basename "$0") is set to: ${YELLOW}$DRY_RUN"
 

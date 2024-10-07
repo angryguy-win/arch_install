@@ -104,7 +104,6 @@ install_selected_packages() {
 # Function to execute commands with error handling
 main() {
     process_init "System Packages"
-    show_logo "System Packages"
     print_message INFO "Starting system packages process"
     print_message INFO "DRY_RUN in $(basename "$0") is set to: ${YELLOW}$DRY_RUN"
 

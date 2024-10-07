@@ -37,8 +37,7 @@ terminal() {
 }
 
 main() {
-    process_init "Terminal"
-    show_logo "Terminal"
+    process_init "Terminal: $TERMINAL"
     print_message INFO "Starting Terminal process"
     print_message INFO "DRY_RUN in $(basename "$0") is set to: ${YELLOW}$DRY_RUN"
 

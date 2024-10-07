@@ -75,7 +75,6 @@ system_config() {
 
 main() {
     process_init "System Config"
-    show_logo "System Config"
     print_message INFO "Starting system config process"
     print_message INFO "DRY_RUN in $(basename "$0") is set to: ${YELLOW}$DRY_RUN"
 

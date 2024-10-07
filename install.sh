@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/bin/sh
 
 # @description Arch Linux Installer
 # This script is used to install Arch Linux on a device.
@@ -13,7 +13,7 @@ export DRY_RUN=${DRY_RUN:-false}
 export VERBOSE=${VERBOSE:-false}
 
 # Parse command-line options
-while [[ "$#" -gt 0 ]]; do
+while [ "$#" -gt 0 ]; do
     case $1 in
         -d|--dry-run) export DRY_RUN=true ;;
         -v|--verbose) export VERBOSE=true ;;
@@ -24,18 +24,20 @@ done
 
 
 # Set up important directories and files
-SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+## SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+## SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"  # Changed from "${BASH_SOURCE[0]}" to "$0"
+SCRIPT_DIR="$(dirname "$(realpath "$0")")"
 export ARCH_DIR="$SCRIPT_DIR"
 export SCRIPTS_DIR="$ARCH_DIR/scripts"
 export CONFIG_FILE="$ARCH_DIR/arch_config.cfg"
 
 # Source the library functions
-# shellcheck source=lib/lib.sh
 LIB_PATH="$SCRIPT_DIR/lib/lib.sh"
+#shellcheck source=../lib/lib.sh
 if [ -f "$LIB_PATH" ]; then
-    . "$LIB_PATH"
+    . "$SCRIPT_DIR/lib/lib.sh"  
 else
-    echo "Error: Cannot find lib.sh at $LIB_PATH" >&2
+    print_message ERROR "Library file not found: $LIB_PATH"
     exit 1
 fi
 
@@ -46,18 +48,21 @@ fi
 
 # Main execution
 main() {
-    local MAIN_START_TIMESTAMP
-    local MAIN_END_TIMESTAMP
-    local MAIN_INSTALLATION_TIME
+    MAIN_START_TIMESTAMP=""
+    MAIN_END_TIMESTAMP=""
+    MAIN_INSTALLATION_TIME=""
 
 
     MAIN_START_TIMESTAMP=$(date -u +"%F %T")
     print_message DEBUG "======================= Starting Main Installation Process ======================="
     process_init "Main Installation Process"
-    show_logo "Arch Linux Installer"
     print_message INFO "Welcome to the Arch Linux installer script"
-
     print_message PROC "DRY_RUN is set to: ${YELLOW}$DRY_RUN"
+    print_message DEBUG "From the install.sh file in the: $SCRIPT_DIR"
+    print_message DEBUG "Lib.sh file in the: $SCRIPT_DIR/lib/lib.sh"
+    print_message DEBUG "ARCH_DIR: $ARCH_DIR"
+    print_message DEBUG "SCRIPTS_DIR: $SCRIPTS_DIR"
+    print_message DEBUG "CONFIG_FILE: $CONFIG_FILE" 
     #print_system_info
 
     export STAGES_CONFIG="${STAGES_CONFIG:-$ARCH_DIR/stages.toml}"

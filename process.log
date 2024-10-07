@@ -1,0 +1,81 @@
+  [DEBUG]  ======================= Starting Main Installation Process =======================
+  [DEBUG]  Start time:  2024-10-07 10:07:17
+ [PROC]  Starting process:  Main Installation Process (ID: 1728295637) 2024-10-07 10:07:17
+  [DEBUG]  ======================= Starting Main Installation Process  =======================
+ 
+-------------------------------------------------------------------------
+
+                 █████╗ ██████╗  ██████ ██╗  ██╗
+                ██╔══██╗██╔══██╗██╔════╝██║  ██║
+                ███████║██████╔╝██║     ███████║ 
+                ██╔══██║██╔══██╗██║     ██╔══██║
+                ██║  ██║██║  ██║╚██████╗██║  ██║
+                ╚═╝  ╚═╝╚═╝  ╚═╝ ╚═════╝╚═╝  ╚═╝
+------------------------------------------------------------------------
+                 Main Installation Process
+------------------------------------------------------------------------
+
+ [INFO]  Welcome to the Arch Linux installer script
+ [PROC]  DRY_RUN is set to: true
+  [DEBUG]  From the install.sh file in the: /home/ssnow/Documents/GitHub/arch_install
+  [DEBUG]  Lib.sh file in the: /home/ssnow/Documents/GitHub/arch_install/lib/lib.sh
+  [DEBUG]  ARCH_DIR: /home/ssnow/Documents/GitHub/arch_install
+  [DEBUG]  SCRIPTS_DIR: /home/ssnow/Documents/GitHub/arch_install/scripts
+  [DEBUG]  CONFIG_FILE: /home/ssnow/Documents/GitHub/arch_install/arch_config.cfg
+ [INFO]  Reading configuration from /home/ssnow/Documents/GitHub/arch_install/arch_config.toml
+  [OK]  Configuration loaded into: /home/ssnow/Documents/GitHub/arch_install/arch_config.cfg
+  [DEBUG]  Exported variable: 
+  [DEBUG]  PARALLEL_JOBS=8
+  [DEBUG]  SYSTEM_INSTALLATION=false
+  [DEBUG]  COUNTRY_ISO=CA
+  [DEBUG]  FILE_SYSTEM_TYPE=btrfs
+  [DEBUG]  INSTALL_DEVICE=nvme0n1
+  [DEBUG]  DEVICE=/dev/vda
+  [DEBUG]  PARTITION_BIOSBOOT=/dev/vda
+  [DEBUG]  PARTITION_EFI=/dev/vda2
+  [DEBUG]  PARTITION_ROOT=/dev/vda3
+  [DEBUG]  PARTITION_HOME=/dev/vda4
+  [DEBUG]  PARTITION_SWAP=/dev/vda5
+  [DEBUG]  MOUNT_OPTIONS=noatime,compress=zstd,ssd,commit=120
+  [DEBUG]  LOCALE=en_US.UTF-8
+  [DEBUG]  TIMEZONE=America/Toronto
+  [DEBUG]  KEYMAP=us
+  [DEBUG]  USERNAME=ssnow
+  [DEBUG]  PASSWORD=changeme
+  [DEBUG]  HOSTNAME=arch
+  [DEBUG]  MICROCODE=amd
+  [DEBUG]  GPU=amd
+  [DEBUG]  GPU_DRIVER=amdgpu
+  [DEBUG]  TERMINAL=alacritty
+  [DEBUG]  SHELL=bash
+  [DEBUG]  EDITOR=nvim
+  [DEBUG]  DESKTOP_ENVIRONMENT=gnome
+  [DEBUG]  FORMAT_TYPE=btrfs
+  [DEBUG]  SUBVOLUMES=@home,@var,@.snapshots
+  [DEBUG]  LUKS_PASSWORD=changeme
+  [DEBUG]  LUKS=false
+  [DEBUG]  SWAP=false
+  [DEBUG]  SWAP_SIZE=4
+  [DEBUG]  HOME=false
+  [DEBUG]  BIOS_TYPE=uefi
+  [DEBUG]  CPU_VENDOR=amd
+  [DEBUG]  GPU_VENDOR=amd
+  [DEBUG]  INITRD_MICROCODE=amd-ucode.img
+  [OK]  Configuration loaded successfully
+  [DEBUG]  FORMAT_TYPE: btrfs
+  [DEBUG]  DESKTOP_ENVIRONMENT: gnome
+  [DEBUG]  === Checking for missing required scripts ===
+  [OK]  All required scripts are present.
+ [INFO]  Executing: 1-pre/pre-setup.sh
+  [DEBUG]  Start time:  2024-10-07 10:07:17
+ [PROC]  Starting process:  Pre-setup (ID: 1728295637) 2024-10-07 10:07:17
+  [DEBUG]  ======================= Starting Pre-setup  =======================
+ 
+-------------------------------------------------------------------------
+
+                 █████╗ ██████╗  ██████ ██╗  ██╗
+                ██╔══██╗██╔══██╗██╔════╝██║  ██║
+                ███████║██████╔╝██║     ███████║ 
+                ██╔══██║██╔══██╗██║     ██╔══██║
+                ██║  ██║██║  ██║╚██████╗██║  ██║
+                ╚═╝  ╚═╝╚═╝  ╚═╝ ╚

@@ -49,7 +49,6 @@ bootstrap_pkgs() {
 
 main() {
     process_init "Bootstrap Packages"
-    show_logo "Bootstrap Packages"
     print_message INFO "Starting bootstrap packages process"
     print_message INFO "DRY_RUN in $(basename "$0") is set to: ${YELLOW}$DRY_RUN"
 

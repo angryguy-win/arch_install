@@ -91,12 +91,12 @@ show_logo () {
 printf "%b" " 
 ${border}-------------------------------------------------------------------------
 ${logo_message_color}
-                 █████╗ ██████╗  ██████ ██╗  ██╗
-                ██╔══██╗██╔══██╗██╔════╝██║  ██║
-                ███████║██████╔╝██║     ███████║ 
-                ██╔══██║██╔══██╗██║     ██╔══██║
-                ██║  ██║██║  ██║╚██████╗██║  ██║
-                ╚═╝  ╚═╝╚═╝  ╚═╝ ╚═════╝╚═╝  ╚═╝
+                 \u2588\u2588\u2588\u2588\u2588\u2557 \u2588\u2588\u2588\u2588\u2588\u2588\u2557  \u2588\u2588\u2588\u2588\u2588\u2588 \u2588\u2588\u2557  \u2588\u2588\u2557
+                \u2588\u2588\u2554\u2550\u2550\u2588\u2588\u2557\u2588\u2588\u2554\u2550\u2550\u2588\u2588\u2557\u2588\u2588\u2554\u2550\u2550\u2550\u2550\u255d\u2588\u2588\u2551  \u2588\u2588\u2551
+                \u2588\u2588\u2588\u2588\u2588\u2588\u2588\u2551\u2588\u2588\u2588\u2588\u2588\u2588\u2554\u255d\u2588\u2588\u2551     \u2588\u2588\u2588\u2588\u2588\u2588\u2588\u2551 
+                \u2588\u2588\u2554\u2550\u2550\u2588\u2588\u2551\u2588\u2588\u2554\u2550\u2550\u2588\u2588\u2557\u2588\u2588\u2551     \u2588\u2588\u2554\u2550\u2550\u2588\u2588\u2551
+                \u2588\u2588\u2551  \u2588\u2588\u2551\u2588\u2588\u2551  \u2588\u2588\u2551\u255a\u2588\u2588\u2588\u2588\u2588\u2588\u2557\u2588\u2588\u2551  \u2588\u2588\u2551
+                \u255a\u2550\u255d  \u255a\u2550\u255d\u255a\u2550\u255d  \u255a\u2550\u255d \u255a\u2550\u2550\u2550\u2550\u2550\u255d\u255a\u2550\u255d  \u255a\u2550\u255d
 ${border}------------------------------------------------------------------------
                 ${text_color} $logo_message
 ${border}------------------------------------------------------------------------
@@ -257,7 +257,7 @@ ram() {
     if total_ram_kb=$(free | awk '/Mem:/ {print $2}'); then
         RAM_AMOUNT=$(awk "BEGIN {printf \"%.1f\", $total_ram_kb / 1048576}")
         print_message INFO "RAM: " "$RAM_AMOUNT GB"
-        set_option "RAM_AMOUNT" "$RAM_AMOUNT" || { print_message ERROR "Failed to set RAM_AMOUNT"; return 1; }
+        #set_option "RAM_AMOUNT" "$RAM_AMOUNT" || { print_message ERROR "Failed to set RAM_AMOUNT"; return 1; }
     else
         print_message WARNING "Unable to determine RAM amount"
     fi
@@ -267,21 +267,21 @@ ram() {
 cpu() {
     if CPU_MODEL=$(lscpu | awk -F': +' '/Model name/ {print $2}'); then
         print_message INFO "CPU Model: " "$CPU_MODEL"
-        set_option "CPU_MODEL" "$CPU_MODEL" || { print_message ERROR "Failed to set CPU_MODEL"; return 1; }
+        #set_option "CPU_MODEL" "$CPU_MODEL" || { print_message ERROR "Failed to set CPU_MODEL"; return 1; }
     else
         print_message WARNING "Unable to determine CPU model"
     fi
 
     if CPU_CORES=$(nproc 2>/dev/null); then
         print_message INFO "CPU Cores: " "$CPU_CORES"
-        set_option "CPU_CORES" "$CPU_CORES" || { print_message ERROR "Failed to set CPU_CORES"; return 1; }
+        #set_option "CPU_CORES" "$CPU_CORES" || { print_message ERROR "Failed to set CPU_CORES"; return 1; }
     else
         print_message WARNING "Unable to determine CPU core count"
     fi
 
     if CPU_THREADS=$(lscpu | awk '/^CPU\(s\):/ {print $2}'); then
         print_message INFO "CPU Threads: " "$CPU_THREADS"
-        set_option "CPU_THREADS" "$CPU_THREADS" || { print_message ERROR "Failed to set CPU_THREADS"; return 1; }
+        #set_option "CPU_THREADS" "$CPU_THREADS" || { print_message ERROR "Failed to set CPU_THREADS"; return 1; }
     else
         print_message WARNING "Unable to determine CPU thread count"
     fi
@@ -290,7 +290,7 @@ gpu_type() {
     local gpu_type
     # gpu_type=$(lspci | grep -E "VGA|3D|Display" | awk -F': ' '{print $2}' | awk -F' (' '{print $1}')
     gpu_type=$(lspci | grep -E "VGA|3D|Display" | awk -F'[][]' '/AMD|NVIDIA|Intel/ {print $2 " " $4}')
-    set_option "GPU_TYPE" "$gpu_type" || { print_message ERROR "Failed to set GPU_TYPE"; return 1; }
+    #set_option "GPU_TYPE" "$gpu_type" || { print_message ERROR "Failed to set GPU_TYPE"; return 1; }
     print_message INFO "GPU Type: " "$gpu_type"
 }
 # @description Check if a file exists
@@ -320,6 +320,7 @@ process_init() {
     CURRENT_PROCESS="$process_name"
     CURRENT_PROCESS_ID="$process_id"
 
+    printf "%b\n" "$process_id:$process_name:started" >> "$PROCESS_LOG"
     START_TIMESTAMP=$(date -u +"%F %T")
     print_message DEBUG "Start time: " "$START_TIMESTAMP"
 
@@ -329,9 +330,9 @@ process_init() {
     set -o errtrace
     trap 'error_handler $? $LINENO $BASH_LINENO "$BASH_COMMAND" $(printf "::%s" ${FUNCNAME[@]:-})' ERR
 
-    print_message PROC "Starting process: " "$process_name (ID: $process_id)"
-    printf "%b\n" "$process_id:$process_name:started" >> "$PROCESS_LOG"
+    print_message PROC "Starting process: " "$process_name (ID: $process_id) $START_TIMESTAMP"
     print_message DEBUG "======================= Starting $process_name  ======================="
+    show_logo "$process_name"
 }
 # @description Run process.
 # @arg $1 string Process PID.
@@ -472,38 +473,20 @@ load_config() {
     set +o allexport
 
     # Set default values for variables that might not be in the config file
-    export PARALLEL_JOBS="${PARALLEL_JOBS:-4}"
-    export FORMAT_TYPE="${FORMAT_TYPE:-btrfs}"
-    export COUNTRY_ISO="${COUNTRY_ISO:-US}"
-    export MOUNT_OPTIONS="${MOUNT_OPTIONS:-noatime,compress=zstd,ssd,commit=120}"
-    export LOCALE="${LOCALE:-en_US.UTF-8}"
-    export TIMEZONE="${TIMEZONE:-UTC}"
-    export KEYMAP="${KEYMAP:-us}"
-    export USERNAME="${USERNAME:-user}"
-    export PASSWORD="${PASSWORD:-changeme}"
-    export HOSTNAME="${HOSTNAME:-arch}"
-    export TERMINAL="${TERMINAL:-alacritty}"
-    export SUBVOLUME="${SUBVOLUME:-@,@home,@var,@.snapshots}"
-    export LUKS="${LUKS:-false}"
-    export LUKS_PASSWORD="${LUKS_PASSWORD:-changeme}"
-    export SHELL="${SHELL:-bash}"
-    export DESKTOP_ENVIRONMENT="${DESKTOP_ENVIRONMENT:-none}"
+    # Read the configuration file line by line
+    print_message DEBUG "Exported variable: "
+    while IFS='=' read -r key value; do
+        # Trim whitespace
+        key=$(echo "$key" | xargs)
+        value=$(echo "$value" | xargs)
 
-    # Export variables without default values
-    export DEVICE
-    export PARTITION_BIOSBOOT
-    export PARTITION_EFI
-    export PARTITION_ROOT
-    export PARTITION_HOME
-    export PARTITION_SWAP
-    export MICROCODE
-    export GPU_DRIVER
+        # Skip empty lines and comments
+        [[ -z "$key" || "$key" == \#* ]] && continue
 
-    # Debug output for all variables
-    print_message DEBUG "Configuration variables after loading:"
-    for var in PARALLEL_JOBS FORMAT_TYPE COUNTRY_ISO DEVICE PARTITION_BIOSBOOT PARTITION_EFI PARTITION_ROOT PARTITION_HOME PARTITION_SWAP MOUNT_OPTIONS LOCALE TIMEZONE KEYMAP USERNAME PASSWORD HOSTNAME MICROCODE GPU_DRIVER TERMINAL SUBVOLUME LUKS LUKS_PASSWORD SHELL DESKTOP_ENVIRONMENT; do
-        print_message DEBUG "  $var=${!var}"
-    done
+        # Export the variable
+        export "$key"="$value"
+        print_message DEBUG "$key=$value"
+    done < "$CONFIG_FILE"
 
     print_message OK "Configuration loaded successfully"
     return 0
@@ -1399,10 +1382,10 @@ check_dialog() {
 # @return 0 on success, 1 on failure
 ask_for_password() {
     if check_dialog; then
-        password=$(dialog --stdout --passwordbox "Enter admin password" 0 0) || exit 1
+        password=$(dialog --stdout --password --title "Enter admin password" 0 0) || exit 1
         clear
         : ${password:?"password cannot be empty"}
-        password2=$(dialog --stdout --passwordbox "Enter admin password again" 0 0) || exit 1
+        password2=$(dialog --stdout --password --title "Retype admin password" 0 0) || exit 1
         clear
         [[ "$password" == "$password2" ]] || ( echo "Passwords did not match"; exit 1; )
         set_option "PASSWORD" "$password"
@@ -1414,7 +1397,7 @@ ask_for_password() {
         # Fallback to basic input method
         read -s -p "Enter admin password: " password
         echo
-        read -s -p "Enter admin password again: " password2
+        read -s -p "Retype admin password: " password2
         echo
         [[ "$password" == "$password2" ]] || ( echo "Passwords did not match"; exit 1; )
         : ${password:?"password cannot be empty"}
@@ -1428,4 +1411,145 @@ ask_for_password() {
     # Export the variables for use in other parts of the script
     export PASSWORD="$password"
     export DEVICE="$device"
+}
+# @description Ask for installation information.
+# @return 0 on success, 1 on failure
+ask_for_installation_info() {
+    local script_dir="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
+    local project_root="$( cd "$script_dir/.." && pwd )"
+    local executable_path="$project_root/installation_info/installation_info"
+
+    print_message DEBUG "Current directory: $(pwd)"
+    print_message DEBUG "Script directory: $script_dir"
+    print_message DEBUG "Project root: $project_root"
+    print_message DEBUG "Executable path: $executable_path"
+
+    if [ ! -f "$executable_path" ]; then
+        print_message ERROR "installation_info file not found at $executable_path"
+        return 1
+    fi
+
+    if [ ! -x "$executable_path" ]; then
+        print_message ERROR "installation_info is not executable at $executable_path"
+        chmod +x "$executable_path"
+        print_message DEBUG "Made $executable_path executable"
+    fi
+    print_message DEBUG "Current PATH: $PATH"
+    print_message DEBUG "Current working directory: $(pwd)"
+    print_message DEBUG "Executable permissions: $(ls -l "$executable_path")"
+    print_message DEBUG "Executable file type: $(file "$executable_path")"
+    print_message DEBUG "Environment variables:"
+    print_message DEBUG "USERNAME=$USERNAME"
+    print_message DEBUG "USER_PASSWORD=$USER_PASSWORD"
+    print_message DEBUG "HOSTNAME=$HOSTNAME"
+    print_message DEBUG "TIMEZONE=$TIMEZONE"
+
+    print_message DEBUG "Attempting to run installation_info program"
+    print_message DEBUG "Command: $executable_path -interactive=false"
+    
+    # Explicitly set environment variables
+    export USERNAME="${USERNAME:-ssnow}"
+    export USER_PASSWORD="${USER_PASSWORD:-defaultpassword}"  # Set a default password
+    export HOSTNAME="${HOSTNAME:-hostname}"
+    export TIMEZONE="${TIMEZONE:-America/Toronto}"
+
+    print_message DEBUG "Environment variables after setting defaults:"
+    print_message DEBUG "USERNAME=$USERNAME"
+    print_message DEBUG "USER_PASSWORD=$USER_PASSWORD"
+    print_message DEBUG "HOSTNAME=$HOSTNAME"
+    print_message DEBUG "TIMEZONE=$TIMEZONE"
+
+    # Check if we need to run in interactive mode
+    if [ -z "$USERNAME" ] || [ -z "$USER_PASSWORD" ] || [ -z "$HOSTNAME" ] || [ -z "$TIMEZONE" ]; then
+        print_message DEBUG "Running installation_info in interactive mode"
+        "$executable_path" -interactive=true
+    else
+        print_message DEBUG "Running installation_info in non-interactive mode"
+        "$executable_path" -interactive=false
+    fi
+
+    exit_code=$?
+    print_message DEBUG "installation_info exit code: $exit_code"
+
+    if [ $exit_code -ne 0 ]; then
+        print_message ERROR "Failed to run installation_info program. Exit code: $exit_code"
+        return 1
+    fi
+
+    print_message DEBUG "Trying to execute directly from shell"
+    bash -c "$executable_path -interactive=false"
+    print_message DEBUG "Direct execution exit code: $?"
+
+    print_message DEBUG "Checking library dependencies"
+    ldd_output=$(ldd "$executable_path" 2>&1) || true
+    if [[ $ldd_output == *"not a dynamic executable"* ]]; then
+        print_message DEBUG "The executable is statically linked (this is normal for Go programs)"
+    else
+        print_message DEBUG "Library dependencies: $ldd_output"
+    fi
+
+    print_message DEBUG "Running strace on installation_info"
+    strace "$executable_path" -interactive=false || true
+
+    print_message SUCCESS "Installation information collected successfully!"
+    return 0
+}
+check_password_complexity() {
+    local password="$1"
+    local min_length=8
+    local min_numbers=4
+    local special_chars='!@#$%^&*'
+
+    if [ ${#password} -lt $min_length ]; then
+        print_message WARNING "Password must be at least $min_length characters long."
+        return 1
+    fi
+
+    if ! [[ "$password" =~ [0-9] ]] || [ $(echo "$password" | tr -cd '0-9' | wc -c) -lt $min_numbers ]; then
+        print_message WARNING "Password must contain at least $min_numbers numbers."
+        return 1
+    fi
+
+    if ! [[ "$password" =~ [$special_chars] ]]; then
+        print_message WARNING "Password must contain at least one special character ($special_chars)."
+        return 1
+    fi
+
+    return 0
+}
+generate_encryption_key() {
+    local key=$(openssl rand -base64 32)
+    print_message INFO "IMPORTANT: Save this encryption key in a safe place. It will not be saved anywhere else."
+    print_message INFO "Encryption Key: $key"
+    print_message INFO "You can use this key to recover your data if you forget your password."
+    print_message ACTION "Press any key to continue..."
+    read -n 1 -s
+}
+
+# Function: sanitize_variable
+sanitize_variable() {
+    local variable="$1"
+    variable=$(echo "$variable" | sed "s/![^ ]*//g")      # Remove disabled
+    variable=$(echo "$variable" | sed -r "s/ {2,}/ /g")   # Remove unnecessary whitespaces
+    variable=$(echo "$variable" | sed 's/^[[:space:]]*//') # Trim leading spaces
+    variable=$(echo "$variable" | sed 's/[[:space:]]*$//') # Trim trailing spaces
+    echo "$variable"
+}
+
+# Function: trim_variable
+trim_variable() {
+    local variable="$1"
+    variable=$(echo "$variable" | sed 's/^[[:space:]]*//') # Trim leading spaces
+    variable=$(echo "$variable" | sed 's/[[:space:]]*$//') # Trim trailing spaces
+    echo "$variable"
+}
+
+# Function: swap_file
+swap_file() {
+    if [[ -n "$SWAP_SIZE" ]]; then
+        fallocate -l "${SWAP_SIZE}G" /mnt/swapfile
+        chmod 600 /mnt/swapfile
+        mkswap /mnt/swapfile
+        swapon /mnt/swapfile
+    fi
 }

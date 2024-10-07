@@ -35,8 +35,7 @@ gnome_os() {
 }
 
 main() {
-    process_init "Gnome OS"
-    show_logo "Gnome OS"
+    process_init "Installing: Gnome OS"
     print_message INFO "Starting gnome OS process"
     print_message INFO "DRY_RUN in $(basename "$0") is set to: ${YELLOW}$DRY_RUN"
 
