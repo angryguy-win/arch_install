@@ -270,24 +270,25 @@ There are other ways to use this function.
 
 gpu_setup() {
     local gpu_info
+    local command=()
     gpu_info=${GPU_DRIVER}
 
     case "$gpu_info" in
         *NVIDIA*|*GeForce*)
             print_message ACTION "Installing NVIDIA drivers"
-            command="pacman -S --noconfirm --needed nvidia-dkms nvidia-utils lib32-nvidia-utils"
+            command+=("pacman -S --noconfirm --needed nvidia-dkms nvidia-utils lib32-nvidia-utils")
             ;;
         *AMD*|*ATI*)
             print_message ACTION "Installing AMD drivers"
-            command="pacman -S --noconfirm --needed xf86-video-amdgpu mesa lib32-mesa vulkan-radeon lib32-vulkan-radeon"
+            command+=("pacman -S --noconfirm --needed xf86-video-amdgpu mesa lib32-mesa vulkan-radeon lib32-vulkan-radeon")
             ;;
         *Intel*)
             print_message ACTION "Installing Intel drivers"
-            command="pacman -S --noconfirm --needed xf86-video-intel mesa lib32-mesa vulkan-intel lib32-vulkan-intel"
+            command+=("pacman -S --noconfirm --needed xf86-video-intel mesa lib32-mesa vulkan-intel lib32-vulkan-intel")
             ;;
         *)
             print_message WARNING "Unknown GPU. Installing generic drivers"
-            command="pacman -S --noconfirm --needed xf86-video-vesa mesa"
+            command+=("pacman -S --noconfirm --needed xf86-video-vesa mesa")
             ;;
     esac
     print_message DEBUG "GPU type: ${gpu_info}"
@@ -296,7 +297,7 @@ gpu_setup() {
         --use-chroot \
         --error-message "GPU setup failed" \
         --success-message "GPU setup completed" \
-        "${command}"
+        "${command[@]}"
 }
 ```
 
