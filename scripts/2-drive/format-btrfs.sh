@@ -1,8 +1,8 @@
 #!/bin/bash
-# Partition Btrfs Script
+# Format Btrfs Script
 # Author: ssnow
 # Date: 2024
-# Description: Partition Btrfs script for Arch Linux installation
+# Description: Format Btrfs script for Arch Linux installation
 
 set -eo pipefail  # Exit on error, pipe failure
 
@@ -24,33 +24,61 @@ fi
 export DRY_RUN="${DRY_RUN:-false}"
 
 
-partitioning() {
-
-    print_message INFO "Install device set to: $DEVICE"
-
-    print_message INFO "Partitioning $DEVICE"
-    execute_process "Partitioning" \
-        --error-message "Partitioning failed" \
-        --success-message "Partitioning completed" \
-        "if mountpoint -q /mnt; then umount -A --recursive /mnt; else echo '/mnt is not mounted'; fi" \
-        "sgdisk -Z ${DEVICE}" \
-        "sgdisk -n1:0:+1M -t1:ef02 -c1:'BIOSBOOT' ${DEVICE}" \
-        "sgdisk -n2:0:+512M -t2:ef00 -c2:'EFIBOOT' ${DEVICE}" \
-        "sgdisk -n3:0:0 -t3:8300 -c3:'ROOT' ${DEVICE}"
-
-}
 luks_setup() {
     print_message INFO "Setting up LUKS"
 
 }
+formating() {
+
+    print_message DEBUG "Before Format ROOT: $PARTITION_ROOT as btrfs"
+    print_message DEBUG "Before Format EFIBOOT: $PARTITION_EFI as vfat"
+
+    execute_process "Formatting partitions btrfs" \
+        --error-message "Formatting partitions btrfs failed" \
+        --success-message "Formatting partitions btrfs completed" \
+        --critical \
+        "mkfs.vfat -F32 -n EFIBOOT $PARTITION_EFI" \
+        "mkfs.btrfs -f -L ROOT $PARTITION_ROOT" \
+        "mount -t btrfs $PARTITION_ROOT /mnt" 
+    
+}
+subvolumes_setup() {
+
+    execute_process "Creating subvolumes" \
+        --error-message "Creating subvolumes failed" \
+        --success-message "Creating subvolumes completed" \
+        "btrfs subvolume create /mnt/@" \
+        "btrfs subvolume create /mnt/@home" \
+        "btrfs subvolume create /mnt/@var" \
+        "btrfs subvolume create /mnt/@tmp" \
+        "btrfs subvolume create /mnt/@.snapshots" \
+        "umount /mnt"
+
+}
+mounting() {
+
+    execute_process "Mounting subvolumes btrfs" \
+        --error-message "Mounting subvolumes btrfs failed" \
+        --success-message "Mounting subvolumes btrfs completed" \
+        "mount -o $MOUNT_OPTIONS,subvol=@ $PARTITION_ROOT /mnt" \
+        "mkdir -p /mnt/{home,var,tmp,.snapshots,boot/efi}" \
+        "mount -o $MOUNT_OPTIONS,subvol=@home $PARTITION_ROOT /mnt/home" \
+        "mount -o $MOUNT_OPTIONS,subvol=@tmp $PARTITION_ROOT /mnt/tmp" \
+        "mount -o $MOUNT_OPTIONS,subvol=@var $PARTITION_ROOT /mnt/var" \
+        "mount -o $MOUNT_OPTIONS,subvol=@.snapshots $PARTITION_ROOT /mnt/.snapshots" \
+        "mount -t vfat -L EFIBOOT /mnt/boot/efi"
+
+}
 main() {
-    process_init "Formation partitions $FORMAT_TYPE"
-    print_message INFO "Starting partition btrfs process"
+    process_init "Formatting partitions $FORMAT_TYPE"
+    print_message INFO "Starting formatting partitions $FORMAT_TYPE process"
     print_message INFO "DRY_RUN in $(basename "$0") is set to: ${YELLOW}$DRY_RUN"
 
-    partitioning || { print_message ERROR "Partitioning failed"; return 1; }
+    formating || { print_message ERROR "Formatting partitions btrfs failed"; return 1; }
+    subvolumes_setup || { print_message ERROR "Creating subvolumes failed"; return 1; }
+    mounting || { print_message ERROR "Mounting subvolumes btrfs failed"; return 1; }
 
-    print_message OK "Partition btrfs process completed successfully"
+    print_message OK "Formatting partitions btrfs process completed successfully"
     process_end $?
 }
 # Run the main function
