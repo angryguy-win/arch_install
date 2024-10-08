@@ -1,5 +1,6 @@
 # Arch install Script
 ## This is still in development work in progress.
+```
 - What is working and has been tested
 [x] BTRFS
 [x] Gnome Desktop
@@ -16,7 +17,7 @@
 [] mybash
 [] nvim
 [] terminal, config, starship
-
+```
 ## still ironning out the kinks and making sure it works for all cases.
 
 run the install script ` bash install.sh `
