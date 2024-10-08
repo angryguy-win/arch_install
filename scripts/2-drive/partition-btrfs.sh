@@ -54,6 +54,7 @@ partitioning() {
     # Initialize partition commands
     print_message ACTION "Wiping the partition table on $DEVICE"
     command+=("sgdisk -Z $DEVICE")
+    command+=("sgdisk -a 2048 -o ${DEVICE}")
     #command+=("sgdisk -o $DEVICE")
     #command+=("wipefs -a -f $DEVICE")
     #command+=("partprobe -s $DEVICE")
@@ -90,9 +91,9 @@ partitioning() {
     print_message ACTION "Partitioning $DEVICE $BIOS_TYPE drive"
     # Partition the disk
     if [[ "$BIOS_TYPE" == "uefi" ]]; then
-        command+=("sgdisk -n1:0:$boot_size -t1:ef00 -c1:EFI_BOOT ${DEVICE}")  # EFI partition
+        command+=("sgdisk -n1:0:$boot_size -t1:ef00 -c1:'EFIBOOT' ${DEVICE}")  # EFI partition
     else
-        command+=("sgdisk -a1 -n1:24K:+1000K -t1:ef02 -c1:BIOSBOOT ${DEVICE}")  # BIOS boot partition
+        command+=("sgdisk -a1 -n1:24K:+1000K -t1:ef02 -c1:'BIOSBOOT' ${DEVICE}")  # BIOS boot partition
     fi
     print_message ACTION "BOOT $BIOS_TYPE partition: $boot_size on $DEVICE 1"
     set_option PARTITION_BOOT "$(partition_device "$DEVICE" 1)"
@@ -102,8 +103,8 @@ partitioning() {
     # Create swap partition if enabled
     if [[ "$SWAP" == "true" ]]; then
         print_message ACTION "Creating swap partition"
-        command+=("sgdisk -n${partition_number}:0:${swap_size} -t${partition_number}:8200 -c${partition_number}:SWAP ${DEVICE}")
-        print_message DEBUG "Swap partition: $swap_size on $DEVICE $partition_number" 
+        command+=("sgdisk -n${partition_number}:0:${swap_size} -t${partition_number}:8200 -c${partition_number}:'SWAP' ${DEVICE}")
+        print_message DEBUG "Swap partition: $swap_size on $DEVICE $partition_number"
         set_option PARTITION_SWAP "$(partition_device "$DEVICE" $partition_number)"
         print_message DEBUG "Setting: SWAP partition: on $PARTITION_SWAP"
         partition_number=$((partition_number + 1))
@@ -112,9 +113,9 @@ partitioning() {
     # Create root partition
     print_message ACTION "Creating root partition"
     if [[ -n "$root_size" ]]; then
-        command+=("sgdisk -n${partition_number}:0:${root_size} -t${partition_number}:8300 -c${partition_number}:ROOT ${DEVICE}")
+        command+=("sgdisk -n${partition_number}:0:${root_size} -t${partition_number}:8300 -c${partition_number}:'ROOT' ${DEVICE}")
     else
-        command+=("sgdisk -n${partition_number}:0:0 -t${partition_number}:8300 -c${partition_number}:ROOT ${DEVICE}")
+        command+=("sgdisk -n${partition_number}:0:0 -t${partition_number}:8300 -c${partition_number}:'ROOT' ${DEVICE}")
     fi
     print_message DEBUG "Root partition: $root_size on $DEVICE $partition_number"
     set_option PARTITION_ROOT "$(partition_device "$DEVICE" $partition_number)"
@@ -124,7 +125,7 @@ partitioning() {
     # Create home partition if enabled
     if [[ "$HOME" == "true" ]]; then
         home_size=""  # Use remaining space
-        command+=("sgdisk -n${partition_number}:0:0 -t${partition_number}:8300 -c${partition_number}:HOME ${DEVICE}")
+        command+=("sgdisk -n${partition_number}:0:0 -t${partition_number}:8300 -c${partition_number}:'HOME' ${DEVICE}")
         set_option PARTITION_HOME "$(partition_device "$DEVICE" $partition_number)"
         print_message ACTION "Creating Home partition"
         print_message DEBUG "Home partition: on $PARTITION_HOME"
