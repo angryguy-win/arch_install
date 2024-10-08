@@ -185,7 +185,7 @@ partition_mount() {
             command+=("mount -o $MOUNT_OPTIONS,subvol=$subvol $partition_root /mnt/$subvol")
         done
         
-        print_message DEBUG "Mounting boot partition"
+        print_message DEBUG "Mounting EFI boot partition"
         command+=("mount -t vfat -L EFIBOOT /mnt/boot/efi")
 
         # Mount home partition if it exists

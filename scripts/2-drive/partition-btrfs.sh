@@ -59,8 +59,8 @@ partitioning() {
     #command+=("wipefs -a -f $DEVICE")
     #command+=("partprobe -s $DEVICE")
 
-    print_message ACTION "Calculating partition sizes"
     # Get the total size of the device in GiB
+    print_message ACTION "Calculating partition sizes"
     device_size=$(lsblk -b -dn -o SIZE "$DEVICE")
     device_size=$((device_size / 1024 / 1024 / 1024))  # Convert to GiB
     print_message INFO "Device size: $device_size GiB"
@@ -88,6 +88,7 @@ partitioning() {
         root_size=""    # Use remaining space
     fi
 
+    print_message ACTION "Creating BIOSBOOT partition on $DEVICE"
     command+=("sgdisk -n1:0:+1M -t1:ef02 -c1:'BIOSBOOT' $DEVICE")
     partition_number=2
 
@@ -99,8 +100,9 @@ partitioning() {
         command+=("sgdisk -a$partition_number -n$partition_number:24K:+1000K -t$partition_number:ef02 -c$partition_number:'BIOSBOOT' ${DEVICE}")  # BIOS boot partition
     fi
     partition_number=$((partition_number + 1))
-    print_message ACTION "BOOT $BIOS_TYPE partition: $boot_size on $DEVICE 1"
-    set_option PARTITION_BOOT "$(partition_device "$DEVICE" 1)"
+    
+    print_message ACTION "BOOT $BIOS_TYPE partition: $boot_size on $DEVICE $partition_number"
+    set_option PARTITION_BOOT "$(partition_device "$DEVICE" $partition_number)"
     print_message DEBUG "Setting: BOOT partition: on $PARTITION_BOOT"
 
 
@@ -110,7 +112,7 @@ partitioning() {
         command+=("sgdisk -n${partition_number}:0:${swap_size} -t${partition_number}:8200 -c${partition_number}:'SWAP' ${DEVICE}")
         print_message DEBUG "Swap partition: $swap_size on $DEVICE $partition_number"
         set_option PARTITION_SWAP "$(partition_device "$DEVICE" $partition_number)"
-        print_message DEBUG "Setting: SWAP partition: on $PARTITION_SWAP"
+        print_message DEBUG "Setting: SWAP partition: on $PARTITION_SWAP $partition_number"
         partition_number=$((partition_number + 1))
     fi
 
@@ -123,7 +125,7 @@ partitioning() {
     fi
     print_message DEBUG "Root partition: $root_size on $DEVICE $partition_number"
     set_option PARTITION_ROOT "$(partition_device "$DEVICE" $partition_number)"
-    print_message DEBUG "Setting: ROOT partition: on $PARTITION_ROOT"
+    print_message DEBUG "Setting: ROOT partition: on $PARTITION_ROOT $partition_number"
     partition_number=$((partition_number + 1))
 
     # Create home partition if enabled
@@ -132,7 +134,7 @@ partitioning() {
         command+=("sgdisk -n${partition_number}:0:0 -t${partition_number}:8300 -c${partition_number}:'HOME' ${DEVICE}")
         set_option PARTITION_HOME "$(partition_device "$DEVICE" $partition_number)"
         print_message ACTION "Creating Home partition"
-        print_message DEBUG "Home partition: on $PARTITION_HOME"
+        print_message DEBUG "Home partition: on $PARTITION_HOME $partition_number"
         partition_number=$((partition_number + 1))
     fi
 
@@ -150,7 +152,7 @@ partitioning() {
 }
 
 main() {
-    process_init "Partition the install device: $INSTALL_DEVICE"
+    process_init "Partition the install device: $DEVICE"
     print_message INFO "Starting partition process"
     print_message INFO "DRY_RUN in $(basename "$0") is set to: ${YELLOW}$DRY_RUN"
     load_config || { print_message ERROR "Failed to load config"; return 1; }
