@@ -245,6 +245,7 @@ main() {
         swap_formatting "$PARTITION_SWAP" || { print_message ERROR "Formatting swap partition failed"; return 1; }
     fi
 
+
     # Create subvolumes if using Btrfs
     if [[ "$FILE_SYSTEM_TYPE" = "btrfs" ]]; then
         create_subvolumes "$PARTITION_ROOT" || { print_message ERROR "Creating subvolumes failed"; return 1; }
