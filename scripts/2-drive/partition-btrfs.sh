@@ -88,17 +88,21 @@ partitioning() {
         root_size=""    # Use remaining space
     fi
 
+    command+=("sgdisk -n1:0:+1M -t1:ef02 -c1:'BIOSBOOT' $DEVICE")
+    partition_number=2
+
     print_message ACTION "Partitioning $DEVICE $BIOS_TYPE drive"
     # Partition the disk
     if [[ "$BIOS_TYPE" == "uefi" ]]; then
-        command+=("sgdisk -n1:0:$boot_size -t1:ef00 -c1:'EFIBOOT' ${DEVICE}")  # EFI partition
+        command+=("sgdisk -n$partition_number:0:$boot_size -t$partition_number:ef00 -c$partition_number:'EFIBOOT' ${DEVICE}")  # EFI partition
     else
-        command+=("sgdisk -a1 -n1:24K:+1000K -t1:ef02 -c1:'BIOSBOOT' ${DEVICE}")  # BIOS boot partition
+        command+=("sgdisk -a$partition_number -n$partition_number:24K:+1000K -t$partition_number:ef02 -c$partition_number:'BIOSBOOT' ${DEVICE}")  # BIOS boot partition
     fi
+    partition_number=$((partition_number + 1))
     print_message ACTION "BOOT $BIOS_TYPE partition: $boot_size on $DEVICE 1"
     set_option PARTITION_BOOT "$(partition_device "$DEVICE" 1)"
     print_message DEBUG "Setting: BOOT partition: on $PARTITION_BOOT"
-    partition_number=2
+
 
     # Create swap partition if enabled
     if [[ "$SWAP" == "true" ]]; then
