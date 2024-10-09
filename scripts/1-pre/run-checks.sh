@@ -272,6 +272,7 @@ install_log() {
     exec 2>&1
 }
 main() {
+    load_config || { print_message ERROR "Failed to load config"; return 1; }
     process_init "Run Checks: pre-install preparations"
     print_message INFO "Starting the run checks process"
 

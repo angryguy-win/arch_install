@@ -49,12 +49,6 @@ mirror_setup() {
 }
 create_mnt() {
     local commands=""
-    # Create mount point if it doesn't exist
-    print_message DEBUG "Creating mount point if it doesn't exist"
-    if [ ! -d "/mnt" ]; then
-        commands+="mkdir /mnt"
-        print_message ACTION "Mount point created: /mnt"
-    fi
     print_message ACTION "Installing prerequistes: "
     # Install prerequistes
     commands+="pacman -S --noconfirm --needed gptfdisk btrfs-progs glibc"
