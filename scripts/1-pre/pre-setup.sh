@@ -18,7 +18,7 @@ else
     echo "Error: Cannot find lib.sh at $LIB_PATH" >&2
     exit 1
 fi
-
+# Initial setup
 initial_setup() {
     print_message INFO "Starting initial setup"
     # Initial setup
@@ -27,57 +27,46 @@ initial_setup() {
         --error-message "Initial setup failed" \
         --success-message "Initial setup completed" \
         "timedatectl set-ntp true" \
-        "pacman -Sy archlinux-keyring --noconfirm" \
-        "pacman -S --noconfirm --needed pacman-contrib terminus-font rsync reflector gptfdisk btrfs-progs glibc" \
+        "pacman -Sy" \
+        "pacman -S archlinux-keyring --noconfirm" \
+        "pacman -S --noconfirm --needed pacman-contrib terminus-font reflector rsync grub" \
         "setfont ter-v22b" \
         "sed -i -e '/^#ParallelDownloads/s/^#//' -e '/^#Color/s/^#//' /etc/pacman.conf" \
         "pacman -Syy"
 }
+# Mirror setup
 mirror_setup() {
-
+    local country_iso
+    country_iso=$(curl -4 ifconfig.co/country-iso)
+    
     execute_process "Mirror setup" \
         --error-message "Mirror setup failed" \
         --success-message "Mirror setup completed" \
-        "curl -4 'https://ifconfig.co/country-iso' > COUNTRY_ISO" \
-        "cp /etc/pacman.d/mirrorlist /etc/pacman.d/mirrorlist.backup"
-        
+        "cp /etc/pacman.d/mirrorlist /etc/pacman.d/mirrorlist.backup" \
+        "reflector -a 48 -c ${country_iso} -f 5 -l 20 --save /etc/pacman.d/mirrorlist"
 
+        set_option "COUNTRY_ISO" "$country_iso"
 }
-prepare_drive() {
-    print_message INFO "Preparing drive"
-    
-    # Determine if we're dealing with a hdd/virtio drive or an ssd/nvme drive
-    if [[ "$INSTALL_DEVICE" == nvme* ]]; then
-        # NVME/SSD  drive
-        DEVICE="/dev/${INSTALL_DEVICE}"
-        PARTITION_EFI="${DEVICE}p2"
-        PARTITION_ROOT="${DEVICE}p3"
-        PARTITION_HOME="${DEVICE}p4"
-        PARTITION_SWAP="${DEVICE}p5"
-        MOUNT_OPTIONS="noatime,compress=zstd,ssd,commit=120"
-    else
-        # Physical/virt drive
-        DEVICE="/dev/${INSTALL_DEVICE}"
-        PARTITION_EFI="${DEVICE}2"
-        PARTITION_ROOT="${DEVICE}3"
-        PARTITION_HOME="${DEVICE}4"
-        PARTITION_SWAP="${DEVICE}5"
-        MOUNT_OPTIONS="noatime,compress=zstd,commit=120"
+create_mnt() {
+    local commands=""
+    # Create mount point if it doesn't exist
+    print_message DEBUG "Creating mount point if it doesn't exist"
+    if [ ! -d "/mnt" ]; then
+        commands+="mkdir /mnt"
+        print_message ACTION "Mount point created: /mnt"
     fi
+    print_message ACTION "Installing prerequistes: "
+    # Install prerequistes
+    commands+="pacman -S --noconfirm --needed gptfdisk btrfs-progs glibc"
+    # make sure everything is unmounted before we start
+    commands+="umount -A --recursive /mnt"
 
-    set_option "DEVICE" "$DEVICE" || { print_message ERROR "Failed to set DEVICE"; return 1; }
-    print_message ACTION "Drive set to: " "$DEVICE"
-    
-    print_message ACTION "Partitions string set to: " "${PARTITION_EFI}, ${PARTITION_ROOT}"
-    set_option "DEVICE" "${DEVICE}" || { print_message ERROR "Failed to set DEVICE"; return 1; }
-    set_option "PARTITION_EFI" "${PARTITION_EFI}" || { print_message ERROR "Failed to set PARTITION_EFI"; return 1; }
-    set_option "PARTITION_ROOT" "${PARTITION_ROOT}" || { print_message ERROR "Failed to set PARTITION_ROOT"; return 1; }
-    set_option "PARTITION_HOME" "${PARTITION_HOME}" || { print_message ERROR "Failed to set PARTITION_HOME"; return 1; }
-    set_option "PARTITION_SWAP" "${PARTITION_SWAP}" || { print_message ERROR "Failed to set PARTITION_SWAP"; return 1; }
-    set_option "MOUNT_OPTIONS" "${MOUNT_OPTIONS}" || { print_message ERROR "Failed to set MOUNT_OPTIONS"; return 1; }
-    # Load the config again to ensure all changes are reflected
-    load_config || { print_message ERROR "Failed to load config"; return 1; }
+    execute_process "Creating /mnt and installing prerequistes" \
+        --error-message "Creating /mnt and installing prerequistes failed" \
+        --success-message "Creating /mnt and installing prerequistes completed" \
+        "${commands[@]}"
 }
+
 main() {
     process_init "Pre-setup"
     print_message INFO "Starting pre-setup process"
@@ -85,8 +74,7 @@ main() {
 
     initial_setup || { print_message ERROR "Initial setup failed"; return 1; }
     mirror_setup || { print_message ERROR "Mirror setup failed"; return 1; }
-    show_drive_list || { print_message ERROR "Drive selection failed"; return 1; }
-    prepare_drive || { print_message ERROR "Drive preparation failed"; return 1; }
+    create_mnt || { print_message ERROR "Mount failed"; return 1; }
 
     print_message OK "Pre-setup process completed successfully"
     process_end $?

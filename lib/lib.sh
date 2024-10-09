@@ -220,8 +220,8 @@ show_system_info() {
     drive_list || { print_message ERROR "Failed to get drive list"; return 1; }
 
     # GPU
-    print_message INFO "Getting GPU information"
-    gpu_type || { print_message ERROR "Failed to get GPU information"; return 1; }
+    print_message INFO "Detecting GPU information"
+    detect_gpu_driver || { print_message ERROR "Failed to detect GPU information"; return 1; }
 
     print_message INFO "--- Debug Information ---"
     print_message INFO "SCRIPT_NAME: " "${SCRIPT_NAME:-Unknown}"
@@ -286,12 +286,43 @@ cpu() {
         print_message WARNING "Unable to determine CPU thread count"
     fi
 }
-gpu_type() {
-    local gpu_type
-    # gpu_type=$(lspci | grep -E "VGA|3D|Display" | awk -F': ' '{print $2}' | awk -F' (' '{print $1}')
-    gpu_type=$(lspci | grep -E "VGA|3D|Display" | awk -F'[][]' '/AMD|NVIDIA|Intel/ {print $2 " " $4}')
-    #set_option "GPU_TYPE" "$gpu_type" || { print_message ERROR "Failed to set GPU_TYPE"; return 1; }
-    print_message INFO "GPU Type: " "$gpu_type"
+# @description Detect GPU and determine appropriate driver
+# @noargs
+detect_gpu_driver() {
+    local gpu_info
+    local gpu_vendor
+    local gpu_driver
+
+    # Get GPU information
+    gpu_info=$(lspci -nn | grep -E "VGA|3D|Display")
+    
+    # Determine GPU vendor using a case statement
+    case "$gpu_info" in
+        *NVIDIA*)
+            gpu_vendor="nvidia"
+            gpu_driver="nvidia"
+            ;;
+        *AMD*)
+            gpu_vendor="amd"
+            gpu_driver="xf86-video-amdgpu"
+            ;;
+        *Intel*)
+            gpu_vendor="intel"
+            gpu_driver="xf86-video-intel"
+            ;;
+        *)
+            gpu_vendor="unknown"
+            gpu_driver="mesa"  # Generic driver
+            ;;
+    esac
+
+    # Save GPU vendor and driver using set_option
+    set_option "GPU_VENDOR" "$gpu_vendor"
+    set_option "GPU_DRIVER" "$gpu_driver"
+
+    # Print detected GPU information
+    print_message INFO "Detected GPU Vendor: $gpu_vendor"
+    print_message INFO "Selected GPU Driver: $gpu_driver"
 }
 # @description Check if a file exists
 # This function checks if a file exists
@@ -465,7 +496,6 @@ load_config() {
         print_message ERROR "Configuration file not found: $CONFIG_FILE"
         return 1
     fi
-
     # Source the configuration file to load all variables
     # This reads the config file and sets the variables in the current shell
     set -o allexport
@@ -474,7 +504,7 @@ load_config() {
 
     # Set default values for variables that might not be in the config file
     # Read the configuration file line by line
-    print_message DEBUG "Exported variable: "
+    print_message DEBUG "Exporting variables from: " "$CONFIG_FILE"
     while IFS='=' read -r key value; do
         # Trim whitespace
         key=$(echo "$key" | xargs)
@@ -570,20 +600,18 @@ set_option() {
     local key
     local value
     local config_file
-
+    # variables
     key="$1"
     value="$2"
     config_file="$CONFIG_FILE"
 
     print_message ACTION "Setting: " "$key=$value in $config_file"
-
     # Always update the config file, even in DRY_RUN mode
     if grep -q "^$key=" "$config_file"; then
         sed -i "s|^$key=.*|$key=$value|" "$config_file"
     else
         printf "%b\n" "$key=$value" >> "$config_file"
     fi
-
     print_message DEBUG "Updated: " "$key=$value in $config_file"
 }
 # @description Get the drive list
@@ -637,20 +665,18 @@ show_drive_list() {
     while true; do
         selected=$(ask_question "Enter the number of the drive you want to use:")
         if [[ "$selected" =~ ^[0-9]+$ ]] && ((selected >= 1 && selected <= ${#drives[@]})); then
-            selected_drive=${drives[$selected-1]}
+            selected_drive="/dev/${drives[$selected-1]}"  # Update to include the full path
             print_message ACTION "You selected drive: " "$selected_drive"
-            
             # Export INSTALL_DEVICE here
             export INSTALL_DEVICE="$selected_drive"
-            set_option "INSTALL_DEVICE" "$INSTALL_DEVICE" || { print_message ERROR "Failed to set INSTALL_DEVICE"; return 1; }
-            print_message ACTION "INSTALL_DEVICE set to: " "$INSTALL_DEVICE"
+            set_option "INSTALL_DEVICE" "$selected_drive" || { print_message ERROR "Failed to set INSTALL_DEVICE"; return 1; }
+            set_option "DEVICE" "$selected_drive" || { print_message ERROR "Failed to set DEVICE"; return 1; }
+            print_message DEBUG "INSTALL_DEVICE set to: " "$INSTALL_DEVICE"
             break
         else
             print_message WARNING "Invalid selection. Please enter a number between: " "1 and ${#drives[@]}."
         fi
     done
-
-
 }
 # @description Display a formatted list item
 # @param $1 The list item to display
@@ -709,33 +735,26 @@ execute_process() {
         # If DRY_RUN is true, print the command
         if [[ "$DRY_RUN" == true ]]; then
             print_message ACTION "[DRY RUN] Would execute: $cmd"
-        else
-            # If debug is true, print the command
-            if [[ "$debug" == true ]]; then
-                print_message DEBUG "Executing: $cmd"
+            return 0  # Exit early if in dry run mode
+        fi
+
+        # If debug is true, print the command
+        [[ "$debug" == true ]] && print_message DEBUG "Executing: $cmd"
+
+        # Execute the command based on use_chroot flag
+        if [[ "$use_chroot" == true ]]; then
+            if ! arch-chroot /mnt /bin/bash -c "$cmd"; then
+                print_message ERROR "${error_message} ${process_name}: $cmd"
+                [[ "$critical" == true ]] && handle_critical_error "${error_message} ${process_name}: $cmd"
+                exit_code=1
+                return 1
             fi
-            # If use_chroot is true, execute the command in chroot
-            if [[ "$use_chroot" == true ]]; then
-                if ! arch-chroot /mnt /bin/bash -c "$cmd"; then
-                    print_message ERROR "${error_message} ${process_name}: $cmd"
-                    # If critical is true, handle critical error
-                    if [[ "$critical" == true ]]; then
-                        handle_critical_error "${error_message} ${process_name}: $cmd"
-                        exit_code=1
-                        break
-                    fi
-                fi
-            else
-                # If use_chroot is false, execute the command in the current shell
-                if ! eval "$cmd"; then
-                    print_message ERROR "${error_message} ${process_name}: ${cmd}"
-                    # If critical is true, handle critical error
-                    if [[ "$critical" == true ]]; then
-                        handle_critical_error "${error_message} ${process_name} failed: ${cmd}"
-                        exit_code=1
-                        break
-                    fi
-                fi
+        else
+            if ! eval "$cmd"; then
+                print_message ERROR "${error_message} ${process_name}: ${cmd}"
+                [[ "$critical" == true ]] && handle_critical_error "${error_message} ${process_name} failed: ${cmd}"
+                exit_code=1
+                return 1
             fi
         fi
     done
@@ -1055,8 +1074,12 @@ pacman_check() {
 }
 # @description Check if docker is installed.
 docker_check() {
-    if command -v docker &> /dev/null; then
-        print_message WARNING "Docker is installed. This might interfere with the installation process."
+    if awk -F/ '$2 == "docker"' /proc/self/cgroup | read -r; then
+        print_message ERROR "Docker container is not supported (at the moment)"
+        exit 0
+    elif [[ -f /.dockerenv ]]; then
+        print_message ERROR "Docker container is not supported (at the moment)"
+        exit 0
     fi
 }
 # @description Determine the microcode.
@@ -1064,21 +1087,23 @@ docker_check() {
 # @noargs
 determine_microcode() {
     local cpu_vendor
+    local microcode=""
 
     # Get CPU vendor
     cpu_vendor=$(grep -m1 'vendor_id' /proc/cpuinfo | awk '{print $3}')
 
     case "$cpu_vendor" in
         GenuineIntel)
-            printf %s "intel"
+            microcode="intel"
             ;;
         AuthenticAMD)
-            printf %s "amd"
+            microcode="amd"
             ;;
         *)
-            printf %s "unknown"
+            microcode="unknown"
             ;;
     esac
+    set_option "MICROCODE" "$microcode"
 }
 # @description Backup config file.
 # @arg $1 string Config file

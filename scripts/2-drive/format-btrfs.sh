@@ -19,6 +19,12 @@ else
     exit 1
 fi
 
+[[ -z "$PARTITION_EFI" ]] && { print_message ERROR "PARTITION_EFI is not set"; exit 1; }
+[[ -z "$PARTITION_ROOT" ]] && { print_message ERROR "PARTITION_ROOT is not set"; exit 1; }
+[[ -z "$FORMAT_TYPE" ]] && { print_message ERROR "FORMAT_TYPE is not set"; exit 1; }
+[[ -z "$MOUNT_OPTIONS" ]] && { print_message ERROR "MOUNT_OPTIONS is not set"; exit 1; }
+[[ -z "$SUBVOLUMES" ]] && { print_message ERROR "SUBVOLUMES is not set"; exit 1; }
+
 # Enable dry run mode for testing purposes (set to false to disable)
 # Ensure DRY_RUN is exported
 export DRY_RUN="${DRY_RUN:-false}"
@@ -29,17 +35,21 @@ luks_setup() {
 
 }
 formating() {
+    local partition_efi="$1"
+    local partition_root="$2"
+    
 
-    print_message DEBUG "Before Format ROOT: $PARTITION_ROOT as btrfs"
-    print_message DEBUG "Before Format EFIBOOT: $PARTITION_EFI as vfat"
+
+    print_message DEBUG "Before Format ROOT: $partition_root as btrfs"
+    print_message DEBUG "Before Format EFIBOOT: $partition_efi as vfat"
 
     execute_process "Formatting partitions btrfs" \
         --error-message "Formatting partitions btrfs failed" \
         --success-message "Formatting partitions btrfs completed" \
         --critical \
-        "mkfs.vfat -F32 -n EFIBOOT $PARTITION_EFI" \
-        "mkfs.btrfs -f -L ROOT $PARTITION_ROOT" \
-        "mount -t btrfs $PARTITION_ROOT /mnt" 
+        "mkfs.vfat -F32 -n EFIBOOT $partition_efi" \
+        "mkfs.btrfs -f -L ROOT $partition_root" \
+        "mount -t btrfs $partition_root /mnt" 
     
 }
 subvolumes_setup() {
@@ -56,6 +66,7 @@ subvolumes_setup() {
         command+=("mount -t btrfs $partition_root /mnt")
 
         # Create subvolumes from the SUBVOLUME variable
+        command+=("btrfs subvolume create /mnt/@")  # Create root subvolume 
         for subvol in "${subvolumes[@]}"; do
             print_message ACTION "Creating subvolume $subvol"
             command+=("btrfs subvolume create /mnt/$subvol")
@@ -71,27 +82,33 @@ subvolumes_setup() {
     fi 
 }
 mounting() {
+    local partition_root="$1"
+    local mount_options="$2"
+    local subvolumes=(${SUBVOLUMES//,/ }) # DO NOT "" it breaks the array
+    local subvol
+    local command=()
 
+    print_message INFO "Mounting subvolumes btrfs"
     execute_process "Mounting subvolumes btrfs" \
         --error-message "Mounting subvolumes btrfs failed" \
         --success-message "Mounting subvolumes btrfs completed" \
-        "mount -o $MOUNT_OPTIONS,subvol=@ $PARTITION_ROOT /mnt" \
+        "mount -o $mount_options,subvol=@ $partition_root /mnt" \
         "mkdir -p /mnt/{home,var,tmp,.snapshots,boot/efi}" \
-        "mount -o $MOUNT_OPTIONS,subvol=@home $PARTITION_ROOT /mnt/home" \
-        "mount -o $MOUNT_OPTIONS,subvol=@tmp $PARTITION_ROOT /mnt/tmp" \
-        "mount -o $MOUNT_OPTIONS,subvol=@var $PARTITION_ROOT /mnt/var" \
-        "mount -o $MOUNT_OPTIONS,subvol=@.snapshots $PARTITION_ROOT /mnt/.snapshots" \
+        "mount -o $mount_options,subvol=@home $partition_root /mnt/home" \
+        "mount -o $mount_options,subvol=@tmp $partition_root /mnt/tmp" \
+        "mount -o $mount_options,subvol=@var $partition_root /mnt/var" \
+        "mount -o $mount_options,subvol=@.snapshots $partition_root /mnt/.snapshots" \
         "mount -t vfat -L EFIBOOT /mnt/boot/efi"
 
 }
 main() {
-    process_init "Formatting partitions $FORMAT_TYPE"
+    process_init "Formatting partitions: $FORMAT_TYPE"
     print_message INFO "Starting formatting partitions $FORMAT_TYPE process"
     print_message INFO "DRY_RUN in $(basename "$0") is set to: ${YELLOW}$DRY_RUN"
 
-    formating || { print_message ERROR "Formatting partitions btrfs failed"; return 1; }
-    subvolumes_setup $PARTITION_ROOT || { print_message ERROR "Creating subvolumes failed"; return 1; }
-    mounting || { print_message ERROR "Mounting subvolumes btrfs failed"; return 1; }
+    formating "$PARTITION_EFI" "$PARTITION_ROOT" || { print_message ERROR "Formatting partitions btrfs failed"; return 1; }
+    subvolumes_setup "$PARTITION_ROOT" || { print_message ERROR "Creating subvolumes failed"; return 1; }
+    mounting "$PARTITION_ROOT" "$MOUNT_OPTIONS" || { print_message ERROR "Mounting subvolumes btrfs failed"; return 1; }
 
     print_message OK "Formatting partitions btrfs process completed successfully"
     process_end $?

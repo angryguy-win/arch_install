@@ -25,18 +25,19 @@ export DRY_RUN="${DRY_RUN:-false}"
 
 
 partitioning() {
+    local device="$1"
 
-    print_message INFO "Install device set to: $DEVICE"
+    print_message INFO "Install device set to: $device"
 
-    print_message INFO "Partitioning $DEVICE"
+    print_message INFO "Partitioning $device"
     execute_process "Partitioning" \
         --error-message "Partitioning failed" \
         --success-message "Partitioning completed" \
         "if mountpoint -q /mnt; then umount -A --recursive /mnt; else echo '/mnt is not mounted'; fi" \
-        "sgdisk -Z ${DEVICE}" \
-        "sgdisk -n1:0:+1M -t1:ef02 -c1:'BIOSBOOT' ${DEVICE}" \
-        "sgdisk -n2:0:+512M -t2:ef00 -c2:'EFIBOOT' ${DEVICE}" \
-        "sgdisk -n3:0:0 -t3:8300 -c3:'ROOT' ${DEVICE}"
+        "sgdisk -Z ${device}" \
+        "sgdisk -n1:0:+1M -t1:ef02 -c1:'BIOSBOOT' ${device}" \
+        "sgdisk -n2:0:+512M -t2:ef00 -c2:'EFIBOOT' ${device}" \
+        "sgdisk -n3:0:0 -t3:8300 -c3:'ROOT' ${device}"
 
 }
 luks_setup() {
@@ -44,11 +45,11 @@ luks_setup() {
 
 }
 main() {
-    process_init "Partitioning the install: $DEVICE"
+    process_init "Partitioning the install: $INSTALL_DEVICE"
     print_message INFO "Starting partition process on $DEVICE"
     print_message INFO "DRY_RUN in $(basename "$0") is set to: ${YELLOW}$DRY_RUN"
 
-    partitioning || { print_message ERROR "Partitioning failed"; return 1; }
+    partitioning "${INSTALL_DEVICE}" || { print_message ERROR "Partitioning failed"; return 1; }
 
     print_message OK "Partition btrfs process completed successfully"
     process_end $?
