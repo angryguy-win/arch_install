@@ -19,12 +19,6 @@ else
     exit 1
 fi
 
-[[ -z "$PARTITION_EFI" ]] && { print_message ERROR "PARTITION_EFI is not set"; exit 1; }
-[[ -z "$PARTITION_ROOT" ]] && { print_message ERROR "PARTITION_ROOT is not set"; exit 1; }
-[[ -z "$FORMAT_TYPE" ]] && { print_message ERROR "FORMAT_TYPE is not set"; exit 1; }
-[[ -z "$MOUNT_OPTIONS" ]] && { print_message ERROR "MOUNT_OPTIONS is not set"; exit 1; }
-[[ -z "$SUBVOLUMES" ]] && { print_message ERROR "SUBVOLUMES is not set"; exit 1; }
-
 # Enable dry run mode for testing purposes (set to false to disable)
 # Ensure DRY_RUN is exported
 export DRY_RUN="${DRY_RUN:-false}"
@@ -102,6 +96,7 @@ mounting() {
 
 }
 main() {
+    load_config
     process_init "Formatting partitions: $FORMAT_TYPE"
     print_message INFO "Starting formatting partitions $FORMAT_TYPE process"
     print_message INFO "DRY_RUN in $(basename "$0") is set to: ${YELLOW}$DRY_RUN"

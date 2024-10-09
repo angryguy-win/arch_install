@@ -45,6 +45,7 @@ luks_setup() {
 
 }
 main() {
+    load_config
     process_init "Partitioning the install: $INSTALL_DEVICE"
     print_message INFO "Starting partition process on $DEVICE"
     print_message INFO "DRY_RUN in $(basename "$0") is set to: ${YELLOW}$DRY_RUN"

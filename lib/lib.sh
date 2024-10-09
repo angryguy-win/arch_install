@@ -735,26 +735,33 @@ execute_process() {
         # If DRY_RUN is true, print the command
         if [[ "$DRY_RUN" == true ]]; then
             print_message ACTION "[DRY RUN] Would execute: $cmd"
-            return 0  # Exit early if in dry run mode
-        fi
-
-        # If debug is true, print the command
-        [[ "$debug" == true ]] && print_message DEBUG "Executing: $cmd"
-
-        # Execute the command based on use_chroot flag
-        if [[ "$use_chroot" == true ]]; then
-            if ! arch-chroot /mnt /bin/bash -c "$cmd"; then
-                print_message ERROR "${error_message} ${process_name}: $cmd"
-                [[ "$critical" == true ]] && handle_critical_error "${error_message} ${process_name}: $cmd"
-                exit_code=1
-                return 1
-            fi
         else
-            if ! eval "$cmd"; then
-                print_message ERROR "${error_message} ${process_name}: ${cmd}"
-                [[ "$critical" == true ]] && handle_critical_error "${error_message} ${process_name} failed: ${cmd}"
-                exit_code=1
-                return 1
+            # If debug is true, print the command
+            if [[ "$debug" == true ]]; then
+                print_message DEBUG "Executing: $cmd"
+            fi
+            # If use_chroot is true, execute the command in chroot
+            if [[ "$use_chroot" == true ]]; then
+                if ! arch-chroot /mnt /bin/bash -c "$cmd"; then
+                    print_message ERROR "${error_message} ${process_name}: $cmd"
+                    # If critical is true, handle critical error
+                    if [[ "$critical" == true ]]; then
+                        handle_critical_error "${error_message} ${process_name}: $cmd"
+                        exit_code=1
+                        break
+                    fi
+                fi
+            else
+                # If use_chroot is false, execute the command in the current shell
+                if ! eval "$cmd"; then
+                    print_message ERROR "${error_message} ${process_name}: ${cmd}"
+                    # If critical is true, handle critical error
+                    if [[ "$critical" == true ]]; then
+                        handle_critical_error "${error_message} ${process_name} failed: ${cmd}"
+                        exit_code=1
+                        break
+                    fi
+                fi
             fi
         fi
     done

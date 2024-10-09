@@ -215,7 +215,7 @@ prepare_drive() {
         partition_number=$((partition_number + 1))  # Increment for next partition
     fi    
     # Load the config again to ensure all changes are reflected
-    load_config || { print_message ERROR "Failed to load config"; return 1; }
+    #load_config || { print_message ERROR "Failed to load config"; return 1; }
     print_message ACTION "Partition string set to: ${PARTITION_BOOT}, ${PARTITION_EFI}, ${PARTITION_ROOT}, ${PARTITION_HOME}, ${PARTITION_SWAP}"
 }
 
