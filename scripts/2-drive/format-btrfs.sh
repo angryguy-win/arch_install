@@ -43,17 +43,32 @@ formating() {
     
 }
 subvolumes_setup() {
+    local partition_root="$1"
+    local command=()
+    # Convert SUBVOLUMES to an array
+    local subvolumes=(${SUBVOLUMES//,/ }) # DO NOT "" it breaks the array
+    local subvol
 
-    execute_process "Creating subvolumes" \
-        --error-message "Creating subvolumes failed" \
-        --success-message "Creating subvolumes completed" \
-        "btrfs subvolume create /mnt/@" \
-        "btrfs subvolume create /mnt/@home" \
-        "btrfs subvolume create /mnt/@var" \
-        "btrfs subvolume create /mnt/@tmp" \
-        "btrfs subvolume create /mnt/@.snapshots" \
-        "umount /mnt"
+    # Check if the file system type is btrfs
+    if [[ "$FILE_SYSTEM_TYPE" == "btrfs" ]]; then
+        # Mount the root partition
+        print_message INFO "Mounting $partition_root and creating subvolumes"
+        command+=("mount -t btrfs $partition_root /mnt")
 
+        # Create subvolumes from the SUBVOLUME variable
+        for subvol in "${subvolumes[@]}"; do
+            print_message ACTION "Creating subvolume $subvol"
+            command+=("btrfs subvolume create /mnt/$subvol")
+        done
+        # Unmount the subvolumes
+        print_message ACTION "Unmounting /mnt"
+        command+=("umount /mnt")
+        # Execute the command
+        execute_process "Creating subvolumes" \
+            --error-message "Failed to create subvolumes" \
+            --success-message "Subvolume created successfully" \
+            "${command[@]}"
+    fi 
 }
 mounting() {
 
@@ -75,7 +90,7 @@ main() {
     print_message INFO "DRY_RUN in $(basename "$0") is set to: ${YELLOW}$DRY_RUN"
 
     formating || { print_message ERROR "Formatting partitions btrfs failed"; return 1; }
-    subvolumes_setup || { print_message ERROR "Creating subvolumes failed"; return 1; }
+    subvolumes_setup $PARTITION_ROOT || { print_message ERROR "Creating subvolumes failed"; return 1; }
     mounting || { print_message ERROR "Mounting subvolumes btrfs failed"; return 1; }
 
     print_message OK "Formatting partitions btrfs process completed successfully"
