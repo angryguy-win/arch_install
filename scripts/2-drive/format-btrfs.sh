@@ -44,13 +44,13 @@ formating() {
 }
 subvolumes_setup() {
     local partition_root="$1"
-    local command=()
+    local command
     # Convert SUBVOLUMES to an array
     local subvolumes=(${SUBVOLUMES//,/ }) # DO NOT "" it breaks the array
     local subvol
 
     # Check if the file system type is btrfs
-    if [[ "$FILE_SYSTEM_TYPE" == "btrfs" ]]; then
+    if [ "$FILE_SYSTEM_TYPE" = "btrfs" ]; then
         # Mount the root partition
         print_message INFO "Mounting $partition_root and creating subvolumes"
         command+=("mount -t btrfs $partition_root /mnt")
@@ -64,11 +64,18 @@ subvolumes_setup() {
         print_message ACTION "Unmounting /mnt"
         command+=("umount /mnt")
         # Execute the command
-        execute_process "Creating subvolumes" \
-            --error-message "Failed to create subvolumes" \
-            --success-message "Subvolume created successfully" \
-            "${command[@]}"
-    fi 
+    fi
+
+
+    execute_process "Creating subvolumes" \
+        --error-message "Creating subvolumes failed" \
+        --success-message "Creating subvolumes completed" \
+        "btrfs subvolume create /mnt/@" \
+        "btrfs subvolume create /mnt/@home" \
+        "btrfs subvolume create /mnt/@var" \
+        "btrfs subvolume create /mnt/@tmp" \
+        "btrfs subvolume create /mnt/@.snapshots" \
+        "umount /mnt"
 }
 mounting() {
 
