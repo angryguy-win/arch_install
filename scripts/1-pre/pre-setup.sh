@@ -45,9 +45,9 @@ mirror_setup() {
         "cp /etc/pacman.d/mirrorlist /etc/pacman.d/mirrorlist.backup" \
         "reflector -a 48 -c ${country_iso} -f 5 -l 20 --save /etc/pacman.d/mirrorlist"
 
-        set_option "COUNTRY_ISO" "$country_iso"
+    set_option "COUNTRY_ISO" "$country_iso"
 }
-create_mnt() {
+install_prerequisites() {
     local commands=""
     print_message ACTION "Installing prerequistes: "
     # Install prerequistes
@@ -68,7 +68,7 @@ main() {
 
     initial_setup || { print_message ERROR "Initial setup failed"; return 1; }
     mirror_setup || { print_message ERROR "Mirror setup failed"; return 1; }
-    create_mnt || { print_message ERROR "Mount failed"; return 1; }
+    install_prerequisites || { print_message ERROR "Install prerequisites failed"; return 1; }
 
     print_message OK "Pre-setup process completed successfully"
     process_end $?
