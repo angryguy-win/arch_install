@@ -83,6 +83,13 @@ mounting() {
     local command=()
 
     print_message INFO "Mounting subvolumes btrfs"
+    print_message DEBUG "Partition root: $partition_root"
+    print_message DEBUG "Mount options: $mount_options"
+    print_message DEBUG "Subvolumes: ${subvolumes[*]}"
+    if [ -z "$mount_options" ]; then
+        print_message ERROR "Mount options are not set"
+        return 1
+    fi
     execute_process "Mounting subvolumes btrfs" \
         --error-message "Mounting subvolumes btrfs failed" \
         --success-message "Mounting subvolumes btrfs completed" \
