@@ -27,53 +27,12 @@ Retype ssnow password:
 [1;37m  [DEBUG] [0m Updated:  PARTITION_EFI=/dev/nvme0n1p2 in /home/ssnow/Documents/GitHub/arch_install/arch_config.cfg
 [0;35m [ACTION] [0m Setting:  PARTITION_ROOT=/dev/nvme0n1p3 in /home/ssnow/Documents/GitHub/arch_install/arch_config.cfg
 [1;37m  [DEBUG] [0m Updated:  PARTITION_ROOT=/dev/nvme0n1p3 in /home/ssnow/Documents/GitHub/arch_install/arch_config.cfg
-[1;37m  [DEBUG] [0m Exporting variables from:  /home/ssnow/Documents/GitHub/arch_install/arch_config.cfg
-[1;37m  [DEBUG] [0m PARALLEL_JOBS=8
-[1;37m  [DEBUG] [0m SYSTEM_INSTALLATION=false
-[1;37m  [DEBUG] [0m COUNTRY_ISO=CA
-[1;37m  [DEBUG] [0m BIOS_TYPE=hybrid
-[1;37m  [DEBUG] [0m FILE_SYSTEM_TYPE=btrfs
-[1;37m  [DEBUG] [0m FORMAT_TYPE=btrfs
-[1;37m  [DEBUG] [0m INSTALL_DEVICE=/dev/nvme0n1
-[1;37m  [DEBUG] [0m DEVICE=/dev/nvme0n1
-[1;37m  [DEBUG] [0m PARTITION_BOOT=/dev/nvme0n1p1
-[1;37m  [DEBUG] [0m PARTITION_EFI=/dev/nvme0n1p2
-[1;37m  [DEBUG] [0m PARTITION_ROOT=/dev/nvme0n1p3
-[1;37m  [DEBUG] [0m PARTITION_HOME=
-[1;37m  [DEBUG] [0m PARTITION_SWAP=
-[1;37m  [DEBUG] [0m SUBVOLUMES=@home,@var,@.snapshots
-[1;37m  [DEBUG] [0m MOUNT_OPTIONS=noatime,compress=zstd,ssd,commit=120
-[1;37m  [DEBUG] [0m LUKS=false
-[1;37m  [DEBUG] [0m LUKS_PASSWORD=changeme
-[1;37m  [DEBUG] [0m SWAP=false
-[1;37m  [DEBUG] [0m EFI_SIZE=1024
-[1;37m  [DEBUG] [0m SWAP_SIZE=4
-[1;37m  [DEBUG] [0m ROOT_SIZE=32
-[1;37m  [DEBUG] [0m HOME=false
-[1;37m  [DEBUG] [0m LOCALE=en_US.UTF-8
-[1;37m  [DEBUG] [0m TIMEZONE=America/Toronto
-[1;37m  [DEBUG] [0m KEYMAP=us
-[1;37m  [DEBUG] [0m USERNAME=ssnow
-[1;37m  [DEBUG] [0m PASSWORD=changeme
-[1;37m  [DEBUG] [0m HOSTNAME=arch
-[1;37m  [DEBUG] [0m MICROCODE=amd
-[1;37m  [DEBUG] [0m INITRD_MICROCODE=amd-ucode.img
-[1;37m  [DEBUG] [0m TERMINAL=alacritty
-[1;37m  [DEBUG] [0m SHELL=bash
-[1;37m  [DEBUG] [0m EDITOR=nvim
-[1;37m  [DEBUG] [0m DESKTOP_ENVIRONMENT=gnome
-[1;37m  [DEBUG] [0m CPU_VENDOR=amd
-[1;37m  [DEBUG] [0m GPU_VENDOR=amd
-[1;37m  [DEBUG] [0m GPU=amd
-[1;37m  [DEBUG] [0m GPU_DRIVER=amdgpu
-[1;37m  [DEBUG] [0m THEME=nordic
-[1;37m  [OK] [0m Configuration loaded successfully
-[0;35m [ACTION] [0m Partition string set to: /dev/nvme0n1p1, /dev/nvme0n1p2, /dev/nvme0n1p3, , 
+[0;35m [ACTION] [0m Partition string set to: , , , , 
 [0;35m [ACTION] [0m Setting:  MICROCODE=amd in /home/ssnow/Documents/GitHub/arch_install/arch_config.cfg
 [1;37m  [DEBUG] [0m Updated:  MICROCODE=amd in /home/ssnow/Documents/GitHub/arch_install/arch_config.cfg
   % Total    % Received % Xferd  Average Speed   Time    Time     Time  Current
                                  Dload  Upload   Total   Spent    Left  Speed
-  0     0    0     0    0     0      0      0 --:--:-- --:--:-- --:--:--     0100    15  100    15    0     0     67      0 --:--:-- --:--:-- --:--:--    67
+  0     0    0     0    0     0      0      0 --:--:-- --:--:-- --:--:--     0100    15  100    15    0     0     73      0 --:--:-- --:--:-- --:--:--    73
 [0;35m [ACTION] [0m Setting:  TIMEZONE=America/Toronto in /home/ssnow/Documents/GitHub/arch_install/arch_config.cfg
 [1;37m  [DEBUG] [0m Updated:  TIMEZONE=America/Toronto in /home/ssnow/Documents/GitHub/arch_install/arch_config.cfg
 [0;35m [ACTION] [0m Setting:  GPU_VENDOR=amd in /home/ssnow/Documents/GitHub/arch_install/arch_config.cfg
@@ -134,8 +93,8 @@ Retype ssnow password:
 [1;37m  [DEBUG] [0m THEME=nordic
 [1;37m  [OK] [0m Configuration loaded successfully
 [1;37m  [OK] [0m Run checks process completed successfully
-[0;36m [PROC] [0m Process completed successfully:  Run Checks: pre-install preparations (ID: 1728476254)
- Process start 2024-10-09 12:17:34, end 2024-10-09 12:17:40, time 00:00:06
+[0;36m [PROC] [0m Process completed successfully:  Run Checks: pre-install preparations (ID: 1728522340)
+ Process start 2024-10-10 01:05:40, end 2024-10-10 01:05:46, time 00:00:06
 [1;37m  [DEBUG] [0m ======================= Ending Run Checks: pre-install preparations  =======================
 [0;34m [INFO] [0m All processes allmost completed.....
 [0;34m [INFO] [0m Exit handler called with exit code:  0
