@@ -57,6 +57,7 @@ subvolumes_setup() {
             --error-message "Failed to create subvolumes" \
             --success-message "Subvolumes created successfully" \
             "mount -t btrfs $partition_root /mnt" \
+            "btrfs subvolume create /mnt/@" \
             "$(for subvol in "${subvolumes[@]}"; do echo "btrfs subvolume create /mnt/$subvol"; done)" \
             "umount /mnt"
     fi 
