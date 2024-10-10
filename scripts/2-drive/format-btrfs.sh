@@ -63,17 +63,23 @@ subvolumes_setup() {
     fi 
 }
 mounting() {
+    local partition_root="$1"
+    local mount_options="$2"
+    local command
+    # Convert SUBVOLUMES to an array
+    local subvolumes=(${SUBVOLUMES//,/ }) # DO NOT "" it breaks the array
+    local subvol
+
+
+    command+="mount -o $mount_options,subvol=@ $partition_root /mnt"
+    command+="mkdir -p /mnt/{home,var,tmp,.snapshots,boot/efi}"
+    command+="$(for subvol in "${subvolumes[@]}"; do echo "mount -o $mount_options,subvol=$subvol $partition_root /mnt/$subvol"; done)"
+    command+="mount -t vfat -L EFIBOOT /mnt/boot/efi"
 
     execute_process "Mounting subvolumes btrfs" \
         --error-message "Mounting subvolumes btrfs failed" \
         --success-message "Mounting subvolumes btrfs completed" \
-        "mount -o $MOUNT_OPTIONS,subvol=@ $PARTITION_ROOT /mnt" \
-        "mkdir -p /mnt/{home,var,tmp,.snapshots,boot/efi}" \
-        "mount -o $MOUNT_OPTIONS,subvol=@home $PARTITION_ROOT /mnt/home" \
-        "mount -o $MOUNT_OPTIONS,subvol=@tmp $PARTITION_ROOT /mnt/tmp" \
-        "mount -o $MOUNT_OPTIONS,subvol=@var $PARTITION_ROOT /mnt/var" \
-        "mount -o $MOUNT_OPTIONS,subvol=@.snapshots $PARTITION_ROOT /mnt/.snapshots" \
-        "mount -t vfat -L EFIBOOT /mnt/boot/efi"
+        "${command[@]}"
 
 }
 main() {
@@ -84,7 +90,7 @@ main() {
 
     formating || { print_message ERROR "Formatting partitions btrfs failed"; return 1; }
     subvolumes_setup $PARTITION_ROOT || { print_message ERROR "Creating subvolumes failed"; return 1; }
-    mounting || { print_message ERROR "Mounting subvolumes btrfs failed"; return 1; }
+    mounting $PARTITION_ROOT $MOUNT_OPTIONS|| { print_message ERROR "Mounting subvolumes btrfs failed"; return 1; }
 
     print_message OK "Formatting partitions btrfs process completed successfully"
     process_end $?
