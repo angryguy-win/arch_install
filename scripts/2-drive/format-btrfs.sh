@@ -85,6 +85,7 @@ mounting() {
 
 }
 main() {
+    load_config
     process_init "Formatting partitions $FORMAT_TYPE"
     print_message INFO "Starting formatting partitions $FORMAT_TYPE process"
     print_message INFO "DRY_RUN in $(basename "$0") is set to: ${YELLOW}$DRY_RUN"
