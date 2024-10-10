@@ -10,4 +10,4 @@ git clone https://github.com/angryguy-win/arch_install.git
 cd arch_install
 
 # Run the installation script
-sudo bash install.sh
+echo "run sudo bash install.sh"
