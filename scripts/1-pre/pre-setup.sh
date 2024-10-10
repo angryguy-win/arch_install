@@ -55,10 +55,11 @@ install_prerequisites() {
     # make sure everything is unmounted before we start
     commands+="umount -A --recursive /mnt"
 
-    execute_process "Creating /mnt and installing prerequistes" \
-        --error-message "Creating /mnt and installing prerequistes failed" \
-        --success-message "Creating /mnt and installing prerequistes completed" \
-        "${commands[@]}"
+    execute_process "Installing prerequistes" \
+        --error-message "Installing prerequistes failed" \
+        --success-message "Installing prerequistes completed" \
+        "pacman -S --noconfirm --needed gptfdisk btrfs-progs glibc" \
+        "umount -A --recursive /mnt"
 }
 
 main() {
