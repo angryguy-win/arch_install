@@ -44,11 +44,11 @@ formating() {
 }
 subvolumes_setup() {
     local partition_root="$1"
-    local command
     # Convert SUBVOLUMES to an array
     local subvolumes=(${SUBVOLUMES//,/ }) # DO NOT "" it breaks the array
     local subvol
     
+    # this is to show different methods of using the execute_process function.
     # Create subvolumes from the SUBVOLUME variable
     if [ "$FILE_SYSTEM_TYPE" = "btrfs" ]; then
         print_message INFO "Mounting $partition_root and creating subvolumes"
@@ -68,6 +68,8 @@ mounting() {
     local commands=()
     local subvolumes=(${SUBVOLUMES//,/ })
 
+    # This method of using execute_process needed to be modified to process 
+    # multiple and single line commands. for this to work.
     # Add the initial mount command
     commands+=("mount -o $mount_options,subvol=@ $partition_root /mnt")
 
