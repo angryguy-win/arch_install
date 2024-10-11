@@ -696,6 +696,9 @@ execute_process() {
         esac
     done
 
+    # Initialize log file
+    init_log_file true "$ARCH_DIR/process.log"
+
     # Collect remaining arguments as commands
     if [[ $# -eq 1 && "${1}" == *$'\n'* ]]; then
         # If a single argument contains newlines, split it into an array
@@ -1226,4 +1229,339 @@ logs() {
     ### Set up logging ###
     exec 1> >(tee "stdout.log")
     exec 2> >(tee "stderr.log")
+}
+run_command() {
+    if [ "$DRY_RUN" == "true" ]; then
+        print_message ACTION "[DRY RUN] Would execute: " "$*"
+        return 0
+    else
+        if ! "$@"; then
+            print_message ERROR "Command failed: " "$*"
+            return 1
+        fi
+    fi
+}
+# @description Check if the user is root.
+root_check() {
+    if [ $EUID -ne 0 ]; then
+        print_message ERROR "This script must be run as root"
+        return 1
+    fi
+}
+# @description Check if the system is Arch Linux.
+arch_check() {
+    if [ ! -e /etc/arch-release ]; then
+        print_message ERROR "This script must be run on Arch Linux"
+        return 1
+    fi
+}
+# @description Check if pacman is installed.
+pacman_check() {
+    if ! command -v pacman &> /dev/null; then
+        print_message ERROR "Pacman is not installed"
+        return 1
+    fi
+}
+# @description Check if docker is installed.
+docker_check() {
+    if command -v docker &> /dev/null; then
+        print_message WARNING "Docker is installed. This might interfere with the installation process."
+    fi
+}
+# @description Determine the microcode.
+# @return string Microcode
+# @noargs
+determine_microcode() {
+    local cpu_vendor
+
+    # Get CPU vendor
+    cpu_vendor=$(grep -m1 'vendor_id' /proc/cpuinfo | awk '{print $3}')
+
+    case "$cpu_vendor" in
+        GenuineIntel)
+            printf %s "intel"
+            ;;
+        AuthenticAMD)
+            printf %s "amd"
+            ;;
+        *)
+            printf %s "unknown"
+            ;;
+    esac
+}
+# @description Backup config file.
+# @arg $1 string Config file
+backup_config() {
+    local config_file="$1"
+    local backup_dir="$ARCH_DIR/backups"
+    local timestamp
+    timestamp="$(date '+%Y-%m-%d_%H-%M-%S')"
+    mkdir -p "$backup_dir"
+    cp "$config_file" "$backup_dir/$(basename "$config_file").backup.$timestamp"
+    print_message INFO "Backup of $config_file created at $backup_dir/$(basename "$config_file").backup.$timestamp"
+}
+# @description Backup fstab.
+# @arg $1 string Fstab file 
+# @arg string Mount point
+# @arg string Backup directory
+# @arg string Backup file
+# @return 0 on success, 1 on failure
+backup_fstab() {
+    local fstab_file="$1"
+    local mount_point="/mnt"
+    local backup_dir="${mount_point}/etc/fstab.backups"
+    local timestamp
+    local backup_file="${backup_dir}/fstab_backup_${timestamp}"
+    local excess_backups
+
+    timestamp=$(date +"%Y%m%d_%H%M%S")
+    print_message INFO "Backing up fstab"
+
+    # Check if mount point exists and is accessible
+    if [ ! -d "$mount_point" ] || [ ! -w "$mount_point" ]; then
+        print_message WARNING "Mount point $mount_point is not accessible. Skipping fstab backup."
+        return 0
+    fi
+
+    # Create backup directory if it doesn't exist
+    if ! mkdir -p "$backup_dir"; then
+        print_message ERROR "Failed to create backup directory: $backup_dir"
+        return 1
+    fi
+
+    # Check if fstab file exists
+    if [ ! -f "$fstab_file" ]; then
+        print_message WARNING "fstab file does not exist: $fstab_file"
+        return 0
+    fi
+
+    # Create backup
+    if cp "$fstab_file" "$backup_file"; then
+        print_message OK "fstab backed up to: $backup_file"
+    else
+        print_message ERROR "Failed to backup fstab"
+        return 1
+    fi
+
+    # Keep only the last 3 backups
+    #excess_backups=$(ls -t "${backup_dir}/fstab_backup_"* 2>/dev/null | tail -n +4)
+    excess_backups=$(find "${backup_dir}" -name "fstab_backup_*" -type f -printf '%T@ %p\n' | sort -rn | tail -n +4 | cut -d' ' -f2-)
+    if [ -n "$excess_backups" ]; then
+        print_message INFO "Removing old backups"
+        printf "%s\n" "$excess_backups" | xargs rm -f
+    fi
+
+    return 0
+}
+# @description Handle critical error.
+# @arg $1 string Error message
+handle_critical_error() {
+    local error_message="$1"
+    
+    print_message ERROR "CRITICAL ERROR: $error_message"
+    print_message INFO "Cleaning up..."
+    cleanup
+    umount -R /mnt || true
+    print_message INFO "Cleanup complete."
+    print_message INFO "Installation aborted due to critical error."
+    sleep 5
+    exit 1
+}
+# @description Check disk space
+# @arg $1 string Mount point to check
+# @description Ensure log directory exists.
+# @return 0 on success, 1 on failure
+ensure_log_directory() {
+    local log_dir
+
+    log_dir=$(dirname "$LOG_FILE")
+    if [[ ! -d "$log_dir" ]]; then
+        mkdir -p "$log_dir" || {
+            print_message ERROR "Failed to create log directory: $log_dir"  >&2
+            return 1
+        }
+    fi
+}
+# @description Check for missing required scripts.
+# @return 0 if all scripts are present, 1 if any are missing
+# shellcheck disable=SC2034
+check_required_scripts() {
+    local missing_required_scripts=()
+    local missing_optional_scripts=()
+    print_message DEBUG "=== Checking for missing required scripts ==="
+    # Check for missing required scripts
+    for stage in "${!INSTALL_SCRIPTS[@]}"; do
+        local stage_name="${stage%,*}"
+        local script_type="${stage##*,}"
+        print_message DEBUG "  Stage: $stage_name ($script_type)"
+        # Get the scripts for the current stage and split them into an array
+        IFS=' ' read -ra scripts <<< "${INSTALL_SCRIPTS[$stage]}"
+        # Loop through each script in the stage
+        for script in "${scripts[@]}"; do
+            print_message DEBUG "    Checking script: $script"
+            # Check if the script is a format script
+            if [[ "$script" == *"{format_type}"* ]]; then
+                # Get the format scripts for the current format and split them into an array
+                # if you "" this it will break the script
+                local format_scripts=(${FORMAT_TYPES[$FORMAT_TYPE]})
+                # Loop through each format script in the array
+                for format_script in "${format_scripts[@]}"; do
+                    if [[ ! -f "$SCRIPTS_DIR/$stage_name/$format_script" ]]; then
+                        if [[ "$script_type" == "m" ]]; then
+                            missing_required_scripts+=("$stage_name/$format_script")
+                        else
+                            missing_optional_scripts+=("$stage_name/$format_script")
+                        fi
+                    fi
+                done
+            # Check if the script is a desktop environment script
+            elif [[ "$script" == *"{desktop_environment}"* ]]; then
+                # Get the desktop environment script for the current desktop environment
+                local de_script="${DESKTOP_ENVIRONMENTS[$DESKTOP_ENVIRONMENT]}"
+                # Check if the script file exists
+                if [[ ! -f "$SCRIPTS_DIR/$stage_name/$de_script" ]]; then
+                    if [[ "$script_type" == "m" ]]; then
+                        missing_required_scripts+=("$stage_name/$de_script")
+                    else
+                        missing_optional_scripts+=("$stage_name/$de_script")
+                    fi
+                fi
+            # Check if the script is a generic script
+            else
+                # Check if the script file exists
+                if [[ ! -f "$SCRIPTS_DIR/$stage_name/$script" ]]; then
+                    if [[ "$script_type" == "m" ]]; then
+                        missing_required_scripts+=("$stage_name/$script")
+                    else
+                        missing_optional_scripts+=("$stage_name/$script")
+                    fi
+                fi
+            fi
+        done
+    done
+
+    # Check for missing required scripts
+    if [[ ${#missing_required_scripts[@]} -gt 0 ]]; then
+        print_message ERROR "The following required scripts are missing:"
+        # Print the missing required scripts
+        for script in "${missing_required_scripts[@]}"; do
+            print_message ERROR "  - $script"
+        done
+        return 1
+    fi
+
+    # Check for missing optional scripts
+    if [[ ${#missing_optional_scripts[@]} -gt 0 ]]; then
+        print_message WARNING "The following optional scripts are missing:"
+        # Print the missing optional scripts
+        for script in "${missing_optional_scripts[@]}"; do
+            print_message WARNING "  - $script"
+        done
+    fi
+
+    return 0
+}
+# @description Check internet connection.   
+# @return 0 if internet connection is available, 1 if not
+check_internet_connection() {
+    print_message INFO "Checking internet connection..."
+    if ping -c 1 archlinux.org &> /dev/null; then
+        print_message OK "Internet connection is available"
+    else
+        print_message ERROR "No internet connection. Please check your network settings."
+        exit 1
+    fi
+}
+# @description Ask for password.
+# @arg $1 string Password name
+# @arg $2 string Password variable
+# @return 0 on success, 1 on failure
+ask_password() {
+    local PASSWORD_NAME="$1"
+    PASSWORD_VARIABLE="$2"
+    read -r -sp "Type ${PASSWORD_NAME} password: " PASSWORD1
+    echo ""
+    read -r -sp "Retype ${PASSWORD_NAME} password: " PASSWORD2
+    echo ""
+    if [[ "$PASSWORD1" == "$PASSWORD2" ]]; then
+        declare -n VARIABLE="${PASSWORD_VARIABLE}"
+        VARIABLE="$PASSWORD1"
+    else
+        echo "${PASSWORD_NAME} password don't match. Please, type again."
+        ask_password "${PASSWORD_NAME}" "${PASSWORD_VARIABLE}"
+    fi
+}
+# @description Configure network.
+# @return 0 on success, 1 on failure
+configure_network() {
+    if [ -n "$WIFI_INTERFACE" ]; then
+        iwctl --passphrase "$WIFI_KEY" station "$WIFI_INTERFACE" connect "$WIFI_ESSID"
+        sleep 10
+    fi
+
+    # only one ping -c 1, ping gets stuck if -c 5
+    if ! ping -c 1 -i 2 -W 5 -w 30 "$PING_HOSTNAME"; then
+        print_message ERROR "Network ping check failed. Cannot continue."
+        return 1
+    fi
+}
+# @description Get system facts.
+# @return 0 on success, 1 on failure
+facts_commons() {
+    if [ -d /sys/firmware/efi ]; then
+        BIOS_TYPE="uefi"
+    else
+        BIOS_TYPE="bios"
+    fi
+    set_option "BIOS_TYPE" "$BIOS_TYPE"
+
+    if lscpu | grep -q "GenuineIntel"; then
+        CPU_VENDOR="intel"
+    elif lscpu | grep -q "AuthenticAMD"; then
+        CPU_VENDOR="amd"
+    else
+        CPU_VENDOR=""
+    fi
+    set_option "CPU_VENDOR" "$CPU_VENDOR"
+
+    if lspci -nn | grep "\[03" | grep -qi "intel"; then
+        GPU_VENDOR="intel"
+    elif lspci -nn | grep "\[03" | grep -qi "amd"; then
+        GPU_VENDOR="amd"
+    elif lspci -nn | grep "\[03" | grep -qi "nvidia"; then
+        GPU_VENDOR="nvidia"
+    else
+        GPU_VENDOR=""
+    fi
+    set_option "GPU_VENDOR" "$GPU_VENDOR"
+
+    INITRD_MICROCODE=""
+    if [ "$CPU_VENDOR" == "intel" ]; then
+            INITRD_MICROCODE="intel-ucode.img"
+        elif [ "$CPU_VENDOR" == "amd" ]; then
+            INITRD_MICROCODE="amd-ucode.img"
+        fi
+    set_option "INITRD_MICROCODE" "$INITRD_MICROCODE"
+
+    USER_NAME_INSTALL="$(whoami)"
+    if [ "$USER_NAME_INSTALL" == "root" ]; then
+        SYSTEM_INSTALLATION="true"
+    else
+        SYSTEM_INSTALLATION="false"
+    fi
+    set_option "SYSTEM_INSTALLATION" "$SYSTEM_INSTALLATION"
+}
+# @description Initialize log file.
+# @arg $1 bool Enable
+# @arg $2 string File
+init_log_file() {
+    local ENABLE="$1"
+    local FILE="$2"
+    if [ "$ENABLE" == "true" ]; then
+        # Create a file descriptor for the log file
+        exec 3>"$FILE"
+        # Tee stdout and stderr to both console and log file, stripping color codes for the log file
+        exec 1> >(tee >(sed -r "s/\x1B\[([0-9]{1,3}(;[0-9]{1,3})*)?[mGK]//g" >&3))
+        exec 2> >(tee >(sed -r "s/\x1B\[([0-9]{1,3}(;[0-9]{1,3})*)?[mGK]//g" >&3) >&2)
+    fi
 }
