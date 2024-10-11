@@ -65,35 +65,27 @@ subvolumes_setup() {
 mounting() {
     local partition_root="$1"
     local mount_options="$2"
-    local command=()
-    local subvolumes=(${SUBVOLUMES//,/ })
-    local subvol
-
-    # First, create all necessary directories
-    command+=("mkdir" "-p" "/mnt")
-    command+=("mkdir" "-p" "/mnt/{home,var,tmp,.snapshots,boot/efi}")
+    local commands=()
 
     # Add the initial mount command
-    command+=("mount" "-o" "$mount_options,subvol=@" "$partition_root" "/mnt")
+    commands+=("mount -o $mount_options,subvol=@ $partition_root /mnt")
+    
+    # Create all necessary directories
+    commands+=("mkdir -p /mnt/{home,var,tmp,.snapshots,boot/efi}")
 
     # Loop through subvolumes and add mount commands
-    for subvol in "${subvolumes[@]}"; do
-        command+=("mount" "-o" "$mount_options,subvol=$subvol" "$partition_root" "/mnt/${subvol#@}")
+    for subvol in ${SUBVOLUMES//,/ }; do
+        commands+=("mount -o $mount_options,subvol=$subvol $partition_root /mnt/${subvol#@}")
     done
 
     # Add the EFI boot mount command
-    command+=("mount" "-t" "vfat" "-L" "EFIBOOT" "/mnt/boot/efi")
-
-    # Debugging: Print the commands to be executed
-    for cmd in "${command[@]}"; do
-        print_message DEBUG "Command to execute: $cmd"
-    done
+    commands+=("mount -t vfat -L EFIBOOT /mnt/boot/efi")
 
     # Execute the commands
     execute_process "Mounting subvolumes btrfs" \
         --error-message "Mounting subvolumes btrfs failed" \
         --success-message "Mounting subvolumes btrfs completed" \
-        "${command[@]}"
+        "${commands[@]}"
 }
 main() {
     logs
