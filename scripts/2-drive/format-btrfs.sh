@@ -66,15 +66,18 @@ mounting() {
     local partition_root="$1"
     local mount_options="$2"
     local commands=()
+    local subvolumes=(${SUBVOLUMES//,/ })
 
     # Add the initial mount command
     commands+=("mount -o $mount_options,subvol=@ $partition_root /mnt")
-    
-    # Create all necessary directories
-    commands+=("mkdir -p /mnt/{home,var,tmp,.snapshots,boot/efi}")
 
+    # Create all necessary directories
+    for subvol in "${subvolumes[@]}"; do
+        commands+=("mkdir -p /mnt/${subvol#@}")
+    done
+    commands+=("mkdir -p /mnt/boot/efi")
     # Loop through subvolumes and add mount commands
-    for subvol in ${SUBVOLUMES//,/ }; do
+    for subvol in "${subvolumes[@]}"; do
         commands+=("mount -o $mount_options,subvol=$subvol $partition_root /mnt/${subvol#@}")
     done
 
@@ -89,7 +92,7 @@ mounting() {
 }
 main() {
     logs
-    load_config
+    #load_config
     process_init "Formatting partitions $FORMAT_TYPE"
     print_message INFO "Starting formatting partitions $FORMAT_TYPE process"
     print_message INFO "DRY_RUN in $(basename "$0") is set to: ${YELLOW}$DRY_RUN"
