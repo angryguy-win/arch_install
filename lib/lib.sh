@@ -623,15 +623,15 @@ show_drive_list() {
     local selected
     local selected_drive
 
-    print_message INFO "Here a list of availble drives"[]
-    # run lsblkk and format the output
+    print_message INFO "Here is a list of available drives:"
+    # Run lsblk and format the output
     mapfile -t drive_info < <(lsblk -ndo NAME,SIZE,MODEL)
-    #create an array to store drive names
+    # Create an array to store drive names
     drives=()
-    #display the formatted output with numbers
+    # Display the formatted output with numbers
     for i in "${!drive_info[@]}"; do
         show_listitem "$((i+1))) ${drive_info[i]}"
-        drives+=("$(printf "%b" "${drive_info[i]}" | awk '{print $1}')")
+        drives+=("/dev/$(printf "%b" "${drive_info[i]}" | awk '{print $1}')")
     done
     # Ask user to select a drive
     while true; do
@@ -649,8 +649,6 @@ show_drive_list() {
             print_message WARNING "Invalid selection. Please enter a number between: " "1 and ${#drives[@]}."
         fi
     done
-
-
 }
 # @description Display a formatted list item
 # @param $1 The list item to display
