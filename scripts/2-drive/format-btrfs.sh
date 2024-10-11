@@ -69,15 +69,26 @@ mounting() {
     local subvolumes=(${SUBVOLUMES//,/ })
     local subvol
 
-    command+=("mount -o $mount_options,subvol=@ $partition_root /mnt")
-    command+=("mkdir -p /mnt/{home,var,tmp,.snapshots,boot/efi}")
-    
-    for subvol in "${subvolumes[@]}"; do
-        command+=("mount -o $mount_options,subvol=$subvol $partition_root /mnt/$subvol")
-    done
-    
-    command+=("mount -t vfat -L EFIBOOT /mnt/boot/efi")
+    # Add the initial mount command
+    command+=("mount -o \"$mount_options,subvol=@\" \"$partition_root\" \"/mnt\"")
 
+    # Add the directory creation command
+    command+=("mkdir -p \"/mnt/{home,var,tmp,.snapshots,boot/efi}\"")
+
+    # Loop through subvolumes and add mount commands
+    for subvol in "${subvolumes[@]}"; do
+        command+=("mount -o \"$mount_options,subvol=$subvol\" \"$partition_root\" \"/mnt/$subvol\"")
+    done
+
+    # Add the EFI boot mount command
+    command+=("mount -t vfat -L EFIBOOT \"/mnt/boot/efi\"")
+
+    # Debugging: Print the commands to be executed
+    for cmd in "${command[@]}"; do
+        print_message DEBUG "Command to execute: $cmd"
+    done
+
+    # Execute the commands
     execute_process "Mounting subvolumes btrfs" \
         --error-message "Mounting subvolumes btrfs failed" \
         --success-message "Mounting subvolumes btrfs completed" \
