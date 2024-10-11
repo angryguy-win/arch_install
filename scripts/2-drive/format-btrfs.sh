@@ -69,19 +69,20 @@ mounting() {
     local subvolumes=(${SUBVOLUMES//,/ })
     local subvol
 
-    # Add the initial mount command
-    command+=("mount -o \"$mount_options,subvol=@\" \"$partition_root\" \"/mnt\"")
+    # First, create all necessary directories
+    command+=("mkdir" "-p" "/mnt")
+    command+=("mkdir" "-p" "/mnt/{home,var,tmp,.snapshots,boot/efi}")
 
-    # Add the directory creation command
-    command+=("mkdir -p \"/mnt/{home,var,tmp,.snapshots,boot/efi}\"")
+    # Add the initial mount command
+    command+=("mount" "-o" "$mount_options,subvol=@" "$partition_root" "/mnt")
 
     # Loop through subvolumes and add mount commands
     for subvol in "${subvolumes[@]}"; do
-        command+=("mount -o \"$mount_options,subvol=$subvol\" \"$partition_root\" \"/mnt/$subvol\"")
+        command+=("mount" "-o" "$mount_options,subvol=$subvol" "$partition_root" "/mnt/${subvol#@}")
     done
 
     # Add the EFI boot mount command
-    command+=("mount -t vfat -L EFIBOOT \"/mnt/boot/efi\"")
+    command+=("mount" "-t" "vfat" "-L" "EFIBOOT" "/mnt/boot/efi")
 
     # Debugging: Print the commands to be executed
     for cmd in "${command[@]}"; do
@@ -95,6 +96,7 @@ mounting() {
         "${command[@]}"
 }
 main() {
+    logs
     load_config
     process_init "Formatting partitions $FORMAT_TYPE"
     print_message INFO "Starting formatting partitions $FORMAT_TYPE process"

@@ -1553,3 +1553,8 @@ swap_file() {
         swapon /mnt/swapfile
     fi
 }
+logs() {
+    ### Set up logging ###
+    exec 1> >(tee "stdout.log")
+    exec 2> >(tee "stderr.log")
+}
