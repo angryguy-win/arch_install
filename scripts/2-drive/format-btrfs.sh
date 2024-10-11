@@ -69,14 +69,14 @@ mounting() {
     local subvolumes=(${SUBVOLUMES//,/ })
     local subvol
 
-    command+=("mount" "-o" "$mount_options,subvol=@" "$partition_root" "/mnt")
-    command+=("mkdir" "-p" "/mnt/{home,var,tmp,.snapshots,boot/efi}")
+    command+=("mount -o $mount_options,subvol=@ $partition_root /mnt")
+    command+=("mkdir -p /mnt/{home,var,tmp,.snapshots,boot/efi}")
     
     for subvol in "${subvolumes[@]}"; do
-        command+=("mount" "-o" "$mount_options,subvol=$subvol" "$partition_root" "/mnt/$subvol")
+        command+=("mount -o $mount_options,subvol=$subvol $partition_root /mnt/$subvol")
     done
     
-    command+=("mount" "-t" "vfat" "-L" "EFIBOOT" "/mnt/boot/efi")
+    command+=("mount -t vfat -L EFIBOOT /mnt/boot/efi")
 
     execute_process "Mounting subvolumes btrfs" \
         --error-message "Mounting subvolumes btrfs failed" \
