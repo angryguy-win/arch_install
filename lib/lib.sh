@@ -1475,19 +1475,28 @@ check_internet_connection() {
 # @arg $2 string Password variable
 # @return 0 on success, 1 on failure
 ask_password() {
-    local PASSWORD_NAME="$1"
-    PASSWORD_VARIABLE="$2"
-    read -r -sp "Type ${PASSWORD_NAME} password: " PASSWORD1
-    echo ""
-    read -r -sp "Retype ${PASSWORD_NAME} password: " PASSWORD2
-    echo ""
-    if [[ "$PASSWORD1" == "$PASSWORD2" ]]; then
-        declare -n VARIABLE="${PASSWORD_VARIABLE}"
-        VARIABLE="$PASSWORD1"
-    else
-        echo "${PASSWORD_NAME} password don't match. Please, type again."
-        ask_password "${PASSWORD_NAME}" "${PASSWORD_VARIABLE}"
-    fi
+    local password_name="$1"
+    local password_variable="$2"
+    local password1 password2
+
+    while true; do
+        printf "Type %s password: " "$password_name" >&2
+        IFS= read -r password1 </dev/tty
+        printf "\n" >&2
+        printf "Retype %s password: " "$password_name" >&2
+        IFS= read -r password2 </dev/tty
+        printf "\n" >&2
+
+        if [ "$password1" = "$password2" ]; then
+            # Use indirect expansion to set the password variable
+            printf -v "$password_variable" "%s" "$password1"
+            break
+        else
+            printf "%s passwords don't match. Please try again.\n" "$password_name" >&2
+        fi
+    done
+
+    set_option PASSWORD "${!password_variable}"
 }
 # @description Configure network.
 # @return 0 on success, 1 on failure
