@@ -1563,3 +1563,41 @@ init_log_file() {
         exec 2> >(tee >(sed -r "s/\x1B\[([0-9]{1,3}(;[0-9]{1,3})*)?[mGK]//g" >&3) >&2)
     fi
 }
+# @description Detect GPU and determine appropriate driver
+# @noargs
+detect_gpu_driver() {
+    local gpu_info
+    local gpu_vendor
+    local gpu_driver
+
+    # Get GPU information
+    gpu_info=$(lspci -nn | grep -E "VGA|3D|Display")
+    
+    # Determine GPU vendor using a case statement
+    case "$gpu_info" in
+        *NVIDIA*)
+            gpu_vendor="nvidia"
+            gpu_driver="nvidia"
+            ;;
+        *AMD*)
+            gpu_vendor="amd"
+            gpu_driver="xf86-video-amdgpu"
+            ;;
+        *Intel*)
+            gpu_vendor="intel"
+            gpu_driver="xf86-video-intel"
+            ;;
+        *)
+            gpu_vendor="unknown"
+            gpu_driver="mesa"  # Generic driver
+            ;;
+    esac
+
+    # Save GPU vendor and driver using set_option
+    set_option "GPU_VENDOR" "$gpu_vendor"
+    set_option "GPU_DRIVER" "$gpu_driver"
+
+    # Print detected GPU information
+    print_message INFO "Detected GPU Vendor: $gpu_vendor"
+    print_message INFO "Selected GPU Driver: $gpu_driver"
+}
