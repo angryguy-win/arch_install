@@ -104,33 +104,6 @@ partitioning() {
         commands+=("sgdisk -n${partition_number}:0:0 -t${partition_number}:8300 -c${partition_number}:'ROOT' ${device}") 
     fi
 
-    local efi_partition="${device}1"
-    local root_partition="${device}2"
-    local swap_partition
-    local home_partition
-
-    # EFI partition
-    commands+=("sgdisk -n1:0:${efi_size} -t1:ef00 -c1:'EFIBOOT' ${device}")
-    partition_number=2
-
-    if [[ "$SWAP" == "true" ]]; then
-        swap_partition="${device}${partition_number}"
-        commands+=("sgdisk -n${partition_number}:0:+${SWAP_SIZE}G -t${partition_number}:8200 -c${partition_number}:'SWAP' ${device}")
-        partition_number=$((partition_number + 1))
-    fi
-
-    if [[ "$HOME" == "true" ]]; then
-        root_partition="${device}${partition_number}"
-        commands+=("sgdisk -n${partition_number}:0:+32G -t${partition_number}:8300 -c${partition_number}:'ROOT' ${device}")
-        partition_number=$((partition_number + 1))
-        
-        home_partition="${device}${partition_number}"
-        commands+=("sgdisk -n${partition_number}:0:0 -t${partition_number}:8300 -c${partition_number}:'HOME' ${device}")
-    else
-        root_partition="${device}${partition_number}"
-        commands+=("sgdisk -n${partition_number}:0:0 -t${partition_number}:8300 -c${partition_number}:'ROOT' ${device}")
-    fi
-
     execute_process "Partitioning" \
         --error-message "Partitioning failed" \
         --success-message "Partitioning completed" \
@@ -139,18 +112,7 @@ partitioning() {
     # Add this debug output
     print_message DEBUG "Partitions created:"
     lsblk "${device}" || print_message WARNING "Failed to list partitions"
-   
 
-    # Export partition variables for use in other scripts
-    export EFI_PARTITION="$efi_partition"
-    export ROOT_PARTITION="$root_partition"
-    export SWAP_PARTITION="$swap_partition"
-    export HOME_PARTITION="$home_partition"
-
-    print_message DEBUG "EFI_PARTITION: $EFI_PARTITION"
-    print_message DEBUG "ROOT_PARTITION: $ROOT_PARTITION"
-    print_message DEBUG "SWAP_PARTITION: $SWAP_PARTITION"
-    print_message DEBUG "HOME_PARTITION: $HOME_PARTITION"
 }
 luks_setup() {
     print_message INFO "Setting up LUKS"
@@ -161,12 +123,6 @@ main() {
     process_init "Partitioning the install: $DEVICE"
     print_message INFO "Starting partition process on $DEVICE"
     print_message INFO "DRY_RUN in $(basename "$0") is set to: ${YELLOW}$DRY_RUN"
-
-    # Add these debug outputs
-    print_message DEBUG "SWAP: $SWAP"
-    print_message DEBUG "HOME: $HOME"
-    print_message DEBUG "SWAP_SIZE: $SWAP_SIZE"
-    print_message DEBUG "BIOS_TYPE: $BIOS_TYPE"
 
     partitioning "${DEVICE}" || { print_message ERROR "Partitioning failed"; return 1; }
 
