@@ -155,9 +155,11 @@ partition_device() {
 # @noargs
 check_boot_mode() {
     if [ -d /sys/firmware/efi ]; then
-        echo "uefi"
+        print_message DEBUG "UEFI detected"
+
     else
-        echo "bios"
+        print_message DEBUG "BIOS detected"
+
     fi
 }
 # @description Prepare the drive for installation
@@ -166,7 +168,6 @@ prepare_drive() {
     local device="$1"
     local bios_type="$2"
     local partition_number=1  # Start with partition number 1
-    local bios_type
 
     print_message DEBUG "Preparing the install device $device to partition "
     print_message DEBUG "BIOS type set to: $bios_type"

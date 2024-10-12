@@ -44,19 +44,19 @@ partitioning() {
     print_message DEBUG "Formatting partitions $device: bios type $BIOS_TYPE"
     print_message DEBUG "Home partition: $HOME"
     print_message DEBUG "Swap partition: $SWAP"
-    
+
     case $BIOS_TYPE in
-        bios)
+        "bios")
             commands+=("sgdisk -n1:0:+1M -t1:ef02 -c1:'BIOSBOOT' ${device}") 
             partition_number=$((partition_number + 1))
             print_message DEBUG "Partition number: ${partition_number}, $device, BIOSBOOT: +1M"
             ;;
-        uefi)
+        "uefi")
             commands+=("sgdisk -n${partition_number}:0:${efi_size} -t${partition_number}:ef00 -c${partition_number}:'EFIBOOT' ${device}") 
             partition_number=$((partition_number + 1))
             print_message DEBUG "Partition number: ${partition_number}, $device, EFI: $efi_size"
             ;;
-        hybrid)
+        "hybrid")
             commands+=("sgdisk -n1:0:+1M -t1:ef02 -c1:'BIOSBOOT' ${device}") 
             partition_number=$((partition_number + 1))
             print_message DEBUG "Partition number: ${partition_number}, $device, BIOSBOOT: +1M"
