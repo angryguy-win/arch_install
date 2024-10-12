@@ -1515,12 +1515,6 @@ configure_network() {
 # @description Get system facts.
 # @return 0 on success, 1 on failure
 facts_commons() {
-    if [ -d /sys/firmware/efi ]; then
-        BIOS_TYPE="uefi"
-    else
-        BIOS_TYPE="bios"
-    fi
-    set_option "BIOS_TYPE" "$BIOS_TYPE"
 
     if lscpu | grep -q "GenuineIntel"; then
         CPU_VENDOR="intel"
