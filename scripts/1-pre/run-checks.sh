@@ -278,7 +278,6 @@ main() {
     check_and_setup_internet
     #ask_for_password
     show_drive_list || { print_message ERROR "Drive selection failed"; return 1; }
-    prepare_drive ${INSTALL_DEVICE} ${BIOS_TYPE} || { print_message ERROR "Drive preparation failed"; return 1; }
     determine_microcode || { print_message ERROR "Microcode determination failed"; return 1; }
     timezone || { print_message ERROR "Timezone determination failed"; return 1; }
     detect_gpu_driver || { print_message ERROR "GPU driver detection failed"; return 1; }

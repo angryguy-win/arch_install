@@ -23,7 +23,34 @@ fi
 # Ensure DRY_RUN is exported
 export DRY_RUN="${DRY_RUN:-false}"
 
+# @description Partition the device
+# @arg $1 string Device to partition
+# @arg $2 string Partition number
+partition_device() {
+    local device="$1"
+    local number="$2"
 
+    if [ -n "$INSTALL_DEVICE" ]; then
+        case "$device" in 
+        /dev/nvme* | /dev/mmcblk*)
+            echo "${device}p${number}"  # For NVMe and eMMC devices
+            ;;
+        /dev/sd* | /dev/vd*)
+            echo "${device}${number}"    # For SATA and Virtio devices
+            ;;
+        /dev/mapper/vg*-lv*)
+            echo "/dev/mapper/vg0-lv${number}"  # For LVM logical volumes
+            ;;
+        *)
+            print_message ERROR "Unknown device type: $device"  # Handle unknown device types
+            return 1
+            ;;
+        esac
+    else
+        print_message ERROR "ERROR: The install device must be set in the configuration file."
+        return 1
+    fi
+}
 partitioning() {
     local device="$1"
     local efi_size="+1024M"
@@ -48,19 +75,23 @@ partitioning() {
     case $BIOS_TYPE in
         "bios")
             commands+=("sgdisk -n1:0:+1M -t1:ef02 -c1:'BIOSBOOT' ${device}") 
+            set_option "PARTITION_BOOT" "$(partition_device "${device}" "${partition_number}")"
             partition_number=$((partition_number + 1))
             print_message DEBUG "Partition number: ${partition_number}, $device, BIOSBOOT: +1M"
             ;;
         "uefi")
             commands+=("sgdisk -n${partition_number}:0:${efi_size} -t${partition_number}:ef00 -c${partition_number}:'EFIBOOT' ${device}") 
+            set_option "PARTITION_EFI" "$(partition_device "${device}" "${partition_number}")"
             partition_number=$((partition_number + 1))
             print_message DEBUG "Partition number: ${partition_number}, $device, EFI: $efi_size"
             ;;
         "hybrid")
             commands+=("sgdisk -n1:0:+1M -t1:ef02 -c1:'BIOSBOOT' ${device}") 
+            set_option "PARTITION_BOOT" "$(partition_device "${device}" "${partition_number}")"
             partition_number=$((partition_number + 1))
             print_message DEBUG "Partition number: ${partition_number}, $device, BIOSBOOT: +1M"
             commands+=("sgdisk -n${partition_number}:0:${efi_size} -t${partition_number}:ef00 -c${partition_number}:'EFIBOOT' ${device}") 
+            set_option "PARTITION_EFI" "$(partition_device "${device}" "${partition_number}")"
             partition_number=$((partition_number + 1))
             print_message DEBUG "Partition number: ${partition_number}, $device, EFI: $efi_size"
             ;;
@@ -89,8 +120,9 @@ partitioning() {
         remaining_size=$((remaining_size - swap_size))
         print_message ACTION "Creating Swap partition size: ${swap_size}G"
         commands+=("sgdisk -n${partition_number}:0:+${swap_size}G -t${partition_number}:8200 -c${partition_number}:'SWAP' ${device}") 
-        partition_number=$((partition_number + 1))
+        set_option "PARTITION_SWAP" "$(partition_device "${device}" "${partition_number}")"
         print_message DEBUG "Partition number: ${partition_number}, $device, SWAP: ${swap_size}G"
+        partition_number=$((partition_number + 1))
     fi
 
     if [[ "$HOME" == "true" ]]; then
@@ -101,20 +133,29 @@ partitioning() {
         fi
         remaining_size=$((remaining_size - root_size))
         home_size=$remaining_size
+
         print_message ACTION "Creating Root partition size: ${root_size}G"
         commands+=("sgdisk -n${partition_number}:0:+${root_size}G -t${partition_number}:8300 -c${partition_number}:'ROOT' ${device}") 
-        partition_number=$((partition_number + 1))
+        set_option "PARTITION_ROOT" "$(partition_device "${device}" "${partition_number}")"
         print_message DEBUG "Partition number: ${partition_number}, $device, ROOT: ${root_size}G"
+        partition_number=$((partition_number + 1))
+
+
         print_message ACTION "Creating Home partition size: ${home_size}G"
         commands+=("sgdisk -n${partition_number}:0:0 -t${partition_number}:8300 -c${partition_number}:'HOME' ${device}") 
-        partition_number=$((partition_number + 1))
+        set_option "PARTITION_HOME" "$(partition_device "${device}" "${partition_number}")"
         print_message DEBUG "Partition number: ${partition_number}, $device, HOME: ${home_size}G"
+        partition_number=$((partition_number + 1))
     else
         root_size=$remaining_size
         print_message ACTION "Creating Root partition size: ${root_size}G"
         commands+=("sgdisk -n${partition_number}:0:0 -t${partition_number}:8300 -c${partition_number}:'ROOT' ${device}") 
+        set_option "PARTITION_ROOT" "$(partition_device "${device}" "${partition_number}")"
         print_message DEBUG "Partition number: ${partition_number}, $device, ROOT: ${root_size}G"
+        partition_number=$((partition_number + 1))
     fi
+
+    print_message DEBUG "Partition string set to: boot: ${PARTITION_BOOT}, efi: ${PARTITION_EFI}, root: ${PARTITION_ROOT}, home: ${PARTITION_HOME}, swap: ${PARTITION_SWAP}"
 
     execute_process "Partitioning" \
         --error-message "Partitioning failed" \
@@ -136,7 +177,8 @@ main() {
     print_message INFO "Starting partition process on $DEVICE"
     print_message INFO "DRY_RUN in $(basename "$0") is set to: ${YELLOW}$DRY_RUN"
 
-    partitioning "${DEVICE}" || { print_message ERROR "Partitioning failed"; return 1; }
+    #prepare_drive ${INSTALL_DEVICE} ${BIOS_TYPE} || { print_message ERROR "Drive preparation failed"; return 1; }
+    partitioning "${DEVICE}" ${BIOS_TYPE} || { print_message ERROR "Partitioning failed"; return 1; }
 
     print_message OK "Partition btrfs process completed successfully"
     process_end $?
