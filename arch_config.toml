@@ -29,6 +29,7 @@ LUKS_PASSWORD = "changeme"
 LUKS = false
 SWAP = false
 SWAP_SIZE = "4"
+ROOT_SIZE = "32"
 HOME = false
 BIOS_TYPE = "hybrid"
 CPU_VENDOR = "amd"
