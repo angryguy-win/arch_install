@@ -41,21 +41,28 @@ partitioning() {
     commands+=("sgdisk -Z ${device}")
     commands+=("sgdisk -a 2048 -o ${device}") # GPT offset
 
-    print_message DEBUG "Formatting partitions: bios type $BIOS_TYPE"
+    print_message DEBUG "Formatting partitions $device: bios type $BIOS_TYPE"
+    print_message DEBUG "Home partition: $HOME"
+    print_message DEBUG "Swap partition: $SWAP"
+    
     case $BIOS_TYPE in
         bios)
             commands+=("sgdisk -n1:0:+1M -t1:ef02 -c1:'BIOSBOOT' ${device}") 
             partition_number=$((partition_number + 1))
+            print_message DEBUG "Partition number: ${partition_number}, $device, BIOSBOOT: +1M"
             ;;
         uefi)
             commands+=("sgdisk -n${partition_number}:0:${efi_size} -t${partition_number}:ef00 -c${partition_number}:'EFIBOOT' ${device}") 
             partition_number=$((partition_number + 1))
+            print_message DEBUG "Partition number: ${partition_number}, $device, EFI: $efi_size"
             ;;
         hybrid)
             commands+=("sgdisk -n1:0:+1M -t1:ef02 -c1:'BIOSBOOT' ${device}") 
             partition_number=$((partition_number + 1))
+            print_message DEBUG "Partition number: ${partition_number}, $device, BIOSBOOT: +1M"
             commands+=("sgdisk -n${partition_number}:0:${efi_size} -t${partition_number}:ef00 -c${partition_number}:'EFIBOOT' ${device}") 
             partition_number=$((partition_number + 1))
+            print_message DEBUG "Partition number: ${partition_number}, $device, EFI: $efi_size"
             ;;
         *)
             print_message ERROR "Invalid BIOS type: $BIOS_TYPE"
@@ -83,6 +90,7 @@ partitioning() {
         print_message ACTION "Creating Swap partition size: ${swap_size}G"
         commands+=("sgdisk -n${partition_number}:0:+${swap_size}G -t${partition_number}:8200 -c${partition_number}:'SWAP' ${device}") 
         partition_number=$((partition_number + 1))
+        print_message DEBUG "Partition number: ${partition_number}, $device, SWAP: ${swap_size}G"
     fi
 
     if [[ "$HOME" == "true" ]]; then
@@ -96,12 +104,16 @@ partitioning() {
         print_message ACTION "Creating Root partition size: ${root_size}G"
         commands+=("sgdisk -n${partition_number}:0:+${root_size}G -t${partition_number}:8300 -c${partition_number}:'ROOT' ${device}") 
         partition_number=$((partition_number + 1))
+        print_message DEBUG "Partition number: ${partition_number}, $device, ROOT: ${root_size}G"
         print_message ACTION "Creating Home partition size: ${home_size}G"
         commands+=("sgdisk -n${partition_number}:0:0 -t${partition_number}:8300 -c${partition_number}:'HOME' ${device}") 
+        partition_number=$((partition_number + 1))
+        print_message DEBUG "Partition number: ${partition_number}, $device, HOME: ${home_size}G"
     else
         root_size=$remaining_size
         print_message ACTION "Creating Root partition size: ${root_size}G"
         commands+=("sgdisk -n${partition_number}:0:0 -t${partition_number}:8300 -c${partition_number}:'ROOT' ${device}") 
+        print_message DEBUG "Partition number: ${partition_number}, $device, ROOT: ${root_size}G"
     fi
 
     execute_process "Partitioning" \
