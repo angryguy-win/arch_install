@@ -41,7 +41,7 @@ mirror_setup() {
         --error-message "Mirror setup failed" \
         --success-message "Mirror setup completed" \
         "cp /etc/pacman.d/mirrorlist /etc/pacman.d/mirrorlist.backup" \
-        "reflector -a 48 -c $country_iso -f 5 -l 20 --sort rate --save /etc/pacman.d/mirrorlist"
+        "reflector -a 48 -c US -f 5 -l 20 --sort rate --save /etc/pacman.d/mirrorlist"
 
 }
 
