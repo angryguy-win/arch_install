@@ -164,20 +164,14 @@ check_boot_mode() {
 # @arg $1 string Device to prepare
 prepare_drive() {
     local device="$1"
+    local bios_type="$2"
     local partition_number=1  # Start with partition number 1
-    local mount_options=""
-    local bios_type=""
+    local bios_type
 
     print_message DEBUG "Preparing the install device $device to partition "
-    if [ -z "$BIOS_TYPE" ]; then
-        bios_type=$(check_boot_mode)
-    else
-        bios_type=${BIOS_TYPE}
-    fi
     print_message DEBUG "BIOS type set to: $bios_type"
-    set_option "BIOS_TYPE" "$bios_type"
-    print_message INFO "Preparing drive partitions settings: "
 
+    print_message INFO "Preparing drive partitions settings: "
     case "$bios_type" in
         "bios")
             set_option "PARTITION_BOOT" "$(partition_device "${device}" "${partition_number}")"
@@ -283,7 +277,7 @@ main() {
     check_and_setup_internet
     #ask_for_password
     show_drive_list || { print_message ERROR "Drive selection failed"; return 1; }
-    prepare_drive ${INSTALL_DEVICE} || { print_message ERROR "Drive preparation failed"; return 1; }
+    prepare_drive ${INSTALL_DEVICE} ${BIOS_TYPE} || { print_message ERROR "Drive preparation failed"; return 1; }
     determine_microcode || { print_message ERROR "Microcode determination failed"; return 1; }
     timezone || { print_message ERROR "Timezone determination failed"; return 1; }
     detect_gpu_driver || { print_message ERROR "GPU driver detection failed"; return 1; }
