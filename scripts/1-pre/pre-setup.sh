@@ -34,13 +34,14 @@ initial_setup() {
         "pacman -Syy"
 }
 mirror_setup() {
+    local country_iso="$1"
+    curl -4 'https://ifconfig.co/country-iso' > $country_iso
 
     execute_process "Mirror setup" \
         --error-message "Mirror setup failed" \
         --success-message "Mirror setup completed" \
-        "curl -4 'https://ifconfig.co/country-iso' > COUNTRY_ISO" \
-        "cp /etc/pacman.d/mirrorlist /etc/pacman.d/mirrorlist.backup"
-        
+        "cp /etc/pacman.d/mirrorlist /etc/pacman.d/mirrorlist.backup" \
+        "reflector -a 48 -c $country_iso -f 5 -l 20 --sort rate --save /etc/pacman.d/mirrorlist"
 
 }
 
@@ -50,7 +51,7 @@ main() {
     print_message INFO "DRY_RUN in $(basename "$0") is set to: ${YELLOW}$DRY_RUN"
 
     initial_setup || { print_message ERROR "Initial setup failed"; return 1; }
-    mirror_setup || { print_message ERROR "Mirror setup failed"; return 1; }
+    mirror_setup "$COUNTRY_ISO" || { print_message ERROR "Mirror setup failed"; return 1; }
 
     print_message OK "Pre-setup process completed successfully"
     process_end $?
