@@ -1,7 +1,8 @@
 PARALLEL_JOBS = "8"
 SYSTEM_INSTALLATION = false
 COUNTRY_ISO = "CA"
-FILE_SYSTEM_TYPE = "btrfs"
+FILE_SYSTEM_TYPE = "ext4"
+FORMAT_TYPE = "ext4"
 INSTALL_DEVICE = "nvme0n1"
 DEVICE = "/dev/vda"
 PARTITION_BIOSBOOT="/dev/vda"
@@ -25,7 +26,6 @@ TERMINAL = "alacritty"
 SHELL = "bash"
 EDITOR = "nvim"
 DESKTOP_ENVIRONMENT = "gnome"
-FORMAT_TYPE = "btrfs"
 SUBVOLUMES = "@home,@var,@tmp,@.snapshots"
 LUKS_PASSWORD = "changeme"
 LUKS = false
