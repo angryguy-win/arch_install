@@ -212,7 +212,7 @@ partitioning() {
         print_message INFO "Unmounting $device /mnt"
     else
         print_message ERROR "ERROR: Failed to unmount $device /mnt"
-        return 1
+        
     fi
 
     # Wipe GPT data and create new GPT partition table
