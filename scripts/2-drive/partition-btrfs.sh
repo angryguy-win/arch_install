@@ -23,6 +23,29 @@ fi
 # Ensure DRY_RUN is exported
 export DRY_RUN="${DRY_RUN:-false}"
 
+# @description Setup LUKS encryption
+# @arg $1 string Partition to encrypt
+# @arg $2 string Mapper name
+setup_luks() {
+    local partition="$1"
+    local mapper_name="$2"
+    local password="$ENCRYPTION_PASSWORD"
+    local commands=()
+
+    if [[ -z "$password" ]]; then
+        read -s -p "Enter LUKS encryption password: " password
+        echo
+    fi
+
+    print_message INFO "Setting up LUKS encryption for $partition"
+    commands+=("echo -n '$password' | cryptsetup luksFormat '$partition' -")
+    commands+=("echo -n '$password' | cryptsetup open '$partition' '$mapper_name' -")
+
+    execute_process "Setting Up LUKS" \
+        --error-message "Failed to set up LUKS encryption" \
+        --success-message "LUKS encryption set up successfully" \
+        "${commands[@]}"
+}
 # @description Partition the device
 # @arg $1 string Device to partition
 # @arg $2 string Partition number
@@ -51,127 +74,193 @@ partition_device() {
         return 1
     fi
 }
-partitioning() {
+# @description Create the boot partitions
+# @arg $1 string Device to partition
+# @arg $2 string EFI size
+# @arg $3 string Partition number
+create_boot_partitions() {
     local device="$1"
-    local efi_size="+1024M"
-    local swap_size
-    local root_size
-    local home_size
-    local remaining_size
-    local partition_number="1"
+    local efi_size="$2"
+    local partition_number="$3"
+    BOOT_PARTITIONS_CREATED=0
     local commands=()
-
-    print_message INFO "Install device set to: $device"
-    print_message DEBUG "Checking if /mnt is mounted and unmounting it"
-    commands+=("if mountpoint -q /mnt; then umount -A --recursive /mnt; else echo '/mnt is not mounted'; fi")
-    print_message DEBUG "Wiping GPT data and setting new GPT partition"
-    commands+=("sgdisk -Z ${device}")
-    commands+=("sgdisk -a 2048 -o ${device}") # GPT offset
-
-    print_message DEBUG "Formatting partitions $device: bios type $BIOS_TYPE"
-    print_message DEBUG "Home partition: $HOME"
-    print_message DEBUG "Swap partition: $SWAP"
-
-    case $BIOS_TYPE in
+    # Create the boot partitions based on BIOS type
+    case "$BIOS_TYPE" in
         "bios")
-            commands+=("sgdisk -n1:0:+1M -t1:ef02 -c1:'BIOSBOOT' ${device}") 
-            set_option "PARTITION_BOOT" "$(partition_device "${device}" "${partition_number}")"
+            commands+=("sgdisk -n${partition_number}:2048:+1M -t${partition_number}:ef02 -c${partition_number}:'BIOSBOOT' $device")
+            set_option "PARTITION_BIOSBOOT" "$(partition_device "$device" "$partition_number")"
             partition_number=$((partition_number + 1))
-            print_message DEBUG "Partition number: ${partition_number}, $device, BIOSBOOT: +1M"
+            commands+=("sgdisk -n${partition_number}:0:+1024M -t${partition_number}:8300 -c${partition_number}:'BOOT' $device")
+            set_option "PARTITION_BOOT" "$(partition_device "$device" "$partition_number")"
+            BOOT_PARTITIONS_CREATED=2
             ;;
         "uefi")
-            commands+=("sgdisk -n${partition_number}:0:${efi_size} -t${partition_number}:ef00 -c${partition_number}:'EFIBOOT' ${device}") 
-            set_option "PARTITION_EFI" "$(partition_device "${device}" "${partition_number}")"
-            partition_number=$((partition_number + 1))
-            print_message DEBUG "Partition number: ${partition_number}, $device, EFI: $efi_size"
+            commands+=("sgdisk -n${partition_number}:2048:\"$efi_size\" -t${partition_number}:ef00 -c${partition_number}:'EFIBOOT' $device")
+            set_option "PARTITION_EFI" "$(partition_device "$device" "$partition_number")"
+            BOOT_PARTITIONS_CREATED=1
             ;;
         "hybrid")
-            commands+=("sgdisk -n1:0:+1M -t1:ef02 -c1:'BIOSBOOT' ${device}") 
-            set_option "PARTITION_BOOT" "$(partition_device "${device}" "${partition_number}")"
+            commands+=("sgdisk -n${partition_number}:2048:+1M -t${partition_number}:ef02 -c${partition_number}:'BIOSBOOT' $device")
+            set_option "PARTITION_BIOSBOOT" "$(partition_device "$device" "$partition_number")"
             partition_number=$((partition_number + 1))
-            print_message DEBUG "Partition number: ${partition_number}, $device, BIOSBOOT: +1M"
-            commands+=("sgdisk -n${partition_number}:0:${efi_size} -t${partition_number}:ef00 -c${partition_number}:'EFIBOOT' ${device}") 
-            set_option "PARTITION_EFI" "$(partition_device "${device}" "${partition_number}")"
-            partition_number=$((partition_number + 1))
-            print_message DEBUG "Partition number: ${partition_number}, $device, EFI: $efi_size"
+            commands+=("sgdisk -n${partition_number}:0:\"$efi_size\" -t${partition_number}:ef00 -c${partition_number}:'EFIBOOT' $device")
+            set_option "PARTITION_EFI" "$(partition_device "$device" "$partition_number")"
+            BOOT_PARTITIONS_CREATED=2
             ;;
         *)
             print_message ERROR "Invalid BIOS type: $BIOS_TYPE"
-            return 1
+            exit 1
             ;;
     esac
+    # Execute the commands to create the boot partitions
+    execute_process "Creating Boot Partitions" \
+        --error-message "Failed to create boot partitions" \
+        --success-message "Boot partitions created successfully" \
+        "${commands[@]}"
+}
+# @description Create the swap partition
+# @arg $1 string Device to partition
+# @arg $2 string Swap size
+# @arg $3 string Partition number
+create_swap_partition() {
+    local device="$1"
+    local swap_size="$2"
+    local partition_number="$3"
+    local commands=()
+    # 
+    print_message ACTION "Creating Swap partition of size ${swap_size}"
+    commands+=("sgdisk -n${partition_number}:0:${swap_size} -t${partition_number}:8200 -c${partition_number}:'SWAP' $device")
+    set_option "PARTITION_SWAP" "$(partition_device "$device" "$partition_number")"
 
-    print_message ACTION "Calculating partition sizes"
-    device_size=$(lsblk -b -dn -o SIZE "$device")
-    if [ $? -ne 0 ]; then
-        print_message ERROR "Failed to get device size"
+    execute_process "Creating Swap Partition" \
+        --error-message "Failed to create swap partition" \
+        --success-message "Swap partition created successfully" \
+        "${commands[@]}"
+}
+# @description Create the root partition
+# @arg $1 string Device to partition
+# @arg $2 string Root size
+# @arg $3 string Partition number
+create_root_partition() {
+    local device="$1"
+    local size="$2"
+    local partition_number="$3"
+    local commands=()
+    # Create the root partition
+    print_message ACTION "Creating Root partition"
+    local partition_type
+    partition_type=$( [[ "$ENCRYPTION" == "true" ]] && echo "8309" || echo "8300" )
+    commands+=("sgdisk -n${partition_number}:0:${size} -t${partition_number}:${partition_type} -c${partition_number}:'ROOT' $device")
+    local root_partition
+    root_partition="$(partition_device "$device" "$partition_number")"
+    set_option "PARTITION_ROOT" "$root_partition"
+    # If encryption is requested for root, setup LUKS
+    if [[ "$ENCRYPTION" == "true" ]]; then
+        setup_luks "$root_partition" "cryptroot"
+        set_option "PARTITION_ROOT_ENC" "/dev/mapper/cryptroot"
+    fi
+
+    execute_process "Creating Root Partition" \
+        --error-message "Failed to create root partition" \
+        --success-message "Root partition created successfully" \
+        "${commands[@]}"
+}
+# @description Create the home partition
+# @arg $1 string Device to partition
+# @arg $2 string Home size
+# @arg $3 string Partition number
+# @arg $4 string Home size
+create_home_partition() {
+    local device="$1"
+    local size="$2"
+    local partition_number="$3"
+    local home_size="$4"
+    local commands=()
+
+    print_message ACTION "Creating Home partition of size ${home_size}G"
+    local partition_type
+    partition_type=$( [[ "$ENCRYPT_HOME" == "true" ]] && echo "8309" || echo "8300" )
+    commands+=("sgdisk -n${partition_number}:0:${size} -t${partition_number}:${partition_type} -c${partition_number}:'HOME' $device")
+    local home_partition
+    home_partition="$(partition_device "$device" "$partition_number")"
+    set_option "PARTITION_HOME" "$home_partition"
+    if [[ "$ENCRYPT_HOME" == "true" ]]; then
+        setup_luks "$home_partition" "crypthome"
+        set_option "PARTITION_HOME_ENC" "/dev/mapper/crypthome"
+    fi
+
+    execute_process "Creating Home Partition" \
+        --error-message "Failed to create home partition" \
+        --success-message "Home partition created successfully" \
+        "${commands[@]}"
+}
+# @description Partition the device
+# @arg $1 string Device to partition    
+partitioning() {
+    local device="$1"
+    local efi_size="+1024M"
+    local swap_size="+${SWAP_SIZE:-4}G"
+    local partition_number=1
+    local commands=()
+    local root_size
+
+    print_message INFO "Install device set to: $device"
+
+    # Unmount /mnt if mounted
+    if mountpoint -q /mnt; then
+        umount -A --recursive /mnt
+        print_message INFO "Unmounting $device /mnt"
+    else
+        print_message ERROR "ERROR: Failed to unmount $device /mnt"
         return 1
     fi
-    device_size=$((device_size / 1024 / 1024 / 1024))  # Convert to GiB
-    print_message INFO "Device size: $device_size GiB"
-    remaining_size=$((device_size - 2))  # Subtract 2 GiB for boot/EFI
 
-    if [[ "$SWAP" == "true" ]]; then
-        swap_size=$SWAP_SIZE
-        if ((remaining_size < swap_size)); then
-            print_message ERROR "Not enough space for swap partition"
-            return 1
-        fi
-        # Create the swap partition
-        remaining_size=$((remaining_size - swap_size))
-        print_message ACTION "Creating Swap partition size: ${swap_size}G"
-        commands+=("sgdisk -n${partition_number}:0:+${swap_size}G -t${partition_number}:8200 -c${partition_number}:'SWAP' ${device}") 
-        set_option "PARTITION_SWAP" "$(partition_device "${device}" "${partition_number}")"
-        print_message DEBUG "Partition number: ${partition_number}, $device, SWAP: ${swap_size}G"
-        partition_number=$((partition_number + 1))
-    fi
+    # Wipe GPT data and create new GPT partition table
+    print_message ACTION "Wiping GPT and creating new partition table on $device"
+    commands+=("sgdisk -Z $device")
 
-    if [[ "$HOME" == "true" ]]; then
-        root_size=32  # 32 GiB for root when separate home
-        if ((remaining_size < root_size)); then
-            print_message ERROR "Not enough space for root partition"
-            return 1
-        fi
-        remaining_size=$((remaining_size - root_size))
-        home_size=$remaining_size
-        # Create the root partition
-        print_message ACTION "Creating Root partition size: ${root_size}G"
-        commands+=("sgdisk -n${partition_number}:0:+${root_size}G -t${partition_number}:8300 -c${partition_number}:'ROOT' ${device}") 
-        set_option "PARTITION_ROOT" "$(partition_device "${device}" "${partition_number}")"
-        print_message DEBUG "Partition number: ${partition_number}, $device, ROOT: ${root_size}G"
-        partition_number=$((partition_number + 1))
-        # Create the home partition
-        print_message ACTION "Creating Home partition size: ${home_size}G"
-        commands+=("sgdisk -n${partition_number}:0:0 -t${partition_number}:8300 -c${partition_number}:'HOME' ${device}") 
-        set_option "PARTITION_HOME" "$(partition_device "${device}" "${partition_number}")"
-        print_message DEBUG "Partition number: ${partition_number}, $device, HOME: ${home_size}G"
-        partition_number=$((partition_number + 1))
-    else
-        # Create the root partition
-        root_size=$remaining_size
-        print_message ACTION "Creating Root partition size: ${root_size}G"
-        commands+=("sgdisk -n${partition_number}:0:0 -t${partition_number}:8300 -c${partition_number}:'ROOT' ${device}") 
-        set_option "PARTITION_ROOT" "$(partition_device "${device}" "${partition_number}")"
-        print_message DEBUG "Partition number: ${partition_number}, $device, ROOT: ${root_size}G"
-        partition_number=$((partition_number + 1))
-    fi
-
-    print_message DEBUG "Partition string set to: boot: ${PARTITION_BOOT}, efi: ${PARTITION_EFI}, root: ${PARTITION_ROOT}, home: ${PARTITION_HOME}, swap: ${PARTITION_SWAP}"
-
-    execute_process "Partitioning" \
-        --error-message "Partitioning failed" \
-        --success-message "Partitioning completed" \
+    execute_process "Wiping GPT and creating new partition table" \
+        --error-message "Failed to wipe GPT and create new partition table" \
+        --success-message "Wiped GPT and created new partition table" \
         "${commands[@]}"
 
-    # Add this debug output
-    print_message DEBUG "Partitions created:"
+    # Create boot partitions based on BIOS type
+    create_boot_partitions "$device" "$efi_size" "$partition_number"
+    partition_number=$((partition_number + BOOT_PARTITIONS_CREATED))
+
+    # Calculate remaining device size
+    local device_size
+    device_size=$(lsblk -b -dn -o SIZE "$device")
+    device_size=$((device_size / 1024 / 1024 / 1024))  # Convert to GiB
+    print_message INFO "Device size: $device_size GiB"
+    local used_size=$((1024 * BOOT_PARTITIONS_CREATED / 1024))  # Approximate size used by boot partitions
+
+    # Create swap partition if enabled
+    if [[ "$SWAP" == "true" ]]; then
+        create_swap_partition "$device" "$swap_size" "$partition_number"
+        used_size=$((used_size + ${swap_size//+G/}))
+        partition_number=$((partition_number + 1))
+    fi
+
+    # Create root and home partitions
+    if [[ "$HOME" == "true" ]]; then
+        create_root_partition "$device" "+32G" "$partition_number"
+        used_size=$((used_size + 32))
+        partition_number=$((partition_number + 1))
+
+        home_size=$((device_size - used_size))
+        create_home_partition "$device" "0" "$partition_number" "$home_size"
+        partition_number=$((partition_number + 1))
+    else
+        root_size=$((device_size - used_size))
+        create_root_partition "$device" "0" "$partition_number"
+        partition_number=$((partition_number + 1))
+    fi
+
+    # Display the resulting partitions
     lsblk "${device}" || print_message WARNING "Failed to list partitions"
-
 }
-luks_setup() {
-    print_message INFO "Setting up LUKS"
-
-}
+# @description Main function
 main() {
     load_config
     process_init "Partitioning the install: $DEVICE"
@@ -179,7 +268,7 @@ main() {
     print_message INFO "DRY_RUN in $(basename "$0") is set to: ${YELLOW}$DRY_RUN"
 
     #prepare_drive ${INSTALL_DEVICE} ${BIOS_TYPE} || { print_message ERROR "Drive preparation failed"; return 1; }
-    partitioning "${DEVICE}" ${BIOS_TYPE} || { print_message ERROR "Partitioning failed"; return 1; }
+    partitioning "${DEVICE}" "${BIOS_TYPE}" || { print_message ERROR "Partitioning failed"; return 1; }
 
     print_message OK "Partition btrfs process completed successfully"
     process_end $?

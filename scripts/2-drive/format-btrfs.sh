@@ -28,18 +28,32 @@ luks_setup() {
     print_message INFO "Setting up LUKS"
 
 }
+# @description Format partitions
+# @param partition_root
+# @param partition_efi
+# @param bios_type
 formating() {
+    local partition_root="$1"
+    local partition_efi="$2"
+    local bios_type="$3"
+    local commands=()
 
     print_message DEBUG "Before Format ROOT: $PARTITION_ROOT as btrfs"
     print_message DEBUG "Before Format EFIBOOT: $PARTITION_EFI as vfat"
+
+    if [[ "$bios_type" == "uefi" ]]; then
+        commands+=("mkfs.vfat -F32 -n EFIBOOT $partition_efi")  # Format EFI boot partition
+    elif [[ "$bios_type" == "bios" ]]; then
+        commands+=("mkfs.ext4 -L BOOT $partition_biosboot")  # Format BIOS boot partition
+    fi
+    commands+=("mkfs.btrfs -f -L ROOT $partition_root")
+    commands+=("mount -t btrfs $partition_root /mnt")
 
     execute_process "Formatting partitions btrfs" \
         --error-message "Formatting partitions btrfs failed" \
         --success-message "Formatting partitions btrfs completed" \
         --critical \
-        "mkfs.vfat -F32 -n EFIBOOT $PARTITION_EFI" \
-        "mkfs.btrfs -f -L ROOT $PARTITION_ROOT" \
-        "mount -t btrfs $PARTITION_ROOT /mnt" 
+        "${commands[@]}"
     
 }
 subvolumes_setup() {
@@ -99,7 +113,7 @@ main() {
     print_message INFO "Starting formatting partitions $FORMAT_TYPE process"
     print_message INFO "DRY_RUN in $(basename "$0") is set to: ${YELLOW}$DRY_RUN"
 
-    formating || { print_message ERROR "Formatting partitions btrfs failed"; return 1; }
+    formating $PARTITION_ROOT $PARTITION_EFI $BIOS_TYPE || { print_message ERROR "Formatting partitions btrfs failed"; return 1; }
     subvolumes_setup $PARTITION_ROOT || { print_message ERROR "Creating subvolumes failed"; return 1; }
     mounting $PARTITION_ROOT $MOUNT_OPTIONS|| { print_message ERROR "Mounting subvolumes btrfs failed"; return 1; }
 
