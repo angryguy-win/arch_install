@@ -773,7 +773,7 @@ process_installation_stages() {
     declare -A stages=(
         ["1-pre,o"]="run-checks.sh"
         ["1-pre,m"]="pre-setup.sh"
-        ["2-drive,m"]="partition-{format_type}.sh format-{format_type}.sh"
+        ["2-drive,m"]="partition.sh format.sh"
         ["3-base,m"]="bootstrap-pkgs.sh generate-fstab.sh"
         ["4-post,o"]="terminal.sh"
         ["4-post,m"]="system-config.sh system-pkgs.sh"
@@ -793,7 +793,6 @@ process_installation_stages() {
         # Read the scripts into an array    
         IFS=' ' read -ra scripts <<< "${stages[$stage]}"
         for script in "${scripts[@]}"; do
-            script=${script//\{format_type\}/$format_type}
             script=${script//\{desktop_environment\}/$desktop_environment}
             script_path="${SCRIPTS_DIR}/${stage_name}/${script}"
 

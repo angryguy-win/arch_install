@@ -1,6 +1,6 @@
 [stages]
 "1-pre" = { mandatory = ["pre-setup.sh"], optional = ["run-checks.sh"] }
-"2-drive" = { mandatory = ["partition-{format_type}.sh", "format-{format_type}.sh"] }
+"2-drive" = { mandatory = ["partition.sh", "format.sh"] }
 "3-base" = { mandatory = ["bootstrap-pkgs.sh", "generate-fstab.sh"] }
 "4-post" = { mandatory = ["system-config.sh", "system-pkgs.sh"], optional = ["terminal.sh"] }
 "5-desktop" = { mandatory = ["{desktop_environment}.sh"] }
