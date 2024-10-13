@@ -20,7 +20,32 @@ else
 fi
 
 initial_setup() {
+    local partition_tools=""
+    local encryption_tools=""
+    local uefi_tools=""
+    local bios_tools=""
+    if [ "$LUKS" = "true" ]; then
+        encryption_tools="cryptsetup"
+    fi
+    if [ "$BIOS_TYPE" = "uefi|UEFI" ]; then
+        uefi_tools="efibootmgr"
+    else
+        bios_tools="e2fsprogs"
+    fi
     print_message INFO "Starting initial setup"
+    case "$FORMAT_TYPE" in
+        btrfs)
+            partition_tools="btrfs-progs"
+            ;;
+        ext4)
+            partition_tools="e2fsprogs"
+            ;;
+        *)
+            print_message ERROR "Invalid FORMAT_TYPE: $FORMAT_TYPE"
+            return 1
+            ;;
+    esac
+
     # Initial setup
     execute_process "Initial setup" \
         --debug \
@@ -28,7 +53,7 @@ initial_setup() {
         --success-message "Initial setup completed" \
         "timedatectl set-ntp true" \
         "pacman -Sy archlinux-keyring --noconfirm" \
-        "pacman -S --noconfirm --needed pacman-contrib terminus-font rsync reflector gptfdisk btrfs-progs glibc" \
+        "pacman -S --noconfirm --needed pacman-contrib terminus-font rsync reflector gptfdisk $partition_tools $encryption_tools $uefi_tools $bios_tools" \
         "setfont ter-v22b" \
         "sed -i -e '/^#ParallelDownloads/s/^#//' -e '/^#Color/s/^#//' /etc/pacman.conf" \
         "pacman -Syy"
@@ -41,7 +66,7 @@ mirror_setup() {
         --error-message "Mirror setup failed" \
         --success-message "Mirror setup completed" \
         "cp /etc/pacman.d/mirrorlist /etc/pacman.d/mirrorlist.backup" \
-        "reflector -a 48 -c US -f 5 -l 20 --sort rate --save /etc/pacman.d/mirrorlist"
+        "reflector -c $country_iso -c US -a 12 -p https -f 5 -l 10 --sort rate --save /etc/pacman.d/mirrorlist"
 
 }
 
