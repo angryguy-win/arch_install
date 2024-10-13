@@ -117,6 +117,7 @@ partitioning() {
             print_message ERROR "Not enough space for swap partition"
             return 1
         fi
+        # Create the swap partition
         remaining_size=$((remaining_size - swap_size))
         print_message ACTION "Creating Swap partition size: ${swap_size}G"
         commands+=("sgdisk -n${partition_number}:0:+${swap_size}G -t${partition_number}:8200 -c${partition_number}:'SWAP' ${device}") 
@@ -133,20 +134,20 @@ partitioning() {
         fi
         remaining_size=$((remaining_size - root_size))
         home_size=$remaining_size
-
+        # Create the root partition
         print_message ACTION "Creating Root partition size: ${root_size}G"
         commands+=("sgdisk -n${partition_number}:0:+${root_size}G -t${partition_number}:8300 -c${partition_number}:'ROOT' ${device}") 
         set_option "PARTITION_ROOT" "$(partition_device "${device}" "${partition_number}")"
         print_message DEBUG "Partition number: ${partition_number}, $device, ROOT: ${root_size}G"
         partition_number=$((partition_number + 1))
-
-
+        # Create the home partition
         print_message ACTION "Creating Home partition size: ${home_size}G"
         commands+=("sgdisk -n${partition_number}:0:0 -t${partition_number}:8300 -c${partition_number}:'HOME' ${device}") 
         set_option "PARTITION_HOME" "$(partition_device "${device}" "${partition_number}")"
         print_message DEBUG "Partition number: ${partition_number}, $device, HOME: ${home_size}G"
         partition_number=$((partition_number + 1))
     else
+        # Create the root partition
         root_size=$remaining_size
         print_message ACTION "Creating Root partition size: ${root_size}G"
         commands+=("sgdisk -n${partition_number}:0:0 -t${partition_number}:8300 -c${partition_number}:'ROOT' ${device}") 
