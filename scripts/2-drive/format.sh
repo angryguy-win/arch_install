@@ -64,7 +64,7 @@ subvolumes_setup() {
     
     # this is to show different methods of using the execute_process function.
     # Create subvolumes from the SUBVOLUME variable
-    if [ "$FILE_SYSTEM_TYPE" = "btrfs" ]; then
+    if [ "$FORMAT_TYPE" = "btrfs" ]; then
         print_message INFO "Mounting $partition_root and creating subvolumes"
         
         execute_process "Creating subvolumes" \

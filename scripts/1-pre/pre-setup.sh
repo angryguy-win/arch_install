@@ -20,31 +20,30 @@ else
 fi
 
 initial_setup() {
-    local partition_tools=""
-    local encryption_tools=""
-    local uefi_tools=""
-    local bios_tools=""
-    if [ "$LUKS" = "true" ]; then
-        encryption_tools="cryptsetup"
-    fi
-    if [ "$BIOS_TYPE" = "uefi|UEFI" ]; then
-        uefi_tools="efibootmgr"
-    else
-        bios_tools="e2fsprogs"
-    fi
+    local tools=()
+
+    # Function to set partition tools based on conditions
+    set_tools() {
+        [ "$LUKS" = "true" ] && tools+=("cryptsetup")
+        [[ "$BIOS_TYPE" =~ ^(uefi|UEFI|hybrid)$ ]] && tools+=("efibootmgr")
+        
+        case "$FORMAT_TYPE" in
+            btrfs) tools+=("btrfs-progs") ;;
+            ext4)  tools+=("e2fsprogs") ;;
+            *)     print_message ERROR "Invalid FORMAT_TYPE: $FORMAT_TYPE"; return 1 ;;
+        esac
+
+        # Add e2fsprogs for BIOS if not already added for ext4
+        if [[ ! "$BIOS_TYPE" =~ ^(uefi|UEFI|hybrid)$ ]] && [[ "$FORMAT_TYPE" != "ext4" ]]; then
+            tools+=("e2fsprogs")
+        fi
+
+        # Remove duplicates
+        mapfile -t tools < <(printf '%s\n' "${tools[@]}" | sort -u)
+    }
+
     print_message INFO "Starting initial setup"
-    case "$FORMAT_TYPE" in
-        btrfs)
-            partition_tools="btrfs-progs"
-            ;;
-        ext4)
-            partition_tools="e2fsprogs"
-            ;;
-        *)
-            print_message ERROR "Invalid FORMAT_TYPE: $FORMAT_TYPE"
-            return 1
-            ;;
-    esac
+    set_tools || return 1
 
     # Initial setup
     execute_process "Initial setup" \
@@ -53,7 +52,7 @@ initial_setup() {
         --success-message "Initial setup completed" \
         "timedatectl set-ntp true" \
         "pacman -Sy archlinux-keyring --noconfirm" \
-        "pacman -S --noconfirm --needed pacman-contrib terminus-font rsync reflector gptfdisk $partition_tools $encryption_tools $uefi_tools $bios_tools" \
+        "pacman -S --noconfirm --needed pacman-contrib terminus-font rsync reflector gptfdisk ${tools[*]}" \
         "setfont ter-v22b" \
         "sed -i -e '/^#ParallelDownloads/s/^#//' -e '/^#Color/s/^#//' /etc/pacman.conf" \
         "pacman -Syy"
