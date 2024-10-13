@@ -25,9 +25,22 @@ export DRY_RUN="${DRY_RUN:-false}"
 
 
 luks_setup() {
-    print_message INFO "Setting up LUKS"
-
+    local partition_root="$1"
+    if [ "$LUKS" = "true" ]; then
+        if ! cryptsetup status cryptroot &>/dev/null; then
+            execute_process "Opening LUKS container" \
+                --error-message "Failed to open LUKS container" \
+                --success-message "LUKS container opened successfully" \
+                "cryptsetup luksOpen $partition_root cryptroot"
+        else
+            print_message INFO "LUKS container already open"
+        fi
+        echo "/dev/mapper/cryptroot"
+    else
+        echo "$partition_root"
+    fi
 }
+
 # @description Format partitions
 # @param partition_root
 # @param partition_efi
@@ -36,25 +49,54 @@ formating() {
     local partition_root="$1"
     local partition_efi="$2"
     local bios_type="$3"
+    local partition_biosboot="$4"
     local commands=()
 
-    print_message DEBUG "Before Format ROOT: $PARTITION_ROOT as btrfs"
-    print_message DEBUG "Before Format EFIBOOT: $PARTITION_EFI as vfat"
-
-    if [[ "$bios_type" == "uefi" ]]; then
-        commands+=("mkfs.vfat -F32 -n EFIBOOT $partition_efi")  # Format EFI boot partition
-    elif [[ "$bios_type" == "bios" ]]; then
-        commands+=("mkfs.ext4 -L BOOT $partition_biosboot")  # Format BIOS boot partition
+    # Handle boot partition formatting based on BIOS type
+    case "$bios_type" in
+        uefi|UEFI|hybrid)
+            print_message DEBUG "Before Format EFIBOOT: $partition_efi as vfat"
+            commands+=("mkfs.vfat -F32 -n EFIBOOT $partition_efi")
+            ;;
+        bios|BIOS)
+            print_message DEBUG "Before Format BIOSBOOT: $partition_biosboot as ext4"
+            commands+=("mkfs.ext4 -L BOOT $partition_biosboot")
+            ;;
+        *)
+            print_message ERROR "Unsupported BIOS type: $bios_type"
+            return 1
+            ;;
+    esac
+    # Handle LUKS encryption if enabled
+    if [ "$LUKS" = "true" ]; then
+        print_message DEBUG "Setting up LUKS encryption on $partition_root"
+        commands+=("cryptsetup luksFormat $partition_root")
+        commands+=("cryptsetup luksOpen $partition_root cryptroot")
+        partition_root="/dev/mapper/cryptroot"
     fi
-    commands+=("mkfs.btrfs -f -L ROOT $partition_root")
-    commands+=("mount -t btrfs $partition_root /mnt")
+    # Format root partition based on filesystem type
+    case "$FORMAT_TYPE" in
+        btrfs)
+            print_message DEBUG "Before Format ROOT: $partition_root as btrfs"
+            commands+=("mkfs.btrfs -f -L ROOT $partition_root")
+            commands+=("mount -t btrfs $partition_root /mnt")
+            ;;
+        ext4)
+            print_message DEBUG "Before Format ROOT: $partition_root as ext4"
+            commands+=("mkfs.ext4 -L ROOT $partition_root")
+            commands+=("mount $partition_root /mnt")
+            ;;
+        *)
+            print_message ERROR "Unsupported filesystem type: $FORMAT_TYPE"
+            return 1
+            ;;
+    esac
 
-    execute_process "Formatting partitions btrfs" \
-        --error-message "Formatting partitions btrfs failed" \
-        --success-message "Formatting partitions btrfs completed" \
+    execute_process "Formatting partitions" \
+        --error-message "Formatting partitions failed" \
+        --success-message "Formatting partitions completed" \
         --critical \
         "${commands[@]}"
-    
 }
 subvolumes_setup() {
     local partition_root="$1"
@@ -82,28 +124,32 @@ mounting() {
     local commands=()
     local subvolumes=(${SUBVOLUMES//,/ })
 
-    # This method of using execute_process needed to be modified to process 
-    # multiple and single line commands. for this to work.
-    # Add the initial mount command
-    commands+=("mount -o $mount_options,subvol=@ $partition_root /mnt")
+    # LUKS setup
+    partition_root=$(luks_setup "$partition_root")
 
-    # Create all necessary directories
-    for subvol in "${subvolumes[@]}"; do
-        commands+=("mkdir -p /mnt/${subvol#@}")
-    done
+    # Mounting based on filesystem type
+    if [ "$FORMAT_TYPE" = "btrfs" ]; then
+        commands+=("mount -o $mount_options,subvol=@ $partition_root /mnt")
+        # Create all necessary directories
+        for subvol in "${subvolumes[@]}"; do
+            commands+=("mkdir -p /mnt/${subvol#@}")
+        done
+        # Loop through subvolumes and add mount commands
+        for subvol in "${subvolumes[@]}"; do
+            commands+=("mount -o $mount_options,subvol=$subvol $partition_root /mnt/${subvol#@}")
+        done
+    elif [ "$FORMAT_TYPE" = "ext4" ]; then
+        commands+=("mount $partition_root /mnt")
+    fi
+
+    # Create and mount EFI partition
     commands+=("mkdir -p /mnt/boot/efi")
-    # Loop through subvolumes and add mount commands
-    for subvol in "${subvolumes[@]}"; do
-        commands+=("mount -o $mount_options,subvol=$subvol $partition_root /mnt/${subvol#@}")
-    done
-
-    # Add the EFI boot mount command
     commands+=("mount -t vfat -L EFIBOOT /mnt/boot/efi")
 
     # Execute the commands
-    execute_process "Mounting subvolumes btrfs" \
-        --error-message "Mounting subvolumes btrfs failed" \
-        --success-message "Mounting subvolumes btrfs completed" \
+    execute_process "Mounting partitions" \
+        --error-message "Mounting partitions failed" \
+        --success-message "Mounting partitions completed" \
         "${commands[@]}"
 }
 main() {
@@ -113,7 +159,7 @@ main() {
     print_message INFO "Starting formatting partitions $FORMAT_TYPE process"
     print_message INFO "DRY_RUN in $(basename "$0") is set to: ${YELLOW}$DRY_RUN"
 
-    formating $PARTITION_ROOT $PARTITION_EFI $BIOS_TYPE || { print_message ERROR "Formatting partitions btrfs failed"; return 1; }
+    formating $PARTITION_ROOT $PARTITION_EFI $BIOS_TYPE $PARTITION_BIOSBOOT || { print_message ERROR "Formatting partitions btrfs failed"; return 1; }
     subvolumes_setup $PARTITION_ROOT || { print_message ERROR "Creating subvolumes failed"; return 1; }
     mounting $PARTITION_ROOT $MOUNT_OPTIONS|| { print_message ERROR "Mounting subvolumes btrfs failed"; return 1; }
 
