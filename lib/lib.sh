@@ -476,9 +476,12 @@ load_config() {
     # Read the configuration file line by line
     print_message DEBUG "Exported variable: "
     while IFS='=' read -r key value; do
+        # Trim whitespace and sanitize
+        key=$(sanitize "$(trim "$key")")
+        value=$(sanitize "$(trim "$value")")
         # Trim whitespace
-        key=$(echo "$key" | xargs)
-        value=$(echo "$value" | xargs)
+        #key=$(echo "$key" | xargs)
+        #value=$(echo "$value" | xargs)
 
         # Skip empty lines and comments
         [[ -z "$key" || "$key" == \#* ]] && continue
@@ -574,6 +577,7 @@ set_option() {
     key="$1"
     value="$2"
     config_file="$CONFIG_FILE"
+    value=$(sanitize "$value")
 
     print_message ACTION "Setting: " "$key=$value in $config_file"
 
@@ -638,6 +642,7 @@ show_drive_list() {
         selected=$(ask_question "Enter the number of the drive you want to use:")
         if [[ "$selected" =~ ^[0-9]+$ ]] && ((selected >= 1 && selected <= ${#drives[@]})); then
             selected_drive=${drives[$selected-1]}
+            selected_drive=$(sanitize "$selected_drive")
             print_message ACTION "You selected drive: " "$selected_drive"
             
             # Export INSTALL_DEVICE here
@@ -667,7 +672,7 @@ ask_question() {
     blue=$'\033[0;94m'
     nc=$'\033[0m'
     read -r -p "${blue}$*${nc} " var
-    printf "%b\n" "$var"
+    printf "%s\n" "$(sanitize "$(trim "$var")")"
 }
 # @description Execute commands with error handling
 # @arg $1 string Process name
@@ -716,6 +721,7 @@ execute_process() {
     
     # Execute commands
     for cmd in "${commands[@]}"; do
+        cmd=$(sanitize "$cmd") # Sanitize the command this needs testing
         if [[ "$DRY_RUN" == true ]]; then
             print_message ACTION "[DRY RUN] Would execute: $cmd"
         else
@@ -1117,10 +1123,10 @@ ask_for_installation_info() {
     print_message DEBUG "Command: $executable_path -interactive=false"
     
     # Explicitly set environment variables
-    export USERNAME="${USERNAME:-ssnow}"
-    export USER_PASSWORD="${USER_PASSWORD:-defaultpassword}"  # Set a default password
-    export HOSTNAME="${HOSTNAME:-hostname}"
-    export TIMEZONE="${TIMEZONE:-America/Toronto}"
+    export USERNAME="$(sanitize "${USERNAME:-user}")"
+    export USER_PASSWORD="$(sanitize "${USER_PASSWORD:-changeme}")" # Set a default password
+    export HOSTNAME="$(sanitize "${HOSTNAME:-arch}")"
+    export TIMEZONE="$(sanitize "${TIMEZONE:-America/Toronto}")"
 
     print_message DEBUG "Environment variables after setting defaults:"
     print_message DEBUG "USERNAME=$USERNAME"
@@ -1196,7 +1202,7 @@ generate_encryption_key() {
 }
 
 # Function: sanitize_variable
-sanitize_variable() {
+sanitize() {
     local variable="$1"
     variable=$(echo "$variable" | sed "s/![^ ]*//g")      # Remove disabled
     variable=$(echo "$variable" | sed -r "s/ {2,}/ /g")   # Remove unnecessary whitespaces
@@ -1206,7 +1212,7 @@ sanitize_variable() {
 }
 
 # Function: trim_variable
-trim_variable() {
+trim() {
     local variable="$1"
     variable=$(echo "$variable" | sed 's/^[[:space:]]*//') # Trim leading spaces
     variable=$(echo "$variable" | sed 's/[[:space:]]*$//') # Trim trailing spaces
