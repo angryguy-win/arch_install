@@ -59,7 +59,8 @@ initial_setup() {
 }
 mirror_setup() {
     local country_iso="$1"
-    curl -4 'https://ifconfig.co/country-iso' > $country_iso
+    curl -4 'https://ifconfig.co/country-iso' > "$country_iso"
+    selected_drive=$(sanitize "$selected_drive")
 
     execute_process "Mirror setup" \
         --error-message "Mirror setup failed" \
