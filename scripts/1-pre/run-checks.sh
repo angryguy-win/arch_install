@@ -4,7 +4,6 @@
 # Date: 2024
 # Description: Run checks script for Arch Linux installation
 
-set -e
 trap 'exit 1' INT TERM
 
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
@@ -17,6 +16,10 @@ else
     echo "Error: Cannot find lib.sh at $LIB_PATH" >&2
     exit 1
 fi
+trap 'auto_checkpoint' DEBUG
+set -o errtrace
+set -o functrace
+set_error_trap
 
 # @description Ask for installation info
 ask_passwords() {
@@ -176,6 +179,7 @@ install_log() {
     exec 2>&1
 }
 main() {
+    save_checkpoint "function" "$(basename "${BASH_SOURCE[0]}")"
     load_config || { print_message ERROR "Failed to load config"; return 1; }
     process_init "Run Checks: pre-install preparations"
     print_message INFO "Starting the run checks process"

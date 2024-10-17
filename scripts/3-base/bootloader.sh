@@ -18,6 +18,9 @@ else
     echo "Error: Cannot find lib.sh at $LIB_PATH" >&2
     exit 1
 fi
+set -o errtrace
+set -o functrace
+set_error_trap
 
 # Enable dry run mode for testing purposes (set to false to disable)
 export DRY_RUN="${DRY_RUN:-false}"
@@ -212,6 +215,7 @@ create_efistub_entry() {
 }
 
 main() {
+    save_checkpoint "function" "$(basename "${BASH_SOURCE[0]}")"
     process_init "Configure Bootloader $BOOTLOADER"
     print_message INFO "Starting bootloader configuration process"
     print_message INFO "DRY_RUN in $(basename "$0") is set to: ${YELLOW}$DRY_RUN"

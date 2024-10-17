@@ -4,8 +4,6 @@
 # Date: 2024
 # Description: Pre-setup script for Arch Linux installation
 
-set -eo pipefail  # Exit on error, pipe failure
-
 # Determine the correct path to lib.sh
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 LIB_PATH="$(dirname "$(dirname "$SCRIPT_DIR")")/lib/lib.sh"
@@ -18,6 +16,10 @@ else
     echo "Error: Cannot find lib.sh at $LIB_PATH" >&2
     exit 1
 fi
+trap 'auto_checkpoint' DEBUG
+set -o errtrace
+set -o functrace
+set_error_trap
 
 initial_setup() {
     local tools=()
@@ -71,6 +73,7 @@ mirror_setup() {
 }
 
 main() {
+    save_checkpoint "function" "$(basename "${BASH_SOURCE[0]}")"
     process_init "Pre-setup"
     print_message INFO "Starting pre-setup process"
     print_message INFO "DRY_RUN in $(basename "$0") is set to: ${YELLOW}$DRY_RUN"

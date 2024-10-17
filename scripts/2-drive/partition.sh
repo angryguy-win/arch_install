@@ -18,15 +18,21 @@ else
     echo "Error: Cannot find lib.sh at $LIB_PATH" >&2
     exit 1
 fi
+trap 'auto_checkpoint' DEBUG
+set -o errtrace
+set -o functrace
+set_error_trap
 
 # Enable dry run mode for testing purposes (set to false to disable)
 # Ensure DRY_RUN is exported
 export DRY_RUN="${DRY_RUN:-false}"
 
+
 # @description Setup LUKS encryption
 # @arg $1 string Partition to encrypt
 # @arg $2 string Mapper name
 setup_luks() {
+    save_checkpoint "function" "${FUNCNAME[0]}"
     local partition="$1"
     local mapper_name="$2"
     local password="$ENCRYPTION_PASSWORD"
@@ -40,11 +46,12 @@ setup_luks() {
     print_message INFO "Setting up LUKS encryption for $partition"
     commands+=("echo -n '$password' | cryptsetup luksFormat '$partition' -")
     commands+=("echo -n '$password' | cryptsetup open '$partition' '$mapper_name' -")
-
     execute_process "Setting Up LUKS" \
         --error-message "Failed to set up LUKS encryption" \
         --success-message "LUKS encryption set up successfully" \
+        --checkpoint-step "${FUNCNAME[1]}" \
         "${commands[@]}"
+
 }
 # @description Partition the device
 # @arg $1 string Device to partition
@@ -79,11 +86,13 @@ partition_device() {
 # @arg $2 string EFI size
 # @arg $3 string Partition number
 create_boot_partitions() {
+    save_checkpoint "function" "${FUNCNAME[0]}"
     local device="$1"
     local efi_size="$2"
     local partition_number="$3"
     BOOT_PARTITIONS_CREATED=0
     local commands=()
+
     # Create the boot partitions based on BIOS type
     case "$BIOS_TYPE" in
         "bios")
@@ -116,6 +125,7 @@ create_boot_partitions() {
     execute_process "Creating Boot Partitions" \
         --error-message "Failed to create boot partitions" \
         --success-message "Boot partitions created successfully" \
+        --checkpoint-step "${FUNCNAME[1]}" \
         "${commands[@]}"
 }
 # @description Create the swap partition
@@ -123,11 +133,13 @@ create_boot_partitions() {
 # @arg $2 string Swap size
 # @arg $3 string Partition number
 create_swap_partition() {
+    save_checkpoint "function" "${FUNCNAME[0]}"
     local device="$1"
     local swap_size="$2"
     local partition_number="$3"
     local commands=()
-    # 
+
+    # Create the swap partition
     print_message ACTION "Creating Swap partition of size ${swap_size}"
     commands+=("sgdisk -n${partition_number}:0:${swap_size} -t${partition_number}:8200 -c${partition_number}:'SWAP' $device")
     set_option "PARTITION_SWAP" "$(partition_device "$device" "$partition_number")"
@@ -135,6 +147,7 @@ create_swap_partition() {
     execute_process "Creating Swap Partition" \
         --error-message "Failed to create swap partition" \
         --success-message "Swap partition created successfully" \
+        --checkpoint-step "${FUNCNAME[1]}" \
         "${commands[@]}"
 }
 # @description Create the root partition
@@ -142,10 +155,13 @@ create_swap_partition() {
 # @arg $2 string Root size
 # @arg $3 string Partition number
 create_root_partition() {
+    save_checkpoint "function" "${FUNCNAME[0]}"
     local device="$1"
     local size="$2"
     local partition_number="$3"
     local commands=()
+
+
     # Create the root partition
     print_message ACTION "Creating Root partition"
     local partition_type
@@ -163,6 +179,7 @@ create_root_partition() {
     execute_process "Creating Root Partition" \
         --error-message "Failed to create root partition" \
         --success-message "Root partition created successfully" \
+        --checkpoint-step "${FUNCNAME[1]}" \
         "${commands[@]}"
 }
 # @description Create the home partition
@@ -171,11 +188,13 @@ create_root_partition() {
 # @arg $3 string Partition number
 # @arg $4 string Home size
 create_home_partition() {
+    save_checkpoint "function" "${FUNCNAME[0]}"
     local device="$1"
     local size="$2"
     local partition_number="$3"
     local home_size="$4"
     local commands=()
+
 
     print_message ACTION "Creating Home partition of size ${home_size}G"
     local partition_type
@@ -192,11 +211,13 @@ create_home_partition() {
     execute_process "Creating Home Partition" \
         --error-message "Failed to create home partition" \
         --success-message "Home partition created successfully" \
+        --checkpoint-step "${FUNCNAME[1]}" \
         "${commands[@]}"
 }
 # @description Partition the device
 # @arg $1 string Device to partition    
 partitioning() {
+    save_checkpoint "function" "${FUNCNAME[0]}"
     local device="$1"
     local efi_size="+1024M"
     local swap_size="+${SWAP_SIZE:-4}G"
@@ -204,17 +225,21 @@ partitioning() {
     local commands=()
     local root_size
 
+
     print_message INFO "Install device set to: $device"
 
     # Unmount /mnt if mounted
     if mountpoint -q /mnt; then
-        umount -A --recursive /mnt
-        print_message INFO "Unmounting $device /mnt"
+        print_message INFO "Unmounting $device from /mnt"
+        if umount -A --recursive /mnt; then
+            print_message SUCCESS "Successfully unmounted $device from /mnt"
+        else
+            print_message ERROR "Failed to unmount $device from /mnt"
+            return 1
+        fi
     else
-        print_message ERROR "ERROR: Failed to unmount $device /mnt"
-        
+        print_message INFO "$device is not mounted at /mnt"
     fi
-
     # Wipe GPT data and create new GPT partition table
     print_message ACTION "Wiping GPT and creating new partition table on $device"
     commands+=("sgdisk -Z $device")
@@ -222,8 +247,9 @@ partitioning() {
     execute_process "Wiping GPT and creating new partition table" \
         --error-message "Failed to wipe GPT and create new partition table" \
         --success-message "Wiped GPT and created new partition table" \
+        --checkpoint-step "${FUNCNAME[1]}" \
         "${commands[@]}"
-
+    
     # Create boot partitions based on BIOS type
     create_boot_partitions "$device" "$efi_size" "$partition_number"
     partition_number=$((partition_number + BOOT_PARTITIONS_CREATED))
@@ -262,6 +288,7 @@ partitioning() {
 }
 # @description Main function
 main() {
+    save_checkpoint "function" "$(basename "${BASH_SOURCE[0]}")"
     load_config
     process_init "Partitioning the install: $DEVICE"
     print_message INFO "Starting partition process on $DEVICE"
@@ -276,3 +303,4 @@ main() {
 # Run the main function
 main "$@"
 exit $?
+

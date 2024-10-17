@@ -18,6 +18,9 @@ else
     echo "Error: Cannot find lib.sh at $LIB_PATH" >&2
     exit 1
 fi
+set -o errtrace
+set -o functrace
+set_error_trap
 
 # Enable dry run mode for testing purposes (set to false to disable)
 # Ensure DRY_RUN is exported
@@ -49,7 +52,12 @@ last_cleanup() {
         # TODO: Add a command to remove the installation media
         # TODO: Copy logs to /home/logs
         # TODO: copy config files to /home/config
-}
+        # TODO: Remove the installation script
+        # TODO: the post-install script
+        # TODO: package-manager
+        # TODO: update
+
+}   
 
 main() {
     process_init "Last cleanup"

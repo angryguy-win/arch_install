@@ -18,6 +18,9 @@ else
     echo "Error: Cannot find lib.sh at $LIB_PATH" >&2
     exit 1
 fi
+set -o errtrace
+set -o functrace
+set_error_trap
 
 # Enable dry run mode for testing purposes (set to false to disable)
 # Ensure DRY_RUN is exported

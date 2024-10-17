@@ -18,6 +18,9 @@ else
     echo "Error: Cannot find lib.sh at $LIB_PATH" >&2
     exit 1
 fi
+set -o errtrace
+set -o functrace
+set_error_trap
 
 # Enable dry run mode for testing purposes (set to false to disable)
 # Ensure DRY_RUN is exported
@@ -28,6 +31,7 @@ terminal() {
     
     print_message INFO "Installing Terminal"
     execute_process "Installing Terminal" \
+        --use-chroot \
         --error-message "Terminal installation failed" \
         --success-message "Terminal installation completed" \
         "pacman -S --noconfirm --needed ${TERMINAL} kitty ${SHELL} starship" \
@@ -37,6 +41,7 @@ terminal() {
 }
 
 main() {
+    save_checkpoint "function" "$(basename "${BASH_SOURCE[0]}")"
     process_init "Terminal: $TERMINAL"
     print_message INFO "Starting Terminal process"
     print_message INFO "DRY_RUN in $(basename "$0") is set to: ${YELLOW}$DRY_RUN"

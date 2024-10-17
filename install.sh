@@ -1,4 +1,4 @@
-#!/bin/sh
+#!/bin/bash
 
 # @description Arch Linux Installer
 # This script is used to install Arch Linux on a device.
@@ -22,7 +22,6 @@ while [ "$#" -gt 0 ]; do
     shift
 done
 
-
 # Set up important directories and files
 ## SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 ## SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"  # Changed from "${BASH_SOURCE[0]}" to "$0"
@@ -40,18 +39,153 @@ else
     print_message ERROR "Library file not found: $LIB_PATH"
     exit 1
 fi
+set -o errtrace
+set -o functrace
+set_error_trap
 
+# Initialize log file
 init_log_file true "$ARCH_DIR/process.log"
 if [ -f "$ARCH_DIR/process.log" ]; then
     touch "$ARCH_DIR/process.log"
 fi
+# Ensure stages array is available
+if [ -z "${stages[*]}" ]; then
+    print_message ERROR "Stages array is empty or not defined in lib.sh"
+    exit 1
+fi
+# @description Resume installation from checkpoint
+# @arg $1 string Format type
+# @arg $2 string Desktop environment
+resume_installation() {
+    local format_type="$1"
+    local desktop_environment="$2"
 
+    print_message INFO "Resuming from checkpoint:"
+    print_message INFO "  Stage: $CURRENT_STAGE"
+    print_message INFO "  Script: $CURRENT_SCRIPT"
+    print_message INFO "  Function: $CURRENT_FUNCTION"
+
+    local resume_started=false
+
+    # Sort the stages array keys to ensure correct order
+    readarray -t sorted_stages < <(for key in "${!stages[@]}"; do echo "$key"; done | sort)
+
+    for stage in "${sorted_stages[@]}"; do
+        if [[ "$resume_started" == false ]]; then
+            if [[ "$stage" == "$CURRENT_STAGE" ]]; then
+                resume_started=true
+            else
+                continue
+            fi
+        fi
+
+        IFS=' ' read -ra scripts <<< "${stages[$stage]}"
+        local script_resume_started=false
+
+        for script_info in "${scripts[@]}"; do
+            IFS=':' read -r script type <<< "$script_info"
+
+            # Replace placeholder with actual desktop environment
+            script=${script//\{desktop_environment\}/$desktop_environment}
+
+            if [[ "$resume_started" == true && "$script_resume_started" == false ]]; then
+                if [[ "$script" == "$CURRENT_SCRIPT" ]]; then
+                    script_resume_started=true
+                else
+                    continue
+                fi
+            fi
+
+            if [[ "$resume_started" == true && "$script_resume_started" == true ]]; then
+                execute_script "$stage" "$script" "$type" "$format_type" "$desktop_environment" "$CURRENT_FUNCTION"
+                CURRENT_FUNCTION=""
+            fi
+        done
+        CURRENT_SCRIPT=""
+    done
+}
+# @description Execute script
+# @arg $1 string Stage
+# @arg $2 string Script
+# @arg $3 string Type
+# @arg $4 string Format type
+# @arg $5 string Desktop environment
+# @arg $6 string Resume function    
+execute_script() {
+    local stage="$1"
+    local script="$2"
+    local type="$3"
+    local format_type="$4"
+    local desktop_environment="$5"
+    local resume_function="$6"
+
+    script=${script//\{desktop_environment\}/$desktop_environment}
+    script_path="${SCRIPTS_DIR}/${stage}/${script}"
+
+    if [[ ! -f "$script_path" ]]; then
+        print_message WARNING "Script not found: $script_path"
+        return 0
+    fi
+
+    if [[ -n "$resume_function" ]]; then
+        print_message INFO "Resuming from function $resume_function in $script"
+        bash "$script_path" --resume-function "$resume_function"
+    else
+        bash "$script_path"
+    fi
+
+    # Update checkpoint after script execution
+    save_checkpoint "$stage" "$script" ""
+
+    if [[ $? -eq 0 ]]; then
+        print_message ACTION "Successfully executed: $script_path"
+    else
+        if [[ "$type" == "m" ]]; then
+            print_message ERROR "Mandatory script failed: $script in stage $stage"
+            return 1
+        else
+            print_message WARNING "Optional script failed: $script in stage $stage"
+        fi
+    fi
+}
+# @description Start fresh installation
+# @arg $1 string Format type
+# @arg $2 string Desktop environment
+start_fresh_installation() {
+    local format_type="$1"
+    local desktop_environment="$2"
+
+    rm -f "$CHECKPOINT_FILE"  # Ensure no old checkpoint exists
+    process_installation_stages "$format_type" "$desktop_environment"
+}
+# @description Main installation
+# @arg $1 string Format type
+# @arg $2 string Desktop environment
+main_installation() {
+    local format_type="$1"
+    local desktop_environment="$2"
+
+    if resume_from_checkpoint; then
+        print_message INFO "Checkpoint found. Resuming installation."
+        read -p "Do you want to resume from the last checkpoint? (y/n) " -n 1 -r
+        echo
+        if [[ $REPLY =~ ^[Yy]$ ]]; then
+            resume_installation "$format_type" "$desktop_environment"
+        else
+            print_message INFO "Starting fresh installation"
+            rm -f "$CHECKPOINT_FILE"
+            start_fresh_installation "$format_type" "$desktop_environment"
+        fi
+    else
+        print_message INFO "No checkpoint found. Starting fresh installation."
+        start_fresh_installation "$format_type" "$desktop_environment"
+    fi
+}
 # Main execution
 main() {
     MAIN_START_TIMESTAMP=""
     MAIN_END_TIMESTAMP=""
     MAIN_INSTALLATION_TIME=""
-
 
     MAIN_START_TIMESTAMP=$(date -u +"%F %T")
     print_message DEBUG "======================= Starting Main Installation Process ======================="
@@ -87,15 +221,17 @@ main() {
         print_message ERROR "Missing required scripts. Aborting installation."
         exit 1
     fi
-
     # If we reach this point, all required scripts are present
     print_message OK "All required scripts are present."
-
-    # Run install scripts
-    process_installation_stages "$FORMAT_TYPE" "$DESKTOP_ENVIRONMENT" || {
+        main_installation "$FORMAT_TYPE" "$DESKTOP_ENVIRONMENT" || {
         print_message ERROR "Installation failed"
         exit 1
     }
+    # Run install scripts
+    #process_installation_stages "$FORMAT_TYPE" "$DESKTOP_ENVIRONMENT" || {
+    #    print_message ERROR "Installation failed"
+    #    exit 1
+    #}
 
     print_message OK "Arch Linux installation completed successfully"
     MAIN_END_TIMESTAMP=$(date -u +"%F %T")

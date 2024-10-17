@@ -17,11 +17,24 @@ else
     echo "Error: Cannot find lib.sh at $LIB_PATH" >&2
     exit 1
 fi
+set -o errtrace
+set -o functrace
+set_error_trap
 
+none() {
+    
+    print_message INFO "Installing basics no Desktop Environment"
+    execute_process "Installing basics no Desktop Environment" \
+        --error-message "basic'\s no Desktop Environment installation failed" \
+        --success-message "Basics no Desktop Environment installation completed" \
+        "pacman -S --noconfirm --needed openssh"
+
+}
 main() {
     process_init "Installing: no Desktop Environment"
     print_message INFO "Starting none process"
 
+    none || { print_message ERROR "None process failed"; return 1; }
 
     print_message OK "None process completed successfully"
     process_end $?

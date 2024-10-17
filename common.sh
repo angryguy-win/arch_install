@@ -87,106 +87,7 @@ swap_partition() {
 
     fallocate -l "$SWAP_SIZE" "$DEVICE_SWAP"
 }
-partition_device() {
-    local DEVICE="$1"
-    local NUMBER="$2"
-    local PARTITION_DEVICE=""
 
-    if [ "$DEVICE_SDA" == "true" ]; then
-        PARTITION_DEVICE="${DEVICE}${NUMBER}"
-    fi
-
-    if [ "$DEVICE_NVME" == "true" ]; then
-        PARTITION_DEVICE="${DEVICE}p${NUMBER}"
-    fi
-
-    if [ "$DEVICE_VDA" == "true" ]; then
-        PARTITION_DEVICE="${DEVICE}${NUMBER}"
-    fi
-
-    if [ "$DEVICE_MMC" == "true" ]; then
-        PARTITION_DEVICE="${DEVICE}p${NUMBER}"
-    fi
-
-    echo "$PARTITION_DEVICE"
-}
-
-partition_options() {
-    PARTITION_OPTIONS_BOOT="defaults"
-    PARTITION_OPTIONS="defaults"
-
-    if [ "$BIOS_TYPE" == "uefi" ]; then
-        PARTITION_OPTIONS_BOOT="$PARTITION_OPTIONS_BOOT,uid=0,gid=0,fmask=0077,dmask=0077"
-    fi
-    if [ "$DEVICE_TRIM" == "true" ]; then
-        PARTITION_OPTIONS_BOOT="$PARTITION_OPTIONS_BOOT,noatime"
-        PARTITION_OPTIONS="$PARTITION_OPTIONS,noatime"
-        if [ "$FILE_SYSTEM_TYPE" == "f2fs" ]; then
-            PARTITION_OPTIONS="$PARTITION_OPTIONS,nodiscard"
-        fi
-    fi
-}
-function partition_setup() {
-    # setup
-    if [ "$PARTITION_MODE" == "auto" ]; then
-        PARTITION_PARTED_FILE_SYSTEM_TYPE="$FILE_SYSTEM_TYPE"
-        if [ "$PARTITION_PARTED_FILE_SYSTEM_TYPE" == "f2fs" ]; then
-            PARTITION_PARTED_FILE_SYSTEM_TYPE=""
-        fi
-        PARTITION_PARTED_UEFI="mklabel gpt mkpart ESP fat32 1MiB 512MiB mkpart root $PARTITION_PARTED_FILE_SYSTEM_TYPE 512MiB 100% set 1 esp on"
-        PARTITION_PARTED_BIOS="mklabel msdos mkpart primary ext4 4MiB 512MiB mkpart primary $PARTITION_PARTED_FILE_SYSTEM_TYPE 512MiB 100% set 1 boot on"
-    elif [ "$PARTITION_MODE" == "custom" ]; then
-        PARTITION_PARTED_UEFI="$PARTITION_CUSTOM_PARTED_UEFI"
-        PARTITION_PARTED_BIOS="$PARTITION_CUSTOM_PARTED_BIOS"
-    fi
-
-    if [ "$DEVICE_SDA" == "true" ]; then
-        PARTITION_BOOT="$(partition_device "${DEVICE}" "${PARTITION_BOOT_NUMBER}")"
-        PARTITION_ROOT="$(partition_device "${DEVICE}" "${PARTITION_ROOT_NUMBER}")"
-        DEVICE_ROOT="$(partition_device "${DEVICE}" "${PARTITION_ROOT_NUMBER}")"
-    fi
-
-    if [ "$DEVICE_NVME" == "true" ]; then
-        PARTITION_BOOT="$(partition_device "${DEVICE}" "${PARTITION_BOOT_NUMBER}")"
-        PARTITION_ROOT="$(partition_device "${DEVICE}" "${PARTITION_ROOT_NUMBER}")"
-        DEVICE_ROOT="$(partition_device "${DEVICE}" "${PARTITION_ROOT_NUMBER}")"
-    fi
-
-    if [ "$DEVICE_VDA" == "true" ]; then
-        PARTITION_BOOT="$(partition_device "${DEVICE}" "${PARTITION_BOOT_NUMBER}")"
-        PARTITION_ROOT="$(partition_device "${DEVICE}" "${PARTITION_ROOT_NUMBER}")"
-        DEVICE_ROOT="$(partition_device "${DEVICE}" "${PARTITION_ROOT_NUMBER}")"
-    fi
-
-    if [ "$DEVICE_MMC" == "true" ]; then
-        PARTITION_BOOT="$(partition_device "${DEVICE}" "${PARTITION_BOOT_NUMBER}")"
-        PARTITION_ROOT="$(partition_device "${DEVICE}" "${PARTITION_ROOT_NUMBER}")"
-        DEVICE_ROOT="$(partition_device "${DEVICE}" "${PARTITION_ROOT_NUMBER}")"
-    fi
-}
-function partition_device() {
-    local DEVICE="$1"
-    local NUMBER="$2"
-    local PARTITION_DEVICE=""
-
-    if [ "$DEVICE_SDA" == "true" ]; then
-        PARTITION_DEVICE="${DEVICE}${NUMBER}"
-    fi
-
-    if [ "$DEVICE_NVME" == "true" ]; then
-        PARTITION_DEVICE="${DEVICE}p${NUMBER}"
-    fi
-
-    if [ "$DEVICE_VDA" == "true" ]; then
-        PARTITION_DEVICE="${DEVICE}${NUMBER}"
-    fi
-
-    if [ "$DEVICE_MMC" == "true" ]; then
-        PARTITION_DEVICE="${DEVICE}p${NUMBER}"
-    fi
-
-    echo "$PARTITION_DEVICE"
-}
 partition_mount() {
     if [ "$FILE_SYSTEM_TYPE" == "btrfs" ]; then
         # mount subvolumes
@@ -264,8 +165,7 @@ swap_file() {
         fi
     fi
 }
-
-function install() {
+install() {
     print_step "install()"
     local COUNTRIES=()
     local PACKAGES=()
@@ -356,13 +256,6 @@ EOT
     fi
 
     printf "%s\n%s" "$ROOT_PASSWORD" "$ROOT_PASSWORD" | arch-chroot "${MNT_DIR}" passwd
-}
-
-
-provision() {
-    print_step "provision()"
-
-    (cd "$PROVISION_DIRECTORY" && cp -vr --parents . "${MNT_DIR}")
 }
 
 end() {
@@ -487,5 +380,413 @@ logs() {
 exec 1> >(tee "stdout.log")
 exec 2> >(tee "stderr.log")
 }
+# @description Execute a process with retries and logging
+# @param $1 The description of the process
+# @param $@ The command to execute  
+execute_process() {
+    local description="$1"
+    shift
+    local error_message=""
+    local success_message=""
+    local critical=false
+    local debug=false
+    local max_attempts=3
+    local delay=5
+    local network_dependent=false
 
+    while [[ $# -gt 0 ]]; do
+        case "$1" in
+            --error-message) error_message="$2"; shift 2 ;;
+            --success-message) success_message="$2"; shift 2 ;;
+            --critical) critical=true; shift ;;
+            --debug) debug=true; shift ;;
+            --network-dependent) network_dependent=true; shift ;;
+            *) break ;;
+        esac
+    done
+
+    local commands=("$@")
+    local attempt=1
+
+    while [ $attempt -le $max_attempts ]; do
+        if $debug; then
+            print_message DEBUG "Executing: ${commands[*]}"
+        fi
+
+        if [ "$DRY_RUN" = "true" ]; then
+            print_message ACTION "[DRY RUN] Would execute: ${commands[*]}"
+            return 0
+        fi
+
+        if ! "${commands[@]}"; then
+            if $network_dependent && [ $attempt -lt $max_attempts ]; then
+                print_message WARNING "Attempt $attempt failed. Retrying in $delay seconds..."
+                sleep $delay
+                attempt=$((attempt + 1))
+                continue
+            fi
+            
+            if [ -n "$error_message" ]; then
+                print_message ERROR "$error_message"
+            else
+                print_message ERROR "Failed to execute: ${commands[*]}"
+            fi
+
+            if $critical; then
+                handle_critical_error "Critical operation failed: $description"
+            fi
+
+            return 1
+        else
+            break
+        fi
+    done
+
+    if [ -n "$success_message" ]; then
+        print_message OK "$success_message"
+    fi
+
+    return 0
+}
+
+CHECKPOINT_FILE="/tmp/install_checkpoint"
+
+save_checkpoint() {
+    echo "$1" > "$CHECKPOINT_FILE"
+}
+
+
+###-----------------------------------###
+resume_from_checkpoint() {
+    if [ -f "$CHECKPOINT_FILE" ]; then
+        local checkpoint=$(cat "$CHECKPOINT_FILE")
+        print_message INFO "Resuming from checkpoint: $checkpoint"
+        case "$checkpoint" in
+            partitioning) partitioning ;;
+            formatting) formatting ;;
+            base_install) base_install ;;
+            # ... other stages ...
+            *) print_message WARNING "Unknown checkpoint: $checkpoint. Starting from the beginning." ;;
+        esac
+    else
+        print_message INFO "No checkpoint found. Starting from the beginning."
+    fi
+}
+
+# In your main installation flow:
+main() {
+    resume_from_checkpoint
+
+    # Normal installation flow
+    partitioning && save_checkpoint "partitioning"
+    formatting && save_checkpoint "formatting"
+    base_install && save_checkpoint "base_install"
+    # ... other stages ...
+
+    # Clean up checkpoint file on successful completion
+    rm -f "$CHECKPOINT_FILE"
+}
+
+CHECKPOINT_FILE="/tmp/arch_install_checkpoint"
+
+save_checkpoint() {
+    echo "$1" > "$CHECKPOINT_FILE"
+}
+
+resume_from_checkpoint() {
+    if [ -f "$CHECKPOINT_FILE" ]; then
+        local checkpoint=$(cat "$CHECKPOINT_FILE")
+        print_message INFO "Resuming from checkpoint: $checkpoint"
+        case "$checkpoint" in
+            partitioning) partitioning ;;
+            formating) formating ;;
+            # Add other stages here
+            *) print_message WARNING "Unknown checkpoint: $checkpoint. Starting from the beginning." ;;
+        esac
+    else
+        print_message INFO "No checkpoint found. Starting from the beginning."
+    fi
+}
+
+formating() {
+    # Your existing formating function code here
+    # ...
+
+    # At the end of the function:
+    save_checkpoint "formating"
+}
+
+# In your main function:
+main() {
+    resume_from_checkpoint
+
+    # Your normal installation flow
+    partitioning && save_checkpoint "partitioning"
+    formating
+    # Other stages...
+
+    # Clean up checkpoint file on successful completion
+    rm -f "$CHECKPOINT_FILE"
+}
+
+
+save_checkpoint() {
+    echo "stage=$1;device=$DEVICE;partition_root=$partition_root" > "$CHECKPOINT_FILE"
+}
+
+PARTITION_CHECKPOINT="/tmp/partition_checkpoint"
+FORMAT_CHECKPOINT="/tmp/format_checkpoint"
+--
+save_partition_checkpoint() {
+    echo "$1" > "$PARTITION_CHECKPOINT"
+}
+--
+save_format_checkpoint() {
+    echo "$1" > "$FORMAT_CHECKPOINT"
+}
+--
+save_checkpoint() {
+    echo "$(date '+%Y-%m-%d %H:%M:%S') - $1" >> "$CHECKPOINT_FILE"
+}
+
+resume_from_checkpoint() {
+    if [ -f "$CHECKPOINT_FILE" ]; then
+        local checkpoint=$(cat "$CHECKPOINT_FILE")
+        print_message INFO "Checkpoint found: $checkpoint"
+        read -p "Do you want to resume from this checkpoint? (y/n) " -n 1 -r
+        echo
+        if [[ $REPLY =~ ^[Yy]$ ]]; then
+            # Resume logic here
+            case "$checkpoint" in
+                partitioning)
+                    print_message INFO "Resuming from partitioning"
+                    formatting
+                    base_install
+                    generate_fstab
+                    # ... continue with remaining steps
+                    ;;
+                formatting)
+                    print_message INFO "Resuming from formatting"
+                    base_install
+                    generate_fstab
+                    # ... continue with remaining steps
+                    ;;
+                base_install)
+                    print_message INFO "Resuming from base install"
+                    generate_fstab
+                    # ... continue with remaining steps
+                    ;;
+                # Add more cases for other checkpoints
+                *)
+                    print_message WARNING "Unknown checkpoint: $checkpoint. Starting from the beginning."
+                    start_fresh_installation
+                    ;;
+            esac
+        else
+            print_message INFO "Starting fresh installation"
+            rm -f "$CHECKPOINT_FILE"
+            start_fresh_installation
+        fi
+    else
+        print_message INFO "No checkpoint found. Starting fresh installation."
+        start_fresh_installation
+    fi
+}
+
+start_fresh_installation() {
+    partitioning
+
+    formatting
+    base_install
+    generate_fstab
+    # ... continue with all installation steps
+}
+
+save_checkpoint() {
+    echo "$1" > "$CHECKPOINT_FILE"
+    log_message "Checkpoint saved: $1"
+}
+
+###-----------------------------------###
+
+sanitize() {
+    local VARIABLE="$1"
+    local VARIABLE=$(echo "$VARIABLE" | sed "s/![^ ]*//g") # remove disabled
+    local VARIABLE=$(echo "$VARIABLE" | sed -r "s/ {2,}/ /g") # remove unnecessary white spaces
+    local VARIABLE=$(echo "$VARIABLE" | sed 's/^[[:space:]]*//') # trim leading
+    local VARIABLE=$(echo "$VARIABLE" | sed 's/[[:space:]]*$//') # trim trailing
+    echo "$VARIABLE"
+}
+
+trim() {
+    local VARIABLE="$1"
+    local VARIABLE=$(echo "$VARIABLE" | sed 's/^[[:space:]]*//') # trim leading
+    local VARIABLE=$(echo "$VARIABLE" | sed 's/[[:space:]]*$//') # trim trailing
+    echo "$VARIABLE"
+}
+
+check_variables_value() {
+    local NAME="$1"
+    local VALUE="$2"
+    if [ -z "$VALUE" ]; then
+        echo "$NAME environment variable must have a value."
+        exit 1
+    fi
+}
+
+check_variables_boolean() {
+    local NAME="$1"
+    local VALUE="$2"
+    check_variables_list "$NAME" "$VALUE" "true false" "true" "true"
+}
+
+check_variables_list() {
+    local NAME="$1"
+    local VALUE="$2"
+    local VALUES="$3"
+    local REQUIRED="$4"
+    local SINGLE="$5"
+
+    if [ "$REQUIRED" == "" ] || [ "$REQUIRED" == "true" ]; then
+        check_variables_value "$NAME" "$VALUE"
+    fi
+
+    if [[ ("$SINGLE" == "" || "$SINGLE" == "true") && "$VALUE" != "" && "$VALUE" =~ " " ]]; then
+        echo "$NAME environment variable value [$VALUE] must be a single value of [$VALUES]."
+        exit 1
+    fi
+
+    if [ "$VALUE" != "" ] && [ -z "$(echo "$VALUES" | grep -F -w "$VALUE")" ]; then #SC2143
+        echo "$NAME environment variable value [$VALUE] must be in [$VALUES]."
+        exit 1
+    fi
+}
+
+check_variables_equals() {
+    local NAME1="$1"
+    local NAME2="$2"
+    local VALUE1="$3"
+    local VALUE2="$4"
+    if [ "$VALUE1" != "$VALUE2" ]; then
+        echo "$NAME1 and $NAME2 must be equal [$VALUE1, $VALUE2]."
+        exit 1
+    fi
+}
+
+check_variables_size() {
+    local NAME="$1"
+    local SIZE_EXPECT="$2"
+    local SIZE="$3"
+    if [ "$SIZE_EXPECT" != "$SIZE" ]; then
+        echo "$NAME array size [$SIZE] must be [$SIZE_EXPECT]."
+        exit 1
+    fi
+}
+
+configure_network() {
+    if [ -n "$WIFI_INTERFACE" ]; then
+        iwctl --passphrase "$WIFI_KEY" station "$WIFI_INTERFACE" connect "$WIFI_ESSID"
+        sleep 10
+    fi
+
+    # only one ping -c 1, ping gets stuck if -c 5
+    if ! ping -c 1 -i 2 -W 5 -w 30 "$PING_HOSTNAME"; then
+        echo "Network ping check failed. Cannot continue."
+        exit 1
+    fi
+}
+
+pacman_uninstall() {
+    local ERROR="true"
+    local PACKAGES=()
+    set +e
+    IFS=' ' read -ra PACKAGES <<< "$1"
+    local PACKAGES_UNINSTALL=()
+    for PACKAGE in "${PACKAGES[@]}"
+    do
+        execute_sudo "pacman -Qi $PACKAGE > /dev/null 2>&1"
+        local PACKAGE_INSTALLED=$?
+        if [ $PACKAGE_INSTALLED == 0 ]; then
+            local PACKAGES_UNINSTALL+=("$PACKAGE")
+        fi
+    done
+    if [ -z "${PACKAGES_UNINSTALL[*]}" ]; then
+        return
+    fi
+    local COMMAND="pacman -Rdd --noconfirm ${PACKAGES_UNINSTALL[*]}"
+    if execute_sudo "$COMMAND"; then
+        local ERROR="false"
+    fi
+    set -e
+    if [ "$ERROR" == "true" ]; then
+        exit 1
+    fi
+}
+
+pacman_install() {
+    local ERROR="true"
+    local PACKAGES=()
+    set +e
+    IFS=' ' read -ra PACKAGES <<< "$1"
+    for VARIABLE in {1..5}
+    do
+        local COMMAND="pacman -Syu --noconfirm --needed ${PACKAGES[*]}"
+       if execute_sudo "$COMMAND"; then
+            local ERROR="false"
+            break
+        else
+            sleep 10
+        fi
+    done
+    set -e
+    if [ "$ERROR" == "true" ]; then
+        exit 1
+    fi
+}
+
+aur_install() {
+    local ERROR="true"
+    local PACKAGES=()
+    set +e
+    which "$AUR_COMMAND"
+    if [ "$AUR_COMMAND" != "0" ]; then
+        aur_command_install "$USER_NAME" "$AUR_PACKAGE"
+    fi
+    IFS=' ' read -ra PACKAGES <<< "$1"
+    for VARIABLE in {1..5}
+    do
+        local COMMAND="$AUR_COMMAND -Syu --noconfirm --needed ${PACKAGES[*]}"
+        if execute_aur "$COMMAND"; then
+            local ERROR="false"
+            break
+        else
+            sleep 10
+        fi
+    done
+    set -e
+    if [ "$ERROR" == "true" ]; then
+        return
+    fi
+}
+
+aur_command_install() {
+    pacman_install "git"
+    local USER_NAME="$1"
+    local COMMAND="$2"
+    execute_aur "rm -rf /home/$USER_NAME/.alis && mkdir -p /home/$USER_NAME/.alis/aur && cd /home/$USER_NAME/.alis/aur && git clone https://aur.archlinux.org/${COMMAND}.git && (cd $COMMAND && makepkg -si --noconfirm) && rm -rf /home/$USER_NAME/.alis"
+}
+
+execute_sudo() {
+    local COMMAND="$1"
+    if [ "$SYSTEM_INSTALLATION" == "true" ]; then
+        arch-chroot "${MNT_DIR}" bash -c "$COMMAND"
+    else
+        sudo bash -c "$COMMAND"
+    fi
+}
+
+execute_step() {
+    local STEP="$1"
+    eval "$STEP"
+}
 

@@ -18,6 +18,9 @@ else
     echo "Error: Cannot find lib.sh at $LIB_PATH" >&2
     exit 1
 fi
+set -o errtrace
+set -o functrace
+set_error_trap
 
 # Enable dry run mode for testing purposes (set to false to disable)
 # Ensure DRY_RUN is exported
@@ -44,6 +47,7 @@ grub_setup() {
 
 }
 main() {
+    save_checkpoint "function" "$(basename "${BASH_SOURCE[0]}")"
     process_init "Generate Fstab"
     print_message INFO "Starting generate fstab process"
     print_message INFO "DRY_RUN in $(basename "$0") is set to: ${YELLOW}$DRY_RUN"
