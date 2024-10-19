@@ -18,7 +18,7 @@ else
     echo "Error: Cannot find lib.sh at $LIB_PATH" >&2
     exit 1
 fi
-trap 'auto_checkpoint' DEBUG
+
 set -o errtrace
 set -o functrace
 set_error_trap
@@ -26,13 +26,13 @@ set_error_trap
 # Enable dry run mode for testing purposes (set to false to disable)
 # Ensure DRY_RUN is exported
 export DRY_RUN="${DRY_RUN:-false}"
-
-
+# Get the current stage/script context
+get_current_context
 # @description Setup LUKS encryption
 # @arg $1 string Partition to encrypt
 # @arg $2 string Mapper name
 setup_luks() {
-    save_checkpoint "function" "${FUNCNAME[0]}"
+
     local partition="$1"
     local mapper_name="$2"
     local password="$ENCRYPTION_PASSWORD"
@@ -49,7 +49,7 @@ setup_luks() {
     execute_process "Setting Up LUKS" \
         --error-message "Failed to set up LUKS encryption" \
         --success-message "LUKS encryption set up successfully" \
-        --checkpoint-step "${FUNCNAME[1]}" \
+        --checkpoint-step "$CURRENT_STAGE" "$CURRENT_SCRIPT" "setup_luks" \
         "${commands[@]}"
 
 }
@@ -86,7 +86,7 @@ partition_device() {
 # @arg $2 string EFI size
 # @arg $3 string Partition number
 create_boot_partitions() {
-    save_checkpoint "function" "${FUNCNAME[0]}"
+
     local device="$1"
     local efi_size="$2"
     local partition_number="$3"
@@ -125,7 +125,7 @@ create_boot_partitions() {
     execute_process "Creating Boot Partitions" \
         --error-message "Failed to create boot partitions" \
         --success-message "Boot partitions created successfully" \
-        --checkpoint-step "${FUNCNAME[1]}" \
+        --checkpoint-step "$CURRENT_STAGE" "$CURRENT_SCRIPT" "create_boot_partitions" \
         "${commands[@]}"
 }
 # @description Create the swap partition
@@ -133,7 +133,7 @@ create_boot_partitions() {
 # @arg $2 string Swap size
 # @arg $3 string Partition number
 create_swap_partition() {
-    save_checkpoint "function" "${FUNCNAME[0]}"
+
     local device="$1"
     local swap_size="$2"
     local partition_number="$3"
@@ -147,7 +147,7 @@ create_swap_partition() {
     execute_process "Creating Swap Partition" \
         --error-message "Failed to create swap partition" \
         --success-message "Swap partition created successfully" \
-        --checkpoint-step "${FUNCNAME[1]}" \
+        --checkpoint-step "$CURRENT_STAGE" "$CURRENT_SCRIPT" "create_swap_partition" \
         "${commands[@]}"
 }
 # @description Create the root partition
@@ -155,7 +155,7 @@ create_swap_partition() {
 # @arg $2 string Root size
 # @arg $3 string Partition number
 create_root_partition() {
-    save_checkpoint "function" "${FUNCNAME[0]}"
+
     local device="$1"
     local size="$2"
     local partition_number="$3"
@@ -179,7 +179,7 @@ create_root_partition() {
     execute_process "Creating Root Partition" \
         --error-message "Failed to create root partition" \
         --success-message "Root partition created successfully" \
-        --checkpoint-step "${FUNCNAME[1]}" \
+        --checkpoint-step "$CURRENT_STAGE" "$CURRENT_SCRIPT" "create_root_partition" \
         "${commands[@]}"
 }
 # @description Create the home partition
@@ -188,7 +188,7 @@ create_root_partition() {
 # @arg $3 string Partition number
 # @arg $4 string Home size
 create_home_partition() {
-    save_checkpoint "function" "${FUNCNAME[0]}"
+
     local device="$1"
     local size="$2"
     local partition_number="$3"
@@ -211,13 +211,12 @@ create_home_partition() {
     execute_process "Creating Home Partition" \
         --error-message "Failed to create home partition" \
         --success-message "Home partition created successfully" \
-        --checkpoint-step "${FUNCNAME[1]}" \
+        --checkpoint-step "$CURRENT_STAGE" "$CURRENT_SCRIPT" "create_home_partition" \
         "${commands[@]}"
 }
 # @description Partition the device
 # @arg $1 string Device to partition    
 partitioning() {
-    save_checkpoint "function" "${FUNCNAME[0]}"
     local device="$1"
     local efi_size="+1024M"
     local swap_size="+${SWAP_SIZE:-4}G"
@@ -247,7 +246,7 @@ partitioning() {
     execute_process "Wiping GPT and creating new partition table" \
         --error-message "Failed to wipe GPT and create new partition table" \
         --success-message "Wiped GPT and created new partition table" \
-        --checkpoint-step "${FUNCNAME[1]}" \
+        --checkpoint-step "$CURRENT_STAGE" "$CURRENT_SCRIPT" "partitioning" \
         "${commands[@]}"
     
     # Create boot partitions based on BIOS type
@@ -288,7 +287,7 @@ partitioning() {
 }
 # @description Main function
 main() {
-    save_checkpoint "function" "$(basename "${BASH_SOURCE[0]}")"
+    save_checkpoint "$CURRENT_STAGE" "$CURRENT_SCRIPT" "main" "0"
     load_config
     process_init "Partitioning the install: $DEVICE"
     print_message INFO "Starting partition process on $DEVICE"
@@ -303,4 +302,3 @@ main() {
 # Run the main function
 main "$@"
 exit $?
-

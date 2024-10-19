@@ -215,7 +215,6 @@ create_efistub_entry() {
 }
 
 main() {
-    save_checkpoint "function" "$(basename "${BASH_SOURCE[0]}")"
     process_init "Configure Bootloader $BOOTLOADER"
     print_message INFO "Starting bootloader configuration process"
     print_message INFO "DRY_RUN in $(basename "$0") is set to: ${YELLOW}$DRY_RUN"

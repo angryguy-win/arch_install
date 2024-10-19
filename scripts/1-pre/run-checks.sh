@@ -16,10 +16,13 @@ else
     echo "Error: Cannot find lib.sh at $LIB_PATH" >&2
     exit 1
 fi
-trap 'auto_checkpoint' DEBUG
+
 set -o errtrace
 set -o functrace
 set_error_trap
+
+# Get the current stage/script context
+get_current_context
 
 # @description Ask for installation info
 ask_passwords() {
@@ -38,6 +41,8 @@ ask_passwords() {
         ask_password "$context" "$var_name"
     done
 }
+current_function="check_and_setup_internet"
+CURRENT_FUNCTION="$current_function"
 # @description Check and setup internet connection
 # @noargs
 check_and_setup_internet() {
@@ -126,6 +131,8 @@ setup_wifi() {
         return 1
     fi
 }
+current_function="run_checks_with_progress"
+CURRENT_FUNCTION="$current_function"
 # @description Run checks with progress indication
 # @noargs
 run_checks_with_progress() {
@@ -179,10 +186,11 @@ install_log() {
     exec 2>&1
 }
 main() {
-    save_checkpoint "function" "$(basename "${BASH_SOURCE[0]}")"
+    save_checkpoint "$CURRENT_STAGE" "$CURRENT_SCRIPT" "main" "0"
     load_config || { print_message ERROR "Failed to load config"; return 1; }
     process_init "Run Checks: pre-install preparations"
     print_message INFO "Starting the run checks process"
+
 
     install_log 
     run_checks_with_progress || { print_message ERROR "Run checks failed"; return 1; }

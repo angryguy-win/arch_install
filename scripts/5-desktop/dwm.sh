@@ -21,7 +21,8 @@ fi
 set -o errtrace
 set -o functrace
 set_error_trap
-
+# Get the current stage/script context
+get_current_context
 # Enable dry run mode for testing purposes (set to false to disable)
 # Ensure DRY_RUN is exported
 export DRY_RUN="${DRY_RUN:-false}"
@@ -32,11 +33,13 @@ dwm() {
     execute_process "Installing DWM" \
         --error-message "DWM installation failed" \
         --success-message "DWM installation completed" \
+        --checkpoint-step "$CURRENT_STAGE" "$CURRENT_SCRIPT" "dwm" \
         "pacman -S --noconfirm --needed dwm"
 
 }
 
 main() {
+    save_checkpoint "$CURRENT_STAGE" "$CURRENT_SCRIPT" "main" "0"
     process_init "Installing: DWM"
     print_message INFO "Starting DWM process"
     print_message INFO "DRY_RUN in $(basename "$0") is set to: ${YELLOW}$DRY_RUN"

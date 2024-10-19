@@ -16,33 +16,36 @@ else
     echo "Error: Cannot find lib.sh at $LIB_PATH" >&2
     exit 1
 fi
-trap 'auto_checkpoint' DEBUG
+
 set -o errtrace
 set -o functrace
 set_error_trap
 
-initial_setup() {
-    local tools=()
+# Get the current stage/script context
+get_current_context
 
-    # Function to set partition tools based on conditions
-    set_tools() {
-        [ "$LUKS" = "true" ] && tools+=("cryptsetup")
-        [[ "$BIOS_TYPE" =~ ^(uefi|UEFI|hybrid)$ ]] && tools+=("efibootmgr")
-        
-        case "$FORMAT_TYPE" in
+# Function to set partition tools based on conditions
+set_tools() {
+    [ "$LUKS" = "true" ] && tools+=("cryptsetup")
+    [[ "$BIOS_TYPE" =~ ^(uefi|UEFI|hybrid)$ ]] && tools+=("efibootmgr")
+    
+    case "$FORMAT_TYPE" in
             btrfs) tools+=("btrfs-progs") ;;
             ext4)  tools+=("e2fsprogs") ;;
             *)     print_message ERROR "Invalid FORMAT_TYPE: $FORMAT_TYPE"; return 1 ;;
-        esac
+    esac
 
         # Add e2fsprogs for BIOS if not already added for ext4
-        if [[ ! "$BIOS_TYPE" =~ ^(uefi|UEFI|hybrid)$ ]] && [[ "$FORMAT_TYPE" != "ext4" ]]; then
-            tools+=("e2fsprogs")
-        fi
+    if [[ ! "$BIOS_TYPE" =~ ^(uefi|UEFI|hybrid)$ ]] && [[ "$FORMAT_TYPE" != "ext4" ]]; then
+        tools+=("e2fsprogs")
+    fi
 
-        # Remove duplicates
-        mapfile -t tools < <(printf '%s\n' "${tools[@]}" | sort -u)
-    }
+    # Remove duplicates
+    mapfile -t tools < <(printf '%s\n' "${tools[@]}" | sort -u)
+}
+
+initial_setup() {
+    local tools=()
 
     print_message INFO "Starting initial setup"
     set_tools || return 1
@@ -52,6 +55,7 @@ initial_setup() {
         --debug \
         --error-message "Initial setup failed" \
         --success-message "Initial setup completed" \
+        --checkpoint-step "1-pre" "$CURRENT_SCRIPT" "initial_setup" \
         "timedatectl set-ntp true" \
         "pacman -Sy archlinux-keyring --noconfirm" \
         "pacman -S --noconfirm --needed pacman-contrib terminus-font rsync reflector gptfdisk ${tools[*]}" \
@@ -67,13 +71,14 @@ mirror_setup() {
     execute_process "Mirror setup" \
         --error-message "Mirror setup failed" \
         --success-message "Mirror setup completed" \
+        --checkpoint-step "1-pre" "$CURRENT_SCRIPT" "mirror_setup" \
         "cp /etc/pacman.d/mirrorlist /etc/pacman.d/mirrorlist.backup" \
         "reflector -c $country_iso -c US -a 12 -p https -f 5 -l 10 --sort rate --save /etc/pacman.d/mirrorlist"
 
 }
 
 main() {
-    save_checkpoint "function" "$(basename "${BASH_SOURCE[0]}")"
+    save_checkpoint "$CURRENT_STAGE" "$CURRENT_SCRIPT" "main" "0"
     process_init "Pre-setup"
     print_message INFO "Starting pre-setup process"
     print_message INFO "DRY_RUN in $(basename "$0") is set to: ${YELLOW}$DRY_RUN"

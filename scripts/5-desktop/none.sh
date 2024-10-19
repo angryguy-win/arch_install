@@ -20,6 +20,8 @@ fi
 set -o errtrace
 set -o functrace
 set_error_trap
+# Get the current stage/script context
+get_current_context
 
 none() {
     
@@ -27,10 +29,12 @@ none() {
     execute_process "Installing basics no Desktop Environment" \
         --error-message "basic'\s no Desktop Environment installation failed" \
         --success-message "Basics no Desktop Environment installation completed" \
+        --checkpoint-step "$CURRENT_STAGE" "$CURRENT_SCRIPT" "none" \
         "pacman -S --noconfirm --needed openssh"
 
 }
 main() {
+    save_checkpoint "$CURRENT_STAGE" "$CURRENT_SCRIPT" "main" "0"
     process_init "Installing: no Desktop Environment"
     print_message INFO "Starting none process"
 

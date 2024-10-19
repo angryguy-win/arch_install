@@ -21,7 +21,11 @@ set -o errtrace
 set -o functrace
 set_error_trap
 
+# Get the current stage/script context
+get_current_context
+
 main() {
+    save_checkpoint "$CURRENT_STAGE" "$CURRENT_SCRIPT" "main" "0"
     process_init "Post Setup"
     print_message INFO "Starting post setup process"
 

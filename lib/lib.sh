@@ -27,6 +27,7 @@ PROCESS_LOG="$LOG_DIR/process.log"
 mkdir -p "$LOG_DIR" || { echo "Failed to create log directory: $LOG_DIR"; exit 1; }
 touch "$LOG_FILE" "$PROCESS_LOG" || { echo "Failed to create log files"; exit 1; }
 
+DESKTOP_ENVIRONMENT=${DESKTOP_ENVIRONMENT:-gnome}
 # Define the stages and their corresponding scripts
 # :m = mandatory, :o = optional 
 # Declare stages globally (-g)
@@ -35,10 +36,17 @@ declare -gA stages=(
     ["2-drive"]="partition.sh:m format.sh:m"
     ["3-base"]="bootstrap-pkgs.sh:m generate-fstab.sh:m"
     ["4-post"]="terminal.sh:o system-config.sh:m system-pkgs.sh:m"
-    ["5-desktop"]="{desktop_environment}.sh:m"
+    ["5-desktop"]="$DESKTOP_ENVIRONMENT.sh:m"
     ["6-final"]="last-cleanup.sh:m"
     ["7-post-setup"]="post-setup.sh:o"
 )
+# update global checkpoint variables
+CHECKPOINT_FILE="install_checkpoints"
+CURRENT_STAGE=""
+CURRENT_SCRIPT=""
+CURRENT_FUNCTION=""
+CURRENT_COMMAND_INDEX=0
+
 # @description Color codes
 export TERM=xterm-256color
 declare -A COLORS
@@ -344,8 +352,6 @@ process_init() {
     process_id=$(date +%s)
     CURRENT_PROCESS="$process_name"
     CURRENT_PROCESS_ID="$process_id"
-    local calling_function="${2:-${FUNCNAME[1]}}"  
-    #save_checkpoint "function" "$calling_function"
 
     printf "%b\n" "$process_id:$process_name:started" >> "$PROCESS_LOG"
     START_TIMESTAMP=$(date -u +"%F %T")
@@ -395,9 +401,7 @@ process_end() {
     printf "%b\n" " Process start ${WHITE}$START_TIMESTAMP${NC}, end ${WHITE}$END_TIMESTAMP${NC}, time ${WHITE}$INSTALLATION_TIME${NC}"
 
     print_message DEBUG "======================= Ending $process_name  ======================="
-
-    print_message INFO "All processes allmost completed....." 
-    sleep 2
+    
     # Reset the current process variables
     CURRENT_PROCESS=""
     CURRENT_PROCESS_ID=""
@@ -731,7 +735,10 @@ execute_process() {
     local success_message="Process completed successfully"
     local exit_code=0
     local commands=()
-    local checkpoint_step=""
+    local start_index=0
+    local checkpoint_stage=""
+    local checkpoint_script=""
+    local checkpoint_function=""
 
 
     while [[ "$1" == --* ]]; do
@@ -741,13 +748,14 @@ execute_process() {
             --critical) critical=true; shift ;;
             --error-message) error_message="$2"; shift 2 ;;
             --success-message) success_message="$2"; shift 2 ;;
-            --checkpoint-step) checkpoint_step="$2"; shift 2 ;;
+            --checkpoint-step) 
+                checkpoint_stage="$2"
+                checkpoint_script="$3"
+                checkpoint_function="$4"
+                shift 4 ;;
             *) printf "%b\n" "Unknown option: $1"; return 1 ;;
         esac
     done
-
-    # Initialize log file
-    init_log_file true "$ARCH_DIR/process.log"
 
     # Collect remaining arguments as commands
     if [[ $# -eq 1 && "${1}" == *$'\n'* ]]; then
@@ -759,6 +767,7 @@ execute_process() {
     fi
 
     print_message INFO "Starting: $process_name"
+    print_message INFO "Commands: $checkpoint_stage $checkpoint_script $checkpoint_function"
     
     # If no commands provided, return 0
     if [[ ${#commands[@]} -eq 0 ]]; then
@@ -767,16 +776,19 @@ execute_process() {
     fi
     
     # Execute commands
-    for ((i=CURRENT_COMMAND_INDEX; i<${#commands[@]}; i++)); do
+    for ((i=start_index; i<${#commands[@]}; i++)); do
         local cmd="${commands[$i]}"
-        #cmd=$(sanitize "$cmd") # Sanitize the command this needs testing
+        local command_number=$((i + 1))
+        save_checkpoint "$checkpoint_stage" "$checkpoint_script" "$checkpoint_function" "$i: $cmd"
+        # Dry run commands
         if [[ "$DRY_RUN" == true ]]; then
-            print_message ACTION "[DRY RUN] Would execute: $cmd"
+            print_message ACTION "[DRY RUN] Would execute command: #$command_number: $cmd"
         else
+            # Debug commands
             if [[ "$debug" == true ]]; then
-                print_message DEBUG "Executing: $cmd"
+                print_message DEBUG "Executing command: #$command_number: $cmd"
             fi
-            
+            # Use chroot commands
             if [[ "$use_chroot" == true ]]; then
                 if ! arch-chroot /mnt /bin/bash -c "$cmd"; then
                     print_message ERROR "${error_message} ${process_name}: $cmd"
@@ -787,6 +799,7 @@ execute_process() {
                     fi
                 fi
             else
+                # Execute commands
                 if ! eval "$cmd"; then
                     print_message ERROR "${error_message} ${process_name}: ${cmd}"
                     if [[ "$critical" == true ]]; then
@@ -796,15 +809,11 @@ execute_process() {
                     fi
                 fi
             fi
-            save_checkpoint "command" "$((i+1))"
         fi
     done
     
     if [[ $exit_code -eq 0 ]]; then
         print_message OK "${success_message} ${process_name} completed"
-        if [[ -n "$checkpoint_step" ]]; then
-            save_checkpoint "function" "$checkpoint_step"
-        fi
     fi
     return $exit_code
 }
@@ -819,44 +828,37 @@ execute_step() {
 # @arg $1 string Format type
 # @arg $2 string Desktop environment
 process_installation_stages() {
-    local format_type="$1"
-    local desktop_environment="$2"
-    local stage_name
-    local stage_type
-    local scripts
-    local script
-    local script_path
+    local start_from_stage="$1"
+    local start_from_script="$2"
+    local desktop_environment="$3"
+    local resume=false
 
-    # Process installation stages
     for stage in $(printf "%s\n" "${!stages[@]}" | sort); do
+        if [[ "$stage" == "$start_from_stage" ]]; then
+            resume=true
+        fi
+        
+        if ! $resume; then
+            continue
+        fi
+
         print_message DEBUG "Processing stage: $stage"
 
-        # Save checkpoint for the current stage
-        save_checkpoint "stage" "$stage"
-
-        # Check if the stage directory exists
-        [[ ! -d "${SCRIPTS_DIR}/${stage}" ]] && {
-            print_message WARNING "Stage directory not found: ${SCRIPTS_DIR}/${stage}"
-            continue
-        }
-
-        # Read the scripts into an array    
         IFS=' ' read -ra scripts <<< "${stages[$stage]}"
         for script_info in "${scripts[@]}"; do
             IFS=':' read -r script type <<< "$script_info"
-            print_message DEBUG "Executing script: $script ($type)"
+            
+            if [[ "$stage" == "$start_from_stage" && "$script" < "$start_from_script" ]]; then
+                continue
+            fi
+
             script=${script//\{desktop_environment\}/$desktop_environment}
             script_path="${SCRIPTS_DIR}/${stage}/${script}"
-
-            # Save checkpoint for the current script
-            save_checkpoint "script" "$script"
-
+            
             print_message INFO "Executing: ${stage}/${script}"
 
-            # Check if the script exists
             if [[ ! -f "$script_path" ]]; then
                 print_message WARNING "Script not found: $script_path"
-                print_message DEBUG "Directory contents: $(ls -la "$(dirname "$script_path")")"
                 if [[ "$type" == "m" ]]; then
                     print_message ERROR "Mandatory script missing: $script in stage $stage"
                     return 1
@@ -864,10 +866,7 @@ process_installation_stages() {
                 continue
             fi
 
-            # Execute the script
-            if bash "$script_path"; then
-                print_message ACTION "Successfully executed: $script_path"
-            else
+            if ! bash "$script_path"; then
                 if [[ "$type" == "m" ]]; then
                     print_message ERROR "Mandatory script failed: $script in stage $stage"
                     return 1
@@ -875,215 +874,10 @@ process_installation_stages() {
                     print_message WARNING "Optional script failed: $script in stage $stage"
                 fi
             fi
+
+            save_checkpoint "$stage" "$script" "main" "0"
         done
     done
-
-    return 0
-}
-# @description Execute scripts for a given stage.
-# @arg $1 string Stage (directory name)
-# @arg $2 string Script name
-execute_scripts() {
-    local stage="$1"
-    local script="$2"
-    local script_path="${SCRIPTS_DIR}/$stage/$script"
-
-    if [[ "$DRY_RUN" == "true" ]]; then
-        print_message ACTION "[DRY-RUN] Would execute: $script_path"
-        return 0
-    fi
-
-    if [[ ! -f "$script_path" ]]; then
-        print_message ERROR "Error: Script not found: $script_path"
-        print_message DEBUG "Current directory contents:"
-        ls -la "$(dirname "$script_path")"
-        return 1
-    fi
-
-    if [[ ! -x "$script_path" ]]; then
-        print_message ERROR "Error: Script is not executable: $script_path"
-        return 1
-    fi
-
-    if bash "$script_path"; then
-        print_message ACTION "Successfully executed: $script_path"
-        return 0
-    else
-        print_message ERROR "Failed to execute: $script_path"
-        return 1
-    fi
-}
-# @description Run install scripts.
-# @arg $1 string Format type
-# @arg $2 string Desktop environment
-# shellcheck source=../scripts
-run_install_scripts() {
-    local format_type="$1"
-    local desktop_environment="$2"
-
-    for stage in $(printf "%s\n" "${!INSTALL_SCRIPTS[@]}" | sort); do
-        stage_name="${stage%,*}"
-        stage_type="${stage##*,}"
-
-        print_message INFO "Processing stage: $stage_name ($stage_type)"
-
-        IFS=' ' read -ra scripts <<< "${INSTALL_SCRIPTS[$stage]}"
-        for script in "${scripts[@]}"; do
-            script=$(replace_placeholders "$script" "$format_type" "$desktop_environment")
-            
-            if [[ "$stage_type" == "o" ]]; then
-                print_message INFO "Optional script: $stage_name/$script"
-            fi
-
-            print_message INFO "Executing: $stage_name/$script"
-            if ! execute_script "$stage_name" "$script"; then
-                if [[ $DRY_RUN == true ]]; then
-                    print_message WARNING "Dry run: Continuing despite error in $script"
-                else
-                    print_message ERROR "Failed to execute: $script in stage $stage_name"
-                    return 1
-                fi
-            fi
-        done
-    done
-}
-# @description Replace placeholders in script names.
-# @arg $1 string Script name
-# @arg $2 string Format type
-# @arg $3 string Desktop environment
-# @return string Script name with placeholders replaced 
-replace_placeholders() {
-    local script="$1"
-    local format_type="$2"
-    local desktop_environment="$3"
-
-    script="${script//\{format_type\}/$format_type}"
-    script="${script//\{desktop_environment\}/$desktop_environment}"
-    printf "%s" "$script"
-}
-# @description Check if an optional script should run.
-# @arg $1 string Script name
-# @return 0 if the script should run, 1 otherwise   
-should_run_optional_script() {
-    local script="$1"
-    local config_var
-    local install_script
-
-    config_var="INSTALL_$(printf "%s" "${script%.*}" | tr '[:lower:]' '[:upper:]' | tr '-' '_')"
-    install_script=$(get_config_value "$config_var" "true")
-    print_message DEBUG "Checking optional script: $script, config_var: $config_var, value: $install_script"
-    [ "$install_script" == "true" ] && return 0 || return 1
-}
-# @description Parse TOML file and populate INSTALL_SCRIPTS
-# @arg $1 string Path to the TOML file
-# @return 0 on success, 1 on failure
-parse_stages_toml() {
-    local toml_file="$1"
-    declare -gA INSTALL_SCRIPTS FORMAT_TYPES DESKTOP_ENVIRONMENTS
-
-    print_message DEBUG "Parsing stages TOML file: $toml_file"
-
-    if [[ ! -f "$toml_file" ]]; then
-        print_message ERROR "TOML file not found: $toml_file"
-        return 1
-    fi
-
-    local current_section=""
-    while IFS= read -r line || [[ -n "$line" ]]; do
-        # Trim whitespace
-        line=$(printf "%s" "$line" | sed -e 's/^[[:space:]]*//' -e 's/[[:space:]]*$//')
-
-        # Skip empty lines and comments
-        [[ -z "$line" || "$line" == \#* ]] && continue
-
-        if [[ "$line" =~ ^\[([^]]+)\]$ ]]; then
-            current_section="${BASH_REMATCH[1]}"
-            print_message DEBUG "Entering section: [$current_section]"
-            continue
-        fi
-
-        case "$current_section" in
-            stages)
-                if [[ "$line" =~ ^\"([^\"]+)\"[[:space:]]*=[[:space:]]*\{([^}]+)\}$ ]]; then
-                    local stage="${BASH_REMATCH[1]}"
-                    local content="${BASH_REMATCH[2]}"
-                    print_message DEBUG "Parsing stage: $stage"
-                    
-                    if [[ "$content" =~ mandatory[[:space:]]*=[[:space:]]*\[([^\]]+)\] ]]; then
-                        local mandatory_scripts="${BASH_REMATCH[1]}"
-                        mandatory_scripts=$(printf "%s" "$mandatory_scripts" | sed 's/"//g' | sed 's/,/ /g')
-                        INSTALL_SCRIPTS["$stage,m"]="$mandatory_scripts"
-                        print_message DEBUG "Mandatory scripts for stage '$stage': $mandatory_scripts"
-                    fi
-                    if [[ "$content" =~ optional[[:space:]]*=[[:space:]]*\[([^\]]+)\] ]]; then
-                        local optional_scripts="${BASH_REMATCH[1]}"
-                        optional_scripts=$(printf "%s" "$optional_scripts" | sed 's/"//g' | sed 's/,/ /g')
-                        INSTALL_SCRIPTS["$stage,o"]="$optional_scripts"
-                        print_message DEBUG "Optional scripts for stage '$stage': $optional_scripts"
-                    fi
-                elif [[ "$line" =~ ^\"([^\"]+)\"[[:space:]]*=[[:space:]]*\{[[:space:]]*mandatory[[:space:]]*=[[:space:]]*\[([^\]]+)\][[:space:]]*\}$ ]]; then
-                    local stage="${BASH_REMATCH[1]}"
-                    local mandatory_scripts="${BASH_REMATCH[2]}"
-                    mandatory_scripts=$(printf "%s" "$mandatory_scripts" | sed 's/"//g' | sed 's/,/ /g')
-                    INSTALL_SCRIPTS["$stage,m"]="$mandatory_scripts"
-                    print_message DEBUG "Parsing stage: $stage"
-                    print_message DEBUG "Mandatory scripts for stage '$stage': $mandatory_scripts"
-                else
-                    print_message WARNING "Line did not match stage pattern: $line"
-                fi
-                ;;
-            format_types|desktop_environments)
-                if [[ "$line" =~ ^([^=]+)[[:space:]]*=[[:space:]]*(\[.+\])$ ]]; then
-                    local key="${BASH_REMATCH[1]}"
-                    local value="${BASH_REMATCH[2]}"
-                    key=$(printf "%s" "$key" | sed -e 's/^[[:space:]]*//' -e 's/[[:space:]]*$//')
-                    value=$(printf "%s" "$value" | sed -e 's/^\[//' -e 's/\]$//' -e 's/"//g' -e 's/,/ /g')
-                    
-                    if [ "$current_section" == "format_types" ]; then
-                        FORMAT_TYPES["$key"]="$value"
-                        print_message DEBUG "Format type '$key' scripts: ${FORMAT_TYPES[$key]}"
-                    else
-                        DESKTOP_ENVIRONMENTS["$key"]="$value"
-                        print_message DEBUG "Desktop environment '$key' scripts: ${DESKTOP_ENVIRONMENTS[$key]}"
-                    fi
-                else
-                    print_message WARNING "Line did not match ${current_section} pattern: $line"
-                fi
-                ;;
-            *)
-                print_message WARNING "Unknown section: $current_section"
-                ;;
-        esac
-    done < "$toml_file"
-
-     # Remove extra spaces from keys in associative arrays
-    for key in "${!FORMAT_TYPES[@]}"; do
-        new_key="${key%% }"
-        FORMAT_TYPES["$new_key"]="${FORMAT_TYPES[$key]}"
-        [ "$new_key" != "$key" ] && unset "FORMAT_TYPES[$key]"
-    done
-
-    for key in "${!DESKTOP_ENVIRONMENTS[@]}"; do
-        new_key="${key%% }"
-        DESKTOP_ENVIRONMENTS["$new_key"]="${DESKTOP_ENVIRONMENTS[$key]}"
-        [ "$new_key" != "$key" ] && unset "DESKTOP_ENVIRONMENTS[$key]"
-    done
-
-    print_message DEBUG "Parsed stages:"
-    for key in "${!INSTALL_SCRIPTS[@]}"; do
-        print_message DEBUG "  Stage '$key': ${INSTALL_SCRIPTS[$key]}"
-    done
-
-    print_message DEBUG "Parsed format types:"
-    for format in "${!FORMAT_TYPES[@]}"; do
-        print_message DEBUG "  Format '$format': ${FORMAT_TYPES[$format]}"
-    done
-
-    print_message DEBUG "Parsed desktop environments:"
-    for de in "${!DESKTOP_ENVIRONMENTS[@]}"; do
-        print_message DEBUG "  Desktop environment '$de': ${DESKTOP_ENVIRONMENTS[$de]}"
-    done
-
     return 0
 }
 # @description Check if dialog is installed.
@@ -1679,130 +1473,63 @@ INSTALLATION_STEPS=(
 # @description Log message.
 # @arg $1 string Message
 log_message() {
-    local timestamp
+    local timestamp=$(date +"%Y-%m-%d %H:%M:%S")
     local message="$1"
 
-    timestamp=$(date "+%Y-%m-%d %H:%M:%S")
-    echo "[$timestamp] $message" >> "$LOG_FILE"
+    echo "${timestamp}|${message}" >> "$LOG_FILE"
 }
-# Global variables for checkpoint management
-CHECKPOINT_FILE="/tmp/arch_install_checkpoint"
-CURRENT_STAGE=""
-CURRENT_SCRIPT=""
-CURRENT_FUNCTION=""
-CURRENT_COMMAND_INDEX=0
-
+# @description Save checkpoint.
+# @arg $1 string Stage
+# @arg $2 string Script
+# @arg $3 string Function
+# @arg $4 string Command index
+# Checkpoint file one > to over write >> to append
 save_checkpoint() {
     local stage="$1"
     local script="$2"
-    local function_name="$3"
-    local timestamp=$(date "+%Y-%m-%d %H:%M:%S")
+    local function="$3"
+    local command_index="$4"
+    local timestamp=$(date +"%Y-%m-%d %H:%M:%S")
 
-    echo "${timestamp}|${stage}|${script}|${function_name}" > "$CHECKPOINT_FILE"
-    log_message "Checkpoint saved: ${timestamp}|${stage}|${script}|${function_name}"
-    
-    # Update global variables
-    CURRENT_STAGE="$stage"
-    CURRENT_SCRIPT="$script"
-    CURRENT_FUNCTION="$function_name"
-}
-resume_from_checkpoint() {
-    if [ -f "$CHECKPOINT_FILE" ]; then
-        IFS='|' read -r CURRENT_STAGE CURRENT_SCRIPT CURRENT_FUNCTION < "$CHECKPOINT_FILE"
-        print_message INFO "Checkpoint found: Stage: $CURRENT_STAGE, Script: $CURRENT_SCRIPT, Function: $CURRENT_FUNCTION"
-        read -p "Do you want to resume from this checkpoint? (y/n) " -n 1 -r
-        echo
-        if [[ $REPLY =~ ^[Yy]$ ]]; then
-            execute_from_checkpoint
-        else
-            print_message INFO "Starting fresh installation"
-            rm -f "$CHECKPOINT_FILE"
-            start_fresh_installation
-        fi
-    else
-        print_message INFO "No checkpoint found. Starting fresh installation."
-        start_fresh_installation
+
+    # Ensure stage is set for main function calls
+    if [[ "$function" == "main" && -z "$stage" ]]; then
+        stage="$CURRENT_STAGE"
     fi
-}
 
-execute_stage() {
-    local stage="$1"
-    save_checkpoint "stage" "$stage"
-    
-    # Get scripts for this stage
-    local scripts="${INSTALLATION_STEPS[$stage]}"
-    
-    for script in $scripts; do
-        if [[ "$CURRENT_SCRIPT" == "" || "$script" == "$CURRENT_SCRIPT" ]]; then
-            execute_script "$script"
-        fi
-    done
-}
-save_checkpoint() {
-    local stage="$1"
-    local script="$2"
-    local function_name="$3"
-    local timestamp=$(date "+%Y-%m-%d %H:%M:%S")
+    # Save the checkpoint to the file
+    if ! echo "${timestamp}|${stage}|${script}|${function}|${command_index}" >> "$CHECKPOINT_FILE"; then
+        print_message ERROR "Failed to write to checkpoint file"
+        return 1
+    fi
 
-    echo "${timestamp}|${stage}|${script}|${function_name}" > "$CHECKPOINT_FILE"
-    log_message "Checkpoint saved: ${timestamp}|${stage}|${script}|${function_name}"
+    log_message "Checkpoint saved: ${timestamp}|${stage}|${script}|${function}|${command_index}"
 
-    # Export variables for global access
     export CURRENT_STAGE="$stage"
     export CURRENT_SCRIPT="$script"
-    export CURRENT_FUNCTION="$function_name"
+    export CURRENT_FUNCTION="$function"
+    CURRENT_COMMAND_INDEX="$command_index"
 }
-LAST_CHECKPOINTED_FUNCTION=""
 
-auto_checkpoint() {
-    local calling_script="${BASH_SOURCE[1]}"
-    local function_name="${FUNCNAME[1]}"
-    
-    # Only checkpoint if we're in a script within the scripts directory
-    if [[ "$calling_script" == *"/scripts/"* ]]; then
-        # Only checkpoint if we've entered a new function
-        if [[ "$function_name" != "$LAST_CHECKPOINTED_FUNCTION" ]]; then
-            local stage=$(basename "$(dirname "$calling_script")")
-            local script=$(basename "$calling_script")
+get_current_context() {
+    local calling_script="$(basename "${BASH_SOURCE[1]}")"
+    local stage=""
 
-            save_checkpoint "$stage" "$script" "$function_name"
-            LAST_CHECKPOINTED_FUNCTION="$function_name"
-        fi
-    fi
-}
-execute_from_checkpoint() {
-    print_message INFO "Resuming from checkpoint:"
-    print_message INFO "  Stage: $CURRENT_STAGE"
-    print_message INFO "  Script: $CURRENT_SCRIPT"
-    print_message INFO "  Function: $CURRENT_FUNCTION"
-
-    local resume_started=false
-
-    # Sort the stages to maintain order
-    IFS=$'\n' sorted_stages=($(printf "%s\n" "${!stages[@]}" | sort))
-
-    for stage in "${sorted_stages[@]}"; do
-        if [[ "$stage" == "$CURRENT_STAGE" ]]; then
-            resume_started=true
-        fi
-
-        if [[ "$resume_started" == true ]]; then
-            IFS=' ' read -ra scripts <<< "${stages[$stage]}"
-            for script_info in "${scripts[@]}"; do
-                IFS=':' read -r script type <<< "$script_info"
-                script=${script//\{desktop_environment\}/$DESKTOP_ENVIRONMENT}
-
-                if [[ "$script" == "$CURRENT_SCRIPT" ]]; then
-                    execute_script "$stage" "$script" "$type" "$FORMAT_TYPE" "$DESKTOP_ENVIRONMENT" "$CURRENT_FUNCTION"
-                    CURRENT_FUNCTION=""
-                    continue
-                fi
-
-                if [[ "$resume_started" == true ]]; then
-                    execute_script "$stage" "$script" "$type" "$FORMAT_TYPE" "$DESKTOP_ENVIRONMENT" ""
-                fi
-            done
-            CURRENT_SCRIPT=""
+    # Iterate through stages to find the current one
+    for s in "${!stages[@]}"; do
+        if [[ "${stages[$s]}" == *"$calling_script"* ]]; then
+            stage="$s"
+            break
         fi
     done
+
+    if [[ -z "$stage" ]]; then
+        print_message WARNING "Could not determine stage for script: $calling_script"
+        stage="unknown"
+    fi
+
+    export CURRENT_STAGE="$stage"
+    export CURRENT_SCRIPT="$calling_script"
+
+    print_message DEBUG "Current context - Stage: $CURRENT_STAGE, Script: $CURRENT_SCRIPT"
 }

@@ -53,134 +53,49 @@ if [ -z "${stages[*]}" ]; then
     print_message ERROR "Stages array is empty or not defined in lib.sh"
     exit 1
 fi
-# @description Resume installation from checkpoint
-# @arg $1 string Format type
-# @arg $2 string Desktop environment
-resume_installation() {
-    local format_type="$1"
-    local desktop_environment="$2"
 
-    print_message INFO "Resuming from checkpoint:"
-    print_message INFO "  Stage: $CURRENT_STAGE"
-    print_message INFO "  Script: $CURRENT_SCRIPT"
-    print_message INFO "  Function: $CURRENT_FUNCTION"
-
-    local resume_started=false
-
-    # Sort the stages array keys to ensure correct order
-    readarray -t sorted_stages < <(for key in "${!stages[@]}"; do echo "$key"; done | sort)
-
-    for stage in "${sorted_stages[@]}"; do
-        if [[ "$resume_started" == false ]]; then
-            if [[ "$stage" == "$CURRENT_STAGE" ]]; then
-                resume_started=true
-            else
-                continue
+read_checkpoint() {
+    local desktop_environment="$1"
+    local current_stage
+    local current_script
+    local current_function
+    local current_command_index
+    
+    print_message DEBUG "Reading checkpoint file: $CHECKPOINT_FILE"
+    # Check if the checkpoint file exists
+    if [ -f "$CHECKPOINT_FILE" ]; then
+        # Read the last line from the checkpoint file
+        IFS='|' read -r timestamp current_stage current_script current_function current_command_index < <(tail -n 1 "$CHECKPOINT_FILE")
+        print_message INFO "Checkpoint info:"
+        print_message INFO "  Timestamp: $timestamp"
+        print_message INFO "  Stage: $current_stage"
+        print_message INFO "  Script: $current_script"
+        print_message INFO "  Function: $current_function"
+        print_message INFO "  Command Index: $current_command_index"
+        
+        # Check if the checkpoint file contains valid information
+        if [ -n "$current_stage" ] || [ -n "$current_script" ]; then
+            # Ask user if they want to resume or start fresh
+            print_message INFO "Checkpoint found. Do you want to resume the installation?"
+            read -p "Resume installation? (y/n): " -n 1 -r
+            echo
+            if [[ $REPLY =~ ^[Yy]$ ]]; then
+                # Resume installation
+                rm -f "$CHECKPOINT_FILE"
+                print_message INFO "Resuming installation from stage: $current_stage"
+                process_installation_stages "$current_stage" "$current_script" "$desktop_environment"
+                return
             fi
         fi
-
-        IFS=' ' read -ra scripts <<< "${stages[$stage]}"
-        local script_resume_started=false
-
-        for script_info in "${scripts[@]}"; do
-            IFS=':' read -r script type <<< "$script_info"
-
-            # Replace placeholder with actual desktop environment
-            script=${script//\{desktop_environment\}/$desktop_environment}
-
-            if [[ "$resume_started" == true && "$script_resume_started" == false ]]; then
-                if [[ "$script" == "$CURRENT_SCRIPT" ]]; then
-                    script_resume_started=true
-                else
-                    continue
-                fi
-            fi
-
-            if [[ "$resume_started" == true && "$script_resume_started" == true ]]; then
-                execute_script "$stage" "$script" "$type" "$format_type" "$desktop_environment" "$CURRENT_FUNCTION"
-                CURRENT_FUNCTION=""
-            fi
-        done
-        CURRENT_SCRIPT=""
-    done
-}
-# @description Execute script
-# @arg $1 string Stage
-# @arg $2 string Script
-# @arg $3 string Type
-# @arg $4 string Format type
-# @arg $5 string Desktop environment
-# @arg $6 string Resume function    
-execute_script() {
-    local stage="$1"
-    local script="$2"
-    local type="$3"
-    local format_type="$4"
-    local desktop_environment="$5"
-    local resume_function="$6"
-
-    script=${script//\{desktop_environment\}/$desktop_environment}
-    script_path="${SCRIPTS_DIR}/${stage}/${script}"
-
-    if [[ ! -f "$script_path" ]]; then
-        print_message WARNING "Script not found: $script_path"
-        return 0
     fi
 
-    if [[ -n "$resume_function" ]]; then
-        print_message INFO "Resuming from function $resume_function in $script"
-        bash "$script_path" --resume-function "$resume_function"
-    else
-        bash "$script_path"
-    fi
-
-    # Update checkpoint after script execution
-    save_checkpoint "$stage" "$script" ""
-
-    if [[ $? -eq 0 ]]; then
-        print_message ACTION "Successfully executed: $script_path"
-    else
-        if [[ "$type" == "m" ]]; then
-            print_message ERROR "Mandatory script failed: $script in stage $stage"
-            return 1
-        else
-            print_message WARNING "Optional script failed: $script in stage $stage"
-        fi
-    fi
+    # If no valid checkpoint or user chose not to resume, start fresh
+    rm -f "$CHECKPOINT_FILE"
+    print_message INFO "Starting fresh installation"
+    # Fresh start from 1-pre/pre-setup.sh
+    process_installation_stages "1-pre" "pre-setup.sh" "$desktop_environment"
 }
-# @description Start fresh installation
-# @arg $1 string Format type
-# @arg $2 string Desktop environment
-start_fresh_installation() {
-    local format_type="$1"
-    local desktop_environment="$2"
 
-    rm -f "$CHECKPOINT_FILE"  # Ensure no old checkpoint exists
-    process_installation_stages "$format_type" "$desktop_environment"
-}
-# @description Main installation
-# @arg $1 string Format type
-# @arg $2 string Desktop environment
-main_installation() {
-    local format_type="$1"
-    local desktop_environment="$2"
-
-    if resume_from_checkpoint; then
-        print_message INFO "Checkpoint found. Resuming installation."
-        read -p "Do you want to resume from the last checkpoint? (y/n) " -n 1 -r
-        echo
-        if [[ $REPLY =~ ^[Yy]$ ]]; then
-            resume_installation "$format_type" "$desktop_environment"
-        else
-            print_message INFO "Starting fresh installation"
-            rm -f "$CHECKPOINT_FILE"
-            start_fresh_installation "$format_type" "$desktop_environment"
-        fi
-    else
-        print_message INFO "No checkpoint found. Starting fresh installation."
-        start_fresh_installation "$format_type" "$desktop_environment"
-    fi
-}
 # Main execution
 main() {
     MAIN_START_TIMESTAMP=""
@@ -201,15 +116,6 @@ main() {
 
     export STAGES_CONFIG="${STAGES_CONFIG:-$ARCH_DIR/stages.toml}"
 
-    # Parse the stages TOML file
-    #parse_stages_toml "$STAGES_CONFIG" || { print_message ERROR "Failed to parse stages.toml"; exit 1; }
-    #print_message DEBUG "Parsed stages.toml: ${STAGES_CONFIG}"
-
-    # Debug: Print the contents of INSTALL_SCRIPTS
-    #print_message DEBUG "Contents of INSTALL_SCRIPTS:"
-    #for key in "${!INSTALL_SCRIPTS[@]}"; do
-    #    print_message DEBUG "  $key: ${INSTALL_SCRIPTS[$key]}"
-    #done
     # Reads config file arch_config.toml and copies it to arch_config.cfg
     read_config || { print_message ERROR "Failed to read config"; exit 1; }
     # Load configuration
@@ -221,10 +127,10 @@ main() {
         print_message ERROR "Missing required scripts. Aborting installation."
         exit 1
     fi
-    # If we reach this point, all required scripts are present
-    print_message OK "All required scripts are present."
-        main_installation "$FORMAT_TYPE" "$DESKTOP_ENVIRONMENT" || {
-        print_message ERROR "Installation failed"
+
+    # Read checkpoint file
+    read_checkpoint "$DESKTOP_ENVIRONMENT" || {
+        print_message ERROR "Failed to read checkpoint"
         exit 1
     }
     # Run install scripts

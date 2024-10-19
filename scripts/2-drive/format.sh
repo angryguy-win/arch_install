@@ -18,7 +18,7 @@ else
     echo "Error: Cannot find lib.sh at $LIB_PATH" >&2
     exit 1
 fi
-trap 'auto_checkpoint' DEBUG
+
 set -o errtrace
 set -o functrace
 set_error_trap
@@ -26,17 +26,17 @@ set_error_trap
 # Enable dry run mode for testing purposes (set to false to disable)
 # Ensure DRY_RUN is exported
 export DRY_RUN="${DRY_RUN:-false}"
-
+# Get the current stage/script context
+get_current_context
 
 luks_setup() {
-    save_checkpoint "function" "${FUNCNAME[0]}"
     local partition_root="$1"
     if [ "$LUKS" = "true" ]; then
         if ! cryptsetup status cryptroot &>/dev/null; then
             execute_process "Opening LUKS container" \
                 --error-message "Failed to open LUKS container" \
                 --success-message "LUKS container opened successfully" \
-                --checkpoint-step "${FUNCNAME[1]}" \
+                --checkpoint-step "$CURRENT_STAGE" "$CURRENT_SCRIPT" "luks_setup" \
                 "cryptsetup luksOpen $partition_root cryptroot"
         else
             print_message INFO "LUKS container already open"
@@ -52,7 +52,6 @@ luks_setup() {
 # @param partition_efi
 # @param bios_type
 formating() {
-    save_checkpoint "function" "${FUNCNAME[0]}"
     local partition_root="$1"
     local partition_efi="$2"
     local bios_type="$3"
@@ -103,11 +102,10 @@ formating() {
         --error-message "Formatting partitions failed" \
         --success-message "Formatting partitions completed" \
         --critical \
-        --checkpoint-step "${FUNCNAME[1]}" \
+        --checkpoint-step "$CURRENT_STAGE" "$CURRENT_SCRIPT" "formating" \
         "${commands[@]}"
 }
 subvolumes_setup() {
-    save_checkpoint "function" "${FUNCNAME[0]}"
     local partition_root="$1"
     # Convert SUBVOLUMES to an array
     local subvolumes=(${SUBVOLUMES//,/ }) # DO NOT "" it breaks the array
@@ -122,7 +120,7 @@ subvolumes_setup() {
             --error-message "Failed to create subvolumes" \
             --success-message "Subvolumes created successfully" \
             --critical \
-            --checkpoint-step "${FUNCNAME[1]}" \
+            --checkpoint-step "$CURRENT_STAGE" "$CURRENT_SCRIPT" "subvolumes_setup" \
             "mount -t btrfs $partition_root /mnt" \
             "btrfs subvolume create /mnt/@" \
             "$(for subvol in "${subvolumes[@]}"; do echo "btrfs subvolume create /mnt/$subvol"; done)" \
@@ -130,7 +128,6 @@ subvolumes_setup() {
     fi 
 }
 mounting() {
-    save_checkpoint "function" "${FUNCNAME[0]}"
     local partition_root="$1"
     local mount_options="$2"
     local commands=()
@@ -162,11 +159,11 @@ mounting() {
     execute_process "Mounting partitions" \
         --error-message "Mounting partitions failed" \
         --success-message "Mounting partitions completed" \
-        --checkpoint-step "${FUNCNAME[1]}" \
+        --checkpoint-step "$CURRENT_STAGE" "$CURRENT_SCRIPT" "mounting" \
         "${commands[@]}"
 }
 main() {
-    save_checkpoint "function" "$(basename "${BASH_SOURCE[0]}")"
+    save_checkpoint "$CURRENT_STAGE" "$CURRENT_SCRIPT" "main" "0"
     #load_config
     process_init "Formatting partitions $FORMAT_TYPE"
     print_message INFO "Starting formatting partitions $FORMAT_TYPE process"

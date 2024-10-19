@@ -25,6 +25,7 @@ set_error_trap
 # Enable dry run mode for testing purposes (set to false to disable)
 # Ensure DRY_RUN is exported
 export DRY_RUN="${DRY_RUN:-false}"
+get_current_context
 
 set_microcode() {
 
@@ -46,12 +47,12 @@ bootstrap_pkgs() {
     execute_process "Installing base system" \
         --error-message "Base system installation failed" \
         --success-message "Base system installation completed" \
+        --checkpoint-step "$CURRENT_STAGE" "$CURRENT_SCRIPT" "bootstrap_pkgs" \
         "pacstrap /mnt base base-devel linux linux-firmware efibootmgr grub ${MICROCODE}-ucode --noconfirm --needed"
 
 }
 
 main() {
-    save_checkpoint "function" "$(basename "${BASH_SOURCE[0]}")"
     process_init "Bootstrap Packages"
     print_message INFO "Starting bootstrap packages process"
     print_message INFO "DRY_RUN in $(basename "$0") is set to: ${YELLOW}$DRY_RUN"

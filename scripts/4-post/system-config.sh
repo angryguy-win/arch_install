@@ -22,6 +22,8 @@ set -o errtrace
 set -o functrace
 set_error_trap
 
+# Get the current stage/script context
+get_current_context
 # Enable dry run mode for testing purposes (set to false to disable)
 # Ensure DRY_RUN is exported
 export DRY_RUN="${DRY_RUN:-false}"
@@ -54,6 +56,7 @@ gpu_setup() {
         --use-chroot \
         --error-message "GPU setup failed" \
         --success-message "GPU setup completed" \
+        --checkpoint-step "$CURRENT_STAGE" "$CURRENT_SCRIPT" "gpu_setup" \
         "${command}"
 }
 system_config() {
@@ -63,6 +66,7 @@ system_config() {
         --use-chroot \
         --error-message "System config failed" \
         --success-message "System config completed" \
+        --checkpoint-step "$CURRENT_STAGE" "$CURRENT_SCRIPT" "system_config" \
         "echo '$HOSTNAME' > /etc/hostname" \
         "echo '$LOCALE UTF-8' > /etc/locale.gen" \
         "locale-gen" \
@@ -77,7 +81,7 @@ system_config() {
 }
 
 main() {
-    save_checkpoint "function" "$(basename "${BASH_SOURCE[0]}")"
+    save_checkpoint "$CURRENT_STAGE" "$CURRENT_SCRIPT" "main" "0"
     process_init "System Config"
     print_message INFO "Starting system config process"
     print_message INFO "DRY_RUN in $(basename "$0") is set to: ${YELLOW}$DRY_RUN"

@@ -21,7 +21,8 @@ fi
 set -o errtrace
 set -o functrace
 set_error_trap
-
+# Get the current stage/script context
+get_current_context
 # Enable dry run mode for testing purposes (set to false to disable)
 # Ensure DRY_RUN is exported
 export DRY_RUN="${DRY_RUN:-false}"
@@ -33,11 +34,13 @@ cosmic_os() {
     execute_process "Installing Cosmic OS" \
         --error-message "Cosmic OS installation failed" \
         --success-message "Cosmic OS installation completed" \
+        --checkpoint-step "$CURRENT_STAGE" "$CURRENT_SCRIPT" "cosmic_os" \
         "pacman -S --noconfirm --needed cosmic cosmic-greeter"
 
 }
 
 main() {
+    save_checkpoint "$CURRENT_STAGE" "$CURRENT_SCRIPT" "main" "0"
     process_init "Installing Cosmic OS"
     print_message INFO "Starting cosmic OS process"
     print_message INFO "DRY_RUN in $(basename "$0") is set to: ${YELLOW}$DRY_RUN"

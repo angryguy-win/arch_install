@@ -22,6 +22,8 @@ set -o errtrace
 set -o functrace
 set_error_trap
 
+# Get the current stage/script context
+get_current_context
 # Enable dry run mode for testing purposes (set to false to disable)
 # Ensure DRY_RUN is exported
 export DRY_RUN="${DRY_RUN:-false}"
@@ -34,6 +36,7 @@ terminal() {
         --use-chroot \
         --error-message "Terminal installation failed" \
         --success-message "Terminal installation completed" \
+        --checkpoint-step "$CURRENT_STAGE" "$CURRENT_SCRIPT" "terminal" "" \
         "pacman -S --noconfirm --needed ${TERMINAL} kitty ${SHELL} starship" \
         "cp -r ${SCRIPT_DIR}/config/${TERMINAL} ~/.config/${TERMINAL}" \
         "cp -r ${SCRIPT_DIR}/config/starship.toml ~/.config/starship.toml" \
@@ -41,7 +44,7 @@ terminal() {
 }
 
 main() {
-    save_checkpoint "function" "$(basename "${BASH_SOURCE[0]}")"
+    save_checkpoint "$CURRENT_STAGE" "$CURRENT_SCRIPT" "main" "0"
     process_init "Terminal: $TERMINAL"
     print_message INFO "Starting Terminal process"
     print_message INFO "DRY_RUN in $(basename "$0") is set to: ${YELLOW}$DRY_RUN"

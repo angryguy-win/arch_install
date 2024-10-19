@@ -22,6 +22,8 @@ set -o errtrace
 set -o functrace
 set_error_trap
 
+# Get the current stage/script context
+get_current_context
 # Enable dry run mode for testing purposes (set to false to disable)
 # Ensure DRY_RUN is exported
 export DRY_RUN="${DRY_RUN:-false}"
@@ -35,6 +37,7 @@ enable_services() {
         --use-chroot \
         --error-message "Enable and start services failed" \
         --success-message "Enable and start services completed" \
+        --checkpoint-step "$CURRENT_STAGE" "$CURRENT_SCRIPT" "enable_services" \
         "systemctl enable NetworkManager" \
         "systemctl enable sshd" \
         "systemctl enable cronie" \
@@ -48,7 +51,7 @@ last_cleanup() {
         --use-chroot \
         --error-message "Last cleanup failed" \
         --success-message "Last cleanup completed" \
-        ""
+        --checkpoint-step "$CURRENT_STAGE" "$CURRENT_SCRIPT" "last_cleanup" \
         # TODO: Add a command to remove the installation media
         # TODO: Copy logs to /home/logs
         # TODO: copy config files to /home/config
@@ -60,6 +63,7 @@ last_cleanup() {
 }   
 
 main() {
+    save_checkpoint "$CURRENT_STAGE" "$CURRENT_SCRIPT" "main" "0"
     process_init "Last cleanup"
     print_message INFO "Starting last cleanup process"
     print_message INFO "DRY_RUN in $(basename "$0") is set to: ${YELLOW}$DRY_RUN"

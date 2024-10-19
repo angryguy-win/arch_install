@@ -25,7 +25,7 @@ set_error_trap
 # Enable dry run mode for testing purposes (set to false to disable)
 # Ensure DRY_RUN is exported
 export DRY_RUN="${DRY_RUN:-false}"
-
+get_current_context
 
 generate_fstab() {
     
@@ -33,6 +33,7 @@ generate_fstab() {
     execute_process "Generating fstab" \
         --error-message "fstab generation failed" \
         --success-message "fstab generation completed" \
+        --checkpoint-step "$CURRENT_STAGE" "$CURRENT_SCRIPT" "generate_fstab" \
         "genfstab -U /mnt >> /mnt/etc/fstab"
 
 }
@@ -42,12 +43,12 @@ grub_setup() {
         --use-chroot \
         --error-message "GRUB installation failed" \
         --success-message "GRUB installation completed" \
+        --checkpoint-step "$CURRENT_STAGE" "$CURRENT_SCRIPT" "grub_setup" \
         "grub-install --target=x86_64-efi --efi-directory=/boot/efi --bootloader-id=GRUB" \
         "grub-mkconfig -o /boot/grub/grub.cfg" 
 
 }
 main() {
-    save_checkpoint "function" "$(basename "${BASH_SOURCE[0]}")"
     process_init "Generate Fstab"
     print_message INFO "Starting generate fstab process"
     print_message INFO "DRY_RUN in $(basename "$0") is set to: ${YELLOW}$DRY_RUN"

@@ -21,7 +21,8 @@ fi
 set -o errtrace
 set -o functrace
 set_error_trap
-
+# Get the current stage/script context
+get_current_context
 # Enable dry run mode for testing purposes (set to false to disable)
 # Ensure DRY_RUN is exported
 export DRY_RUN="${DRY_RUN:-false}"
@@ -33,11 +34,13 @@ kde_plasma() {
     execute_process "Installing KDE Plasma" \
         --error-message "KDE Plasma installation failed" \
         --success-message "KDE Plasma installation completed" \
+        --checkpoint-step "$CURRENT_STAGE" "$CURRENT_SCRIPT" "kde_plasma" \
         "pacman -S --noconfirm --needed plasma plasma-wayland-session kde-applications"
 
 }
 
 main() {
+    save_checkpoint "$CURRENT_STAGE" "$CURRENT_SCRIPT" "main" "0"
     process_init "Installing: KDE Plasma"
     print_message INFO "Starting KDE Plasma process"
     print_message INFO "DRY_RUN in $(basename "$0") is set to: ${YELLOW}$DRY_RUN"

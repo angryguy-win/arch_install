@@ -22,6 +22,9 @@ set -o errtrace
 set -o functrace
 set_error_trap
 
+# Get the current stage/script context
+get_current_context
+
 # Enable dry run mode for testing purposes (set to false to disable)
 # Ensure DRY_RUN is exported
 export DRY_RUN="${DRY_RUN:-false}"
@@ -84,6 +87,7 @@ install_package_group() {
             --use-chroot \
             --error-message "Failed to install $group_name packages" \
             --success-message "$group_name packages installed successfully" \
+            --checkpoint-step "$CURRENT_STAGE" "$CURRENT_SCRIPT" "install_package_group" \
             "pacman -S --noconfirm --needed $packages"
     else
         print_message WARNING "No packages defined for group: $group_name"
@@ -106,7 +110,7 @@ install_selected_packages() {
 }
 # Function to execute commands with error handling
 main() {
-    save_checkpoint "function" "$(basename "${BASH_SOURCE[0]}")"
+    save_checkpoint "$CURRENT_STAGE" "$CURRENT_SCRIPT" "main" "0"
     process_init "System Packages"
     print_message INFO "Starting system packages process"
     print_message INFO "DRY_RUN in $(basename "$0") is set to: ${YELLOW}$DRY_RUN"
