@@ -37,3 +37,15 @@ BIOS_TYPE = "hybrid"
 CPU_VENDOR = "amd"
 GPU_VENDOR = "amd"
 INITRD_MICROCODE = "amd-ucode.img"
+# from here on down need to be tested and checked
+GPT_AUTOMOUNT = true
+BOOTLOADER = "systemd"
+KMS = true
+LVM = false
+DISPLAY_DRIVER = "amdgpu"
+KERNELS_COMPRESSION = "zstd"
+BOOT_DIRECTORY = "/boot"
+ESP_DIRECTORY = "/boot"
+KERNEL = "linux"
+CMDLINE_LINUX = "quiet"
+CMDLINE_LINUX_ROOT = "root=UUID=$(blkid -s UUID -o value $PARTITION_ROOT)"

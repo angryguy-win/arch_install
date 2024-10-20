@@ -1,4 +1,10 @@
-#!/bin/bash
+#!/usr/bin/env bash
+# shellcheck disable=SC2034,SC2001,SC2155,SC2153,SC2143
+# SC2034: foo appears unused. Verify it or export it.
+# SC2001: See if you can use ${variable//search/replace} instead.
+# SC2155 Declare and assign separately to avoid masking return values
+# SC2153: Possible Misspelling: MYVARIABLE may not be assigned. Did you mean MY_VARIABLE?
+# SC2143: Use grep -q instead of comparing output with [ -n .. ].
 # Configure Bootloader Script
 # Author: ssnow
 # Date: 2024
@@ -21,7 +27,8 @@ fi
 set -o errtrace
 set -o functrace
 set_error_trap
-
+# Get the current stage/script context
+get_current_context
 # Enable dry run mode for testing purposes (set to false to disable)
 export DRY_RUN="${DRY_RUN:-false}"
 
@@ -31,6 +38,7 @@ configure_mkinitcpio() {
     local mkinitcpio_conf="/mnt/etc/mkinitcpio.conf"
     local hooks="base udev autodetect modconf block filesystems keyboard fsck"
     local modules=""
+    local commands=()
 
     # Add KMS modules if needed
     if [ "$KMS" == "true" ]; then
@@ -39,8 +47,7 @@ configure_mkinitcpio() {
             "amdgpu") modules+="amdgpu " ;;
             "ati")    modules+="radeon " ;;
             "nvidia" | "nvidia-lts" | "nvidia-dkms")
-                modules+="nvidia nvidia_modeset nvidia_uvm nvidia_drm "
-                ;;
+                      modules+="nvidia nvidia_modeset nvidia_uvm nvidia_drm " ;;
             "nouveau") modules+="nouveau " ;;
         esac
     fi
@@ -57,164 +64,190 @@ configure_mkinitcpio() {
         fi
     fi
 
-    execute_process "Updating mkinitcpio.conf" \
-        --use-chroot \
-        --error-message "Failed to update mkinitcpio.conf" \
-        --success-message "Successfully updated mkinitcpio.conf" \
-        "sed -i 's/^HOOKS=.*/HOOKS=($hooks)/' $mkinitcpio_conf" \
-        "sed -i 's/^MODULES=.*/MODULES=($modules)/' $mkinitcpio_conf"
+    print_message ACTION "Updating mkinitcpio.conf"
+    commands+=("sed -i 's/^HOOKS=.*/HOOKS=($hooks)/' $mkinitcpio_conf")
+    commands+=("sed -i 's/^MODULES=.*/MODULES=($modules)/' $mkinitcpio_conf")
 
     if [ -n "$KERNELS_COMPRESSION" ]; then
-        execute_process "Setting kernel compression" \
-            --use-chroot \
-            "sed -i 's/^#COMPRESSION=\"$KERNELS_COMPRESSION\"/COMPRESSION=\"$KERNELS_COMPRESSION\"/' $mkinitcpio_conf"
+        print_message ACTION "Setting kernel compression"
+        commands+=("sed -i 's/^#COMPRESSION=\"$KERNELS_COMPRESSION\"/COMPRESSION=\"$KERNELS_COMPRESSION\"/' $mkinitcpio_conf")
     fi
+    print_message ACTION "Regenerating initramfs"
+    commands+=("mkinitcpio -P")
 
-    execute_process "Regenerating initramfs" \
+    execute_process "Configure mkinitcpio" \
         --use-chroot \
-        --error-message "Failed to regenerate initramfs" \
-        --success-message "Successfully regenerated initramfs" \
-        "mkinitcpio -P"
+        --error-message "Failed to configure mkinitcpio" \
+        --success-message "Successfully configured mkinitcpio" \
+        --checkpoint-step "$CURRENT_STAGE" "$CURRENT_SCRIPT" "configure_mkinitcpio" \
+        "${commands[@]}"
 }
 
 configure_grub() {
+    local commands=()
+    local grub_default
+
     print_message INFO "Configuring GRUB"
 
-    execute_process "Installing GRUB packages" \
-        --use-chroot \
-        --error-message "Failed to install GRUB packages" \
-        --success-message "Successfully installed GRUB packages" \
-        "pacman -S --noconfirm grub dosfstools"
+    print_message ACTION "Installing GRUB packages"
+    commands+=("pacman -S --noconfirm grub dosfstools")
 
-    local grub_default="/mnt/etc/default/grub"
-    execute_process "Configuring GRUB" \
+    grub_default="/mnt/etc/default/grub"
+    print_message ACTION "Configuring GRUB"
+    commands+=("sed -i 's/GRUB_DEFAULT=0/GRUB_DEFAULT=saved/' $grub_default")
+    commands+=("sed -i 's/#GRUB_SAVEDEFAULT=\"true\"/GRUB_SAVEDEFAULT=\"true\"/' $grub_default")
+    commands+=("sed -i -E 's/GRUB_CMDLINE_LINUX_DEFAULT=\"(.*) quiet\"/GRUB_CMDLINE_LINUX_DEFAULT=\"\1\"/' $grub_default")
+    commands+=("sed -i 's/GRUB_CMDLINE_LINUX=\"\"/GRUB_CMDLINE_LINUX=\"$CMDLINE_LINUX\"/' $grub_default")
+    commands+=("echo -e '\n# alis\nGRUB_DISABLE_SUBMENU=y' >> $grub_default")
+
+    if [ "$BIOS_TYPE" == "uefi" ]; then
+        print_message ACTION "Installing GRUB for UEFI"
+        commands+=("grub-install --target=x86_64-efi --bootloader-id=grub --efi-directory=$ESP_DIRECTORY --recheck")
+    elif [ "$BIOS_TYPE" == "bios" ]; then
+        print_message ACTION "Installing GRUB for BIOS"
+        commands+=("grub-install --target=i386-pc --recheck $DEVICE")
+    fi
+
+    print_message ACTION "Generating GRUB config"
+    commands+=("grub-mkconfig -o $BOOT_DIRECTORY/grub/grub.cfg")
+
+    if [ "$SECURE_BOOT" == "true" ]; then
+        print_message ACTION "Configuring Secure Boot"
+        commands+=("mv {PreLoader,HashTool}.efi /mnt$ESP_DIRECTORY/EFI/grub")
+        commands+=("cp /mnt$ESP_DIRECTORY/EFI/grub/grubx64.efi /mnt$ESP_DIRECTORY/EFI/systemd/loader.efi")
+        commands+=("efibootmgr --unicode --disk $DEVICE --part 1 --create --label \"Arch Linux (PreLoader)\" --loader \"/EFI/grub/PreLoader.efi\"")
+    fi
+
+    execute_process "Configure GRUB" \
         --use-chroot \
         --error-message "Failed to configure GRUB" \
         --success-message "Successfully configured GRUB" \
-        "sed -i 's/GRUB_DEFAULT=0/GRUB_DEFAULT=saved/' $grub_default" \
-        "sed -i 's/#GRUB_SAVEDEFAULT=\"true\"/GRUB_SAVEDEFAULT=\"true\"/' $grub_default" \
-        "sed -i -E 's/GRUB_CMDLINE_LINUX_DEFAULT=\"(.*) quiet\"/GRUB_CMDLINE_LINUX_DEFAULT=\"\1\"/' $grub_default" \
-        "sed -i 's/GRUB_CMDLINE_LINUX=\"\"/GRUB_CMDLINE_LINUX=\"$CMDLINE_LINUX\"/' $grub_default" \
-        "echo -e '\n# alis\nGRUB_DISABLE_SUBMENU=y' >> $grub_default"
-
-    if [ "$BIOS_TYPE" == "uefi" ]; then
-        execute_process "Installing GRUB for UEFI" \
-            --use-chroot \
-            "grub-install --target=x86_64-efi --bootloader-id=grub --efi-directory=$ESP_DIRECTORY --recheck"
-    elif [ "$BIOS_TYPE" == "bios" ]; then
-        execute_process "Installing GRUB for BIOS" \
-            --use-chroot \
-            "grub-install --target=i386-pc --recheck $DEVICE"
-    fi
-
-    execute_process "Generating GRUB config" \
-        --use-chroot \
-        "grub-mkconfig -o $BOOT_DIRECTORY/grub/grub.cfg"
-
-    if [ "$SECURE_BOOT" == "true" ]; then
-        execute_process "Configuring Secure Boot" \
-            "mv {PreLoader,HashTool}.efi /mnt$ESP_DIRECTORY/EFI/grub" \
-            "cp /mnt$ESP_DIRECTORY/EFI/grub/grubx64.efi /mnt$ESP_DIRECTORY/EFI/systemd/loader.efi" \
-            --use-chroot \
-            "efibootmgr --unicode --disk $DEVICE --part 1 --create --label \"Arch Linux (PreLoader)\" --loader \"/EFI/grub/PreLoader.efi\""
-    fi
-
-    if [ "$VIRTUALBOX" == "true" ]; then
-        execute_process "Configuring VirtualBox boot" \
-            "echo -n \"\EFI\grub\grubx64.efi\" > /mnt$ESP_DIRECTORY/startup.nsh"
-    fi
+        --checkpoint-step "$CURRENT_STAGE" "$CURRENT_SCRIPT" "configure_grub" \
+        "${commands[@]}"
 }
 
 configure_systemd_boot() {
+    local commands=()
+    local loader_conf
+    local entry_dir
+
     print_message INFO "Configuring systemd-boot"
 
-    execute_process "Installing systemd-boot" \
-        --use-chroot \
-        --error-message "Failed to install systemd-boot" \
-        --success-message "Successfully installed systemd-boot" \
-        "bootctl install"
+    print_message ACTION "Installing systemd-boot"
+    commands+=("bootctl install")
 
-    local loader_conf="/mnt$ESP_DIRECTORY/loader/loader.conf"
-    execute_process "Configuring loader.conf" \
-        "echo -e '# alis\ntimeout 5\ndefault archlinux.conf\neditor 0' > $loader_conf"
+    loader_conf="/mnt$ESP_DIRECTORY/loader/loader.conf"
+    print_message ACTION "Configuring loader.conf"
+    commands+=("echo -e '# alis\ntimeout 5\ndefault archlinux.conf\neditor 0' > $loader_conf")
 
-    local entry_dir="/mnt$ESP_DIRECTORY/loader/entries"
-    mkdir -p "$entry_dir"
+    entry_dir="/mnt$ESP_DIRECTORY/loader/entries"
+    commands+=("mkdir -p $entry_dir")
 
-    create_systemd_boot_entry "linux"
+    commands+=("create_systemd_boot_entry linux")
     if [ -n "$KERNELS" ]; then
         for KERNEL in $KERNELS; do
             [[ "$KERNEL" =~ ^.*-headers$ ]] && continue
-            create_systemd_boot_entry "$KERNEL"
+            commands+=("create_systemd_boot_entry $KERNEL")
         done
     fi
 
     if [ "$VIRTUALBOX" == "true" ]; then
-        echo -n "\EFI\systemd\systemd-bootx64.efi" > "/mnt$ESP_DIRECTORY/startup.nsh"
+        commands+=("echo -n \"\\EFI\\systemd\\systemd-bootx64.efi\" > \"/mnt$ESP_DIRECTORY/startup.nsh\"")
     fi
+
+    execute_process "Configure systemd-boot" \
+        --use-chroot \
+        --error-message "Failed to configure systemd-boot" \
+        --success-message "Successfully configured systemd-boot" \
+        --checkpoint-step "$CURRENT_STAGE" "$CURRENT_SCRIPT" "configure_systemd_boot" \
+        "${commands[@]}"
 }
 
 create_systemd_boot_entry() {
     local KERNEL="$1"
+    local commands=()
     local MICROCODE=""
+    local entry_file="$entry_dir/arch-$KERNEL.conf"
+    local fallback_entry_file="$entry_dir/arch-$KERNEL-fallback.conf"
+
     [ -n "$INITRD_MICROCODE" ] && MICROCODE="initrd /$INITRD_MICROCODE"
 
-    local entry_file="$entry_dir/arch-$KERNEL.conf"
-    cat <<EOT > "$entry_file"
-title Arch Linux ($KERNEL)
-linux /vmlinuz-$KERNEL
-$MICROCODE
-initrd /initramfs-$KERNEL.img
-options $CMDLINE_LINUX_ROOT rw $CMDLINE_LINUX
-EOT
+    # Create the main entry file
+    commands+=("{
+        echo \"title Arch Linux ($KERNEL)\"
+        echo \"linux /vmlinuz-$KERNEL\"
+        echo \"$MICROCODE\"
+        echo \"initrd /initramfs-$KERNEL.img\"
+        echo \"options $CMDLINE_LINUX_ROOT rw $CMDLINE_LINUX\"
+    } > $entry_file")
 
-    local fallback_entry_file="$entry_dir/arch-$KERNEL-fallback.conf"
-    cat <<EOT > "$fallback_entry_file"
-title Arch Linux ($KERNEL, fallback)
-linux /vmlinuz-$KERNEL
-$MICROCODE
-initrd /initramfs-$KERNEL-fallback.img
-options $CMDLINE_LINUX_ROOT rw $CMDLINE_LINUX
-EOT
+    # Create the fallback entry file
+    commands+=("{
+        echo \"title Arch Linux ($KERNEL, fallback)\"
+        echo \"linux /vmlinuz-$KERNEL\"
+        echo \"$MICROCODE\"
+        echo \"initrd /initramfs-$KERNEL-fallback.img\"
+        echo \"options $CMDLINE_LINUX_ROOT rw $CMDLINE_LINUX\"
+    } > \"$fallback_entry_file\"")
+
+    execute_process "Creating systemd-boot entry for $KERNEL" \
+        --use-chroot \
+        --error-message "Failed to create systemd-boot entry for $KERNEL" \
+        --success-message "Successfully created systemd-boot entry for $KERNEL" \
+        --checkpoint-step "$CURRENT_STAGE" "$CURRENT_SCRIPT" "create_systemd_boot_entry" \
+        "${commands[@]}"
 }
 
 configure_efistub() {
+    local commands=()
+
     print_message INFO "Configuring EFISTUB"
 
-    execute_process "Installing efibootmgr" \
-        --use-chroot \
-        --error-message "Failed to install efibootmgr" \
-        --success-message "Successfully installed efibootmgr" \
-        "pacman -S --noconfirm efibootmgr"
+    print_message ACTION "Installing efibootmgr"
+    commands+=("pacman -S --noconfirm efibootmgr")
 
-    create_efistub_entry "linux"
+    commands+=("create_efistub_entry linux")
     if [ -n "$KERNELS" ]; then
         for KERNEL in $KERNELS; do
             [[ "$KERNEL" =~ ^.*-headers$ ]] && continue
-            create_efistub_entry "$KERNEL"
+            commands+=("create_efistub_entry $KERNEL")
         done
     fi
+
+    execute_process "Configure EFISTUB" \
+        --use-chroot \
+        --error-message "Failed to configure EFISTUB" \
+        --success-message "Successfully configured EFISTUB" \
+        --checkpoint-step "$CURRENT_STAGE" "$CURRENT_SCRIPT" "configure_efistub" \
+        "${commands[@]}"
 }
 
 create_efistub_entry() {
     local KERNEL="$1"
+    local commands=()
     local MICROCODE=""
     [ -n "$INITRD_MICROCODE" ] && MICROCODE="initrd=\\$INITRD_MICROCODE"
 
     if [ "$UKI" == "true" ]; then
-        execute_process "Creating EFISTUB entry for $KERNEL" \
-            --use-chroot \
-            "efibootmgr --unicode --disk $DEVICE --part 1 --create --label \"Arch Linux ($KERNEL)\" --loader \"EFI\\linux\\archlinux-$KERNEL.efi\" --unicode --verbose" \
-            "efibootmgr --unicode --disk $DEVICE --part 1 --create --label \"Arch Linux ($KERNEL fallback)\" --loader \"EFI\\linux\\archlinux-$KERNEL-fallback.efi\" --unicode --verbose"
+        print_message ACTION "Creating EFISTUB entry for $KERNEL"
+        commands+=("efibootmgr --unicode --disk $DEVICE --part 1 --create --label \"Arch Linux ($KERNEL)\" --loader \"EFI\\linux\\archlinux-$KERNEL.efi\" --unicode --verbose")
+        commands+=("efibootmgr --unicode --disk $DEVICE --part 1 --create --label \"Arch Linux ($KERNEL fallback)\" --loader \"EFI\\linux\\archlinux-$KERNEL-fallback.efi\" --unicode --verbose")
     else
-        execute_process "Creating EFISTUB entry for $KERNEL" \
-            --use-chroot \
-            "efibootmgr --unicode --disk $DEVICE --part 1 --create --label \"Arch Linux ($KERNEL)\" --loader /vmlinuz-$KERNEL --unicode \"$CMDLINE_LINUX $CMDLINE_LINUX_ROOT rw $MICROCODE initrd=\\initramfs-$KERNEL.img\" --verbose" \
-            "efibootmgr --unicode --disk $DEVICE --part 1 --create --label \"Arch Linux ($KERNEL fallback)\" --loader /vmlinuz-$KERNEL --unicode \"$CMDLINE_LINUX $CMDLINE_LINUX_ROOT rw $MICROCODE initrd=\\initramfs-$KERNEL-fallback.img\" --verbose"
+        print_message ACTION "Creating EFISTUB entry for $KERNEL"
+        commands+=("efibootmgr --unicode --disk $DEVICE --part 1 --create --label \"Arch Linux ($KERNEL)\" --loader /vmlinuz-$KERNEL --unicode \"$CMDLINE_LINUX $CMDLINE_LINUX_ROOT rw $MICROCODE initrd=\\initramfs-$KERNEL.img\" --verbose")
+        commands+=("efibootmgr --unicode --disk $DEVICE --part 1 --create --label \"Arch Linux ($KERNEL fallback)\" --loader /vmlinuz-$KERNEL --unicode \"$CMDLINE_LINUX $CMDLINE_LINUX_ROOT rw $MICROCODE initrd=\\initramfs-$KERNEL-fallback.img\" --verbose")
     fi
+
+    execute_process "Creating EFISTUB entry for $KERNEL" \
+        --use-chroot \
+        --error-message "Failed to create EFISTUB entry for $KERNEL" \
+        --success-message "Successfully created EFISTUB entry for $KERNEL" \
+        --checkpoint-step "$CURRENT_STAGE" "$CURRENT_SCRIPT" "create_efistub_entry" \
+        "${commands[@]}"
 }
 
 main() {
+    check_checkpoint "$CURRENT_STAGE" "$CURRENT_SCRIPT" "main" "0"
     process_init "Configure Bootloader $BOOTLOADER"
     print_message INFO "Starting bootloader configuration process"
     print_message INFO "DRY_RUN in $(basename "$0") is set to: ${YELLOW}$DRY_RUN"

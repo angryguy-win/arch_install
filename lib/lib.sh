@@ -1,4 +1,10 @@
-#!/bin/bash
+#!/usr/bin/env bash
+# shellcheck disable=SC2034,SC2001,SC2155,SC2153,SC2143
+# SC2034: foo appears unused. Verify it or export it.
+# SC2001: See if you can use ${variable//search/replace} instead.
+# SC2155 Declare and assign separately to avoid masking return values
+# SC2153: Possible Misspelling: MYVARIABLE may not be assigned. Did you mean MY_VARIABLE?
+# SC2143: Use grep -q instead of comparing output with [ -n .. ].
 # Lib.sh file
 # Location: /lib/lib.sh
 # Author: ssnow
