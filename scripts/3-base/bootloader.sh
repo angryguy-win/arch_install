@@ -143,17 +143,14 @@ configure_systemd_boot() {
     entry_dir="/mnt$ESP_DIRECTORY/loader/entries"
     commands+=("mkdir -p $entry_dir")
 
-    commands+=("create_systemd_boot_entry linux")
+    create_systemd_boot_entry linux
     if [ -n "$KERNELS" ]; then
         for KERNEL in $KERNELS; do
             [[ "$KERNEL" =~ ^.*-headers$ ]] && continue
-            commands+=("create_systemd_boot_entry $KERNEL")
+            create_systemd_boot_entry $KERNEL
         done
     fi
 
-    if [ "$VIRTUALBOX" == "true" ]; then
-        commands+=("echo -n \"\\EFI\\systemd\\systemd-bootx64.efi\" > \"/mnt$ESP_DIRECTORY/startup.nsh\"")
-    fi
 
     execute_process "Configure systemd-boot" \
         --use-chroot \
@@ -206,11 +203,11 @@ configure_efistub() {
     print_message ACTION "Installing efibootmgr"
     commands+=("pacman -S --noconfirm efibootmgr")
 
-    commands+=("create_efistub_entry linux")
+    create_efistub_entry linux
     if [ -n "$KERNELS" ]; then
         for KERNEL in $KERNELS; do
             [[ "$KERNEL" =~ ^.*-headers$ ]] && continue
-            commands+=("create_efistub_entry $KERNEL")
+            create_efistub_entry $KERNEL
         done
     fi
 
