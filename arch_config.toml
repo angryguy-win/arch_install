@@ -48,4 +48,4 @@ BOOT_DIRECTORY = "/boot"
 ESP_DIRECTORY = "/boot"
 KERNEL = "linux"
 CMDLINE_LINUX = "quiet"
-CMDLINE_LINUX_ROOT = "root=UUID=$(blkid -s UUID -o value $PARTITION_ROOT)"
+

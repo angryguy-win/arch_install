@@ -521,24 +521,22 @@ load_config() {
     fi
 
     # Source the configuration file to load all variables
-    # This reads the config file and sets the variables in the current shell
     set -o allexport
     . "$CONFIG_FILE"
     set +o allexport
 
-    # Set default values for variables that might not be in the config file
-    # Read the configuration file line by line
-    print_message DEBUG "Exported variable: "
+    print_message DEBUG "Exported variables:"
     while IFS='=' read -r key value; do
         # Trim whitespace and sanitize
         key=$(sanitize "$(trim "$key")")
         value=$(sanitize "$(trim "$value")")
-        # Trim whitespace
-        #key=$(echo "$key" | xargs)
-        #value=$(echo "$value" | xargs)
 
         # Skip empty lines and comments
         [[ -z "$key" || "$key" == \#* ]] && continue
+
+        # Remove surrounding quotes from the value
+        value="${value#\"}"
+        value="${value%\"}"
 
         # Export the variable
         export "$key"="$value"
@@ -607,13 +605,13 @@ read_config() {
     # Clear the existing cfg file
     true > "$cfg_file"
 
-    # Read the TOML file and write to the cfg file, removing quotes
+    # Read the TOML file and write to the cfg file, preserving quotes
     while IFS='=' read -r key value; do
         # Remove leading/trailing whitespace from the key
         key=$(printf "%b" "$key" | sed -e 's/^[[:space:]]*//' -e 's/[[:space:]]*$//')
         
-        # Remove leading/trailing whitespace and quotes from the value
-        value=$(printf "%b" "$value" | sed -e 's/^[[:space:]]*//' -e 's/[[:space:]]*$//' -e 's/^"//;s/"$//')
+        # Remove leading/trailing whitespace from the value, but keep quotes
+        value=$(printf "%b" "$value" | sed -e 's/^[[:space:]]*//' -e 's/[[:space:]]*$//')
         
         printf "%b\n" "${key}=${value}" >> "$cfg_file"
     done < "$toml_file"

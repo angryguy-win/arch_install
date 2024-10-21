@@ -1,4 +1,4 @@
- [PROC]  Starting process:  Main Installation Process (ID: 1729337031) 2024-10-19 11:23:51
+ [PROC]  Starting process:  Main Installation Process (ID: 1729496714) 2024-10-21 07:45:14
  
 -------------------------------------------------------------------------
 
@@ -18,9 +18,9 @@
   [OK]  Configuration loaded into: /home/ssnow/Documents/GitHub/arch_install/arch_config.cfg
   [OK]  Configuration loaded successfully
  [INFO]  Checkpoint info:
- [INFO]    Timestamp: 2024-10-19 07:16:24
- [INFO]    Stage: 7-post-setup
- [INFO]    Script: post-setup.sh
+ [INFO]    Timestamp: 2024-10-21 03:43:39
+ [INFO]    Stage: 2-drive
+ [INFO]    Script: partition.sh
  [INFO]    Function: main
  [INFO]    Command Index: 0
  [INFO]  Checkpoint found. Do you want to resume the installation?
@@ -28,7 +28,7 @@
  [INFO]  Starting fresh installation
  [INFO]  Executing: 1-pre/run-checks.sh
   [OK]  Configuration loaded successfully
- [PROC]  Starting process:  Run Checks: pre-install preparations (ID: 1729337033) 2024-10-19 11:23:53
+ [PROC]  Starting process:  Run Checks: pre-install preparations (ID: 1729496759) 2024-10-21 07:45:59
  
 -------------------------------------------------------------------------
 
@@ -47,21 +47,24 @@
  [INFO]  Setting up the necessary passwords
 Type ssnow password: 
 Retype ssnow password: 
+ssnow passwords don't match. Please try again.
+Type ssnow password: 
+Retype ssnow password: 
  [ACTION]  Setting:  PASSWORD=p in /home/ssnow/Documents/GitHub/arch_install/arch_config.cfg
  [INFO]  Checking internet connection...
   [OK]  Internet connection is available
  [INFO]  Here is a list of available drives:
       1) sda     931.5G Samsung SSD 870 QVO 1TB
       2) nvme0n1   1.8T Samsung SSD 980 PRO 2TB
-      3) nvme1n1 931.5G Samsung SSD 980 PRO 1TB
-      4) nvme3n1 931.5G Sabrent SB-RKT4P-1TB
-      5) nvme2n1 476.9G Samsung SSD 960 PRO 512GB
-Enter the number of the drive you want to use:  [ACTION]  You selected drive:  /dev/nvme1n1
- [ACTION]  Setting:  INSTALL_DEVICE=/dev/nvme1n1 in /home/ssnow/Documents/GitHub/arch_install/arch_config.cfg
- [ACTION]  INSTALL_DEVICE set to:  /dev/nvme1n1
+      3) nvme3n1 931.5G Sabrent SB-RKT4P-1TB
+      4) nvme2n1 931.5G Samsung SSD 980 PRO 1TB
+      5) nvme1n1 476.9G Samsung SSD 960 PRO 512GB
+Enter the number of the drive you want to use:  [ACTION]  You selected drive:  /dev/nvme3n1
+ [ACTION]  Setting:  INSTALL_DEVICE=/dev/nvme3n1 in /home/ssnow/Documents/GitHub/arch_install/arch_config.cfg
+ [ACTION]  INSTALL_DEVICE set to:  /dev/nvme3n1
 amd  % Total    % Received % Xferd  Average Speed   Time    Time     Time  Current
                                  Dload  Upload   Total   Spent    Left  Speed
-  0     0    0     0    0     0      0      0 --:--:-- --:--:-- --:--:--     0100    15  100    15    0     0     73      0 --:--:-- --:--:-- --:--:--    73
+  0     0    0     0    0     0      0      0 --:--:-- --:--:-- --:--:--     0100    15  100    15    0     0     69      0 --:--:-- --:--:-- --:--:--    70
  [ACTION]  Setting:  TIMEZONE=America/Toronto in /home/ssnow/Documents/GitHub/arch_install/arch_config.cfg
  [ACTION]  Setting:  GPU_VENDOR=amd in /home/ssnow/Documents/GitHub/arch_install/arch_config.cfg
  [ACTION]  Setting:  GPU_DRIVER=xf86-video-amdgpu in /home/ssnow/Documents/GitHub/arch_install/arch_config.cfg
@@ -73,12 +76,12 @@ amd  % Total    % Received % Xferd  Average Speed   Time    Time     Time  Curre
  [ACTION]  Setting:  SYSTEM_INSTALLATION=false in /home/ssnow/Documents/GitHub/arch_install/arch_config.cfg
   [OK]  Configuration loaded successfully
   [OK]  Run checks process completed successfully
- [PROC]  Process completed successfully:  Run Checks: pre-install preparations (ID: 1729337033)
- Process start 2024-10-19 11:23:53, end 2024-10-19 11:24:00, time 00:00:07
+ [PROC]  Process completed successfully:  Run Checks: pre-install preparations (ID: 1729496759)
+ Process start 2024-10-21 07:45:59, end 2024-10-21 07:46:05, time 00:00:06
  [INFO]  Exit handler called with exit code:  0
  [INFO]  Script execution completed successfully
  [INFO]  Executing: 1-pre/pre-setup.sh
- [PROC]  Starting process:  Pre-setup (ID: 1729337040) 2024-10-19 11:24:00
+ [PROC]  Starting process:  Pre-setup (ID: 1729496765) 2024-10-21 07:46:05
  
 -------------------------------------------------------------------------
 
@@ -99,7 +102,7 @@ amd  % Total    % Received % Xferd  Average Speed   Time    Time     Time  Curre
  [INFO]  Commands: 1-pre pre-setup.sh initial_setup
  [ACTION]  [DRY RUN] Would execute command: #1: timedatectl set-ntp true
  [ACTION]  [DRY RUN] Would execute command: #2: pacman -Sy archlinux-keyring --noconfirm
- [ACTION]  [DRY RUN] Would execute command: #3: pacman -S --noconfirm --needed pacman-contrib terminus-font rsync reflector gptfdisk e2fsprogs efibootmgr
+ [ACTION]  [DRY RUN] Would execute command: #3: pacman -S --noconfirm --needed pacman-contrib terminus-font rsync reflector gptfdisk e2fsprogs
  [ACTION]  [DRY RUN] Would execute command: #4: setfont ter-v22b
  [ACTION]  [DRY RUN] Would execute command: #5: sed -i -e '/^#ParallelDownloads/s/^#//' -e '/^#Color/s/^#//' /etc/pacman.conf
  [ACTION]  [DRY RUN] Would execute command: #6: pacman -Syy
@@ -110,13 +113,13 @@ amd  % Total    % Received % Xferd  Average Speed   Time    Time     Time  Curre
  [ACTION]  [DRY RUN] Would execute command: #2: reflector -c CA -c US -a 12 -p https -f 5 -l 10 --sort rate --save /etc/pacman.d/mirrorlist
   [OK]  Mirror setup completed Mirror setup completed
   [OK]  Pre-setup process completed successfully
- [PROC]  Process completed successfully:  Pre-setup (ID: 1729337040)
- Process start 2024-10-19 11:24:00, end 2024-10-19 11:24:00, time 00:00:00
+ [PROC]  Process completed successfully:  Pre-setup (ID: 1729496765)
+ Process start 2024-10-21 07:46:05, end 2024-10-21 07:46:05, time 00:00:00
  [INFO]  Exit handler called with exit code:  0
  [INFO]  Script execution completed successfully
  [INFO]  Executing: 2-drive/partition.sh
   [OK]  Configuration loaded successfully
- [PROC]  Starting process:  Partitioning the install: /dev/vda (ID: 1729337041) 2024-10-19 11:24:01
+ [PROC]  Starting process:  Partitioning the install: /dev/vda (ID: 1729496766) 2024-10-21 07:46:06
  
 -------------------------------------------------------------------------
 
@@ -155,12 +158,12 @@ amd  % Total    % Received % Xferd  Average Speed   Time    Time     Time  Curre
   [OK]  Root partition created successfully Creating Root Partition completed
  [WARNING]  Failed to list partitions
   [OK]  Partition btrfs process completed successfully
- [PROC]  Process completed successfully:  Partitioning the install: /dev/vda (ID: 1729337041)
- Process start 2024-10-19 11:24:01, end 2024-10-19 11:24:01, time 00:00:00
+ [PROC]  Process completed successfully:  Partitioning the install: /dev/vda (ID: 1729496766)
+ Process start 2024-10-21 07:46:06, end 2024-10-21 07:46:07, time 00:00:01
  [INFO]  Exit handler called with exit code:  0
  [INFO]  Script execution completed successfully
  [INFO]  Executing: 2-drive/format.sh
- [PROC]  Starting process:  Formatting partitions ext4 (ID: 1729337041) 2024-10-19 11:24:01
+ [PROC]  Starting process:  Formatting partitions ext4 (ID: 1729496767) 2024-10-21 07:46:07
  
 -------------------------------------------------------------------------
 
@@ -189,12 +192,12 @@ amd  % Total    % Received % Xferd  Average Speed   Time    Time     Time  Curre
  [ACTION]  [DRY RUN] Would execute command: #3: mount -t vfat -L EFIBOOT /mnt/boot/efi
   [OK]  Mounting partitions completed Mounting partitions completed
   [OK]  Formatting partitions btrfs process completed successfully
- [PROC]  Process completed successfully:  Formatting partitions ext4 (ID: 1729337041)
- Process start 2024-10-19 11:24:01, end 2024-10-19 11:24:01, time 00:00:00
+ [PROC]  Process completed successfully:  Formatting partitions ext4 (ID: 1729496767)
+ Process start 2024-10-21 07:46:07, end 2024-10-21 07:46:07, time 00:00:00
  [INFO]  Exit handler called with exit code:  0
  [INFO]  Script execution completed successfully
  [INFO]  Executing: 3-base/bootstrap-pkgs.sh
- [PROC]  Starting process:  Bootstrap Packages (ID: 1729337041) 2024-10-19 11:24:01
+ [PROC]  Starting process:  Bootstrap Packages (ID: 1729496767) 2024-10-21 07:46:07
  
 -------------------------------------------------------------------------
 
@@ -215,12 +218,12 @@ amd  % Total    % Received % Xferd  Average Speed   Time    Time     Time  Curre
  [ACTION]  [DRY RUN] Would execute command: #1: pacstrap /mnt base base-devel linux linux-firmware efibootmgr grub amd-ucode --noconfirm --needed
   [OK]  Base system installation completed Installing base system completed
   [OK]  Bootstrap packages process completed successfully
- [PROC]  Process completed successfully:  Bootstrap Packages (ID: 1729337041)
- Process start 2024-10-19 11:24:01, end 2024-10-19 11:24:01, time 00:00:00
+ [PROC]  Process completed successfully:  Bootstrap Packages (ID: 1729496767)
+ Process start 2024-10-21 07:46:07, end 2024-10-21 07:46:07, time 00:00:00
  [INFO]  Exit handler called with exit code:  0
  [INFO]  Script execution completed successfully
  [INFO]  Executing: 3-base/generate-fstab.sh
- [PROC]  Starting process:  Generate Fstab (ID: 1729337041) 2024-10-19 11:24:01
+ [PROC]  Starting process:  Generate Fstab (ID: 1729496767) 2024-10-21 07:46:07
  
 -------------------------------------------------------------------------
 
@@ -247,12 +250,12 @@ amd  % Total    % Received % Xferd  Average Speed   Time    Time     Time  Curre
  [ACTION]  [DRY RUN] Would execute command: #2: grub-mkconfig -o /boot/grub/grub.cfg
   [OK]  GRUB installation completed Installing GRUB completed
   [OK]  Generate fstab process completed successfully
- [PROC]  Process completed successfully:  Generate Fstab (ID: 1729337041)
- Process start 2024-10-19 11:24:01, end 2024-10-19 11:24:01, time 00:00:00
+ [PROC]  Process completed successfully:  Generate Fstab (ID: 1729496767)
+ Process start 2024-10-21 07:46:07, end 2024-10-21 07:46:07, time 00:00:00
  [INFO]  Exit handler called with exit code:  0
  [INFO]  Script execution completed successfully
  [INFO]  Executing: 4-post/terminal.sh
- [PROC]  Starting process:  Terminal: alacritty (ID: 1729337042) 2024-10-19 11:24:02
+ [PROC]  Starting process:  Terminal: alacritty (ID: 1729496767) 2024-10-21 07:46:07
  
 -------------------------------------------------------------------------
 
@@ -278,12 +281,12 @@ amd  % Total    % Received % Xferd  Average Speed   Time    Time     Time  Curre
  [ACTION]  [DRY RUN] Would execute command: #5: cp -r /home/ssnow/Documents/GitHub/arch_install/scripts/4-post/config/bashrc ~/.bashrc
   [OK]  Terminal installation completed Installing Terminal completed
   [OK]  Terminal installation completed successfully
- [PROC]  Process completed successfully:  Terminal: alacritty (ID: 1729337042)
- Process start 2024-10-19 11:24:02, end 2024-10-19 11:24:02, time 00:00:00
+ [PROC]  Process completed successfully:  Terminal: alacritty (ID: 1729496767)
+ Process start 2024-10-21 07:46:07, end 2024-10-21 07:46:07, time 00:00:00
  [INFO]  Exit handler called with exit code:  0
  [INFO]  Script execution completed successfully
  [INFO]  Executing: 4-post/system-config.sh
- [PROC]  Starting process:  System Config (ID: 1729337042) 2024-10-19 11:24:02
+ [PROC]  Starting process:  System Config (ID: 1729496767) 2024-10-21 07:46:07
  
 -------------------------------------------------------------------------
 
@@ -318,12 +321,12 @@ amd  % Total    % Received % Xferd  Average Speed   Time    Time     Time  Curre
  [ACTION]  [DRY RUN] Would execute command: #10: sed -i 's/^# %wheel ALL=(ALL) ALL/%wheel ALL=(ALL) ALL/' /etc/sudoers
   [OK]  System config completed System config completed
   [OK]  System config process completed successfully
- [PROC]  Process completed successfully:  System Config (ID: 1729337042)
- Process start 2024-10-19 11:24:02, end 2024-10-19 11:24:02, time 00:00:00
+ [PROC]  Process completed successfully:  System Config (ID: 1729496767)
+ Process start 2024-10-21 07:46:07, end 2024-10-21 07:46:07, time 00:00:00
  [INFO]  Exit handler called with exit code:  0
  [INFO]  Script execution completed successfully
  [INFO]  Executing: 4-post/system-pkgs.sh
- [PROC]  Starting process:  System Packages (ID: 1729337042) 2024-10-19 11:24:02
+ [PROC]  Starting process:  System Packages (ID: 1729496767) 2024-10-21 07:46:07
  
 -------------------------------------------------------------------------
 
@@ -438,12 +441,12 @@ amd  % Total    % Received % Xferd  Average Speed   Time    Time     Time  Curre
   [OK]  xdg packages installed successfully Install xdg packages completed
   [OK]  Package installation completed
   [OK]  System packages process completed successfully
- [PROC]  Process completed successfully:  System Packages (ID: 1729337042)
- Process start 2024-10-19 11:24:02, end 2024-10-19 11:24:02, time 00:00:00
+ [PROC]  Process completed successfully:  System Packages (ID: 1729496767)
+ Process start 2024-10-21 07:46:07, end 2024-10-21 07:46:08, time 00:00:01
  [INFO]  Exit handler called with exit code:  0
  [INFO]  Script execution completed successfully
  [INFO]  Executing: 5-desktop/gnome.sh
- [PROC]  Starting process:  Installing: Gnome OS (ID: 1729337042) 2024-10-19 11:24:02
+ [PROC]  Starting process:  Installing: Gnome OS (ID: 1729496768) 2024-10-21 07:46:08
  
 -------------------------------------------------------------------------
 
@@ -465,12 +468,12 @@ amd  % Total    % Received % Xferd  Average Speed   Time    Time     Time  Curre
  [ACTION]  [DRY RUN] Would execute command: #1: pacman -S --noconfirm --needed gnome gnome-tweaks gdm
   [OK]  Gnome OS installation completed Installing Gnome OS completed
   [OK]  Gnome OS installation completed successfully
- [PROC]  Process completed successfully:  Installing: Gnome OS (ID: 1729337042)
- Process start 2024-10-19 11:24:02, end 2024-10-19 11:24:02, time 00:00:00
+ [PROC]  Process completed successfully:  Installing: Gnome OS (ID: 1729496768)
+ Process start 2024-10-21 07:46:08, end 2024-10-21 07:46:08, time 00:00:00
  [INFO]  Exit handler called with exit code:  0
  [INFO]  Script execution completed successfully
  [INFO]  Executing: 6-final/last-cleanup.sh
- [PROC]  Starting process:  Last cleanup (ID: 1729337042) 2024-10-19 11:24:02
+ [PROC]  Starting process:  Last cleanup (ID: 1729496768) 2024-10-21 07:46:08
  
 -------------------------------------------------------------------------
 
@@ -496,22 +499,23 @@ amd  % Total    % Received % Xferd  Average Speed   Time    Time     Time  Curre
  [ACTION]  [DRY RUN] Would execute command: #5: systemctl enable gdm
   [OK]  Enable and start services completed Enable and start services completed
  [INFO]  Last cleanup
- [INFO]  Starting: Last cleanup
- [INFO]  Commands: 6-final last-cleanup.sh lastResume installation? (y/n):   % Total    % Received % Xferd  Average Speed   Time    Time     Time  Current
+ [I/home/ssnow/Documents/GitHub/arch_install/arch_config.cfg: line 51: =: command not found
+Resume installation? (y/n):   % Total    % Received % Xferd  Average Speed   Time    Time     Time  Current
                                  Dload  Upload   Total   Spent    Left  Speed
-  0     0    0     0    0     0      0      0 --:--:-- --:--:-- --:--:--     0100     3  100     3    0     0      8      0 --:--:-- --:--:-- --:--:--     8
+  0     0    0     0    0     0      0      0 --:--:-- --:--:-- --:--:--     0100     3  100     3    0     0     16      0 --:--:-- --:--:-- --:--:--    16
 lsblk: /dev/vda: not a block device
 lsblk: /dev/vda: not a block device
-_cleanup
+NFO]  Starting: Last cleanup
+ [INFO]  Commands: 6-final last-cleanup.sh last_cleanup
  [WARNING]  No commands provided for execution
   [OK]  Last cleanup completed successfully
   [OK]  Arch Linux installation completed. You can now reboot into your new system.
- [PROC]  Process completed successfully:  Last cleanup (ID: 1729337042)
- Process start 2024-10-19 11:24:02, end 2024-10-19 11:24:02, time 00:00:00
+ [PROC]  Process completed successfully:  Last cleanup (ID: 1729496768)
+ Process start 2024-10-21 07:46:08, end 2024-10-21 07:46:08, time 00:00:00
  [INFO]  Exit handler called with exit code:  0
  [INFO]  Script execution completed successfully
  [INFO]  Executing: 7-post-setup/post-setup.sh
- [PROC]  Starting process:  Post Setup (ID: 1729337042) 2024-10-19 11:24:02
+ [PROC]  Starting process:  Post Setup (ID: 1729496768) 2024-10-21 07:46:08
  
 -------------------------------------------------------------------------
 
@@ -527,13 +531,13 @@ _cleanup
 
  [INFO]  Starting post setup process
   [OK]  Post setup process completed successfully
- [PROC]  Process completed successfully:  Post Setup (ID: 1729337042)
- Process start 2024-10-19 11:24:02, end 2024-10-19 11:24:02, time 00:00:00
+ [PROC]  Process completed successfully:  Post Setup (ID: 1729496768)
+ Process start 2024-10-21 07:46:08, end 2024-10-21 07:46:08, time 00:00:00
  [INFO]  Exit handler called with exit code:  0
  [INFO]  Script execution completed successfully
   [OK]  Arch Linux installation completed successfully
-Installation start 2024-10-19 11:23:51, end 2024-10-19 11:24:02, time 00:00:11
- [PROC]  Process completed successfully:  Main Installation Process (ID: 1729337031)
- Process start 2024-10-19 11:23:51, end 2024-10-19 11:24:02, time 00:00:11
+Installation start 2024-10-21 07:45:14, end 2024-10-21 07:46:08, time 00:00:54
+ [PROC]  Process completed successfully:  Main Installation Process (ID: 1729496714)
+ Process start 2024-10-21 07:45:14, end 2024-10-21 07:46:08, time 00:00:54
  [INFO]  Exit handler called with exit code:  0
  [INFO]  Script execution completed successfully

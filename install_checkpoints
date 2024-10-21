@@ -1,82 +1,82 @@
-2024-10-19 07:23:53|1-pre|run-checks.sh|main|0
-2024-10-19 07:24:00|1-pre|run-checks.sh|main|0
-2024-10-19 07:24:00|1-pre|pre-setup.sh|main|0
-2024-10-19 07:24:00|1-pre|pre-setup.sh|initial_setup|0: timedatectl set-ntp true
-2024-10-19 07:24:00|1-pre|pre-setup.sh|initial_setup|1: pacman -Sy archlinux-keyring --noconfirm
-2024-10-19 07:24:00|1-pre|pre-setup.sh|initial_setup|2: pacman -S --noconfirm --needed pacman-contrib terminus-font rsync reflector gptfdisk e2fsprogs efibootmgr
-2024-10-19 07:24:00|1-pre|pre-setup.sh|initial_setup|3: setfont ter-v22b
-2024-10-19 07:24:00|1-pre|pre-setup.sh|initial_setup|4: sed -i -e '/^#ParallelDownloads/s/^#//' -e '/^#Color/s/^#//' /etc/pacman.conf
-2024-10-19 07:24:00|1-pre|pre-setup.sh|initial_setup|5: pacman -Syy
-2024-10-19 07:24:00|1-pre|pre-setup.sh|mirror_setup|0: cp /etc/pacman.d/mirrorlist /etc/pacman.d/mirrorlist.backup
-2024-10-19 07:24:00|1-pre|pre-setup.sh|mirror_setup|1: reflector -c CA -c US -a 12 -p https -f 5 -l 10 --sort rate --save /etc/pacman.d/mirrorlist
-2024-10-19 07:24:00|1-pre|pre-setup.sh|main|0
-2024-10-19 07:24:00|2-drive|partition.sh|main|0
-2024-10-19 07:24:01|2-drive|partition.sh|partitioning|0: sgdisk -Z /dev/vda
-2024-10-19 07:24:01|2-drive|partition.sh|create_boot_partitions|0: sgdisk -n1:2048:+1M -t1:ef02 -c1:'BIOSBOOT' /dev/vda
-2024-10-19 07:24:01|2-drive|partition.sh|create_boot_partitions|1: sgdisk -n2:0:"+1024M" -t2:ef00 -c2:'EFIBOOT' /dev/vda
-2024-10-19 07:24:01|2-drive|partition.sh|create_root_partition|0: sgdisk -n3:0:0 -t3:8300 -c3:'ROOT' /dev/vda
-2024-10-19 07:24:01|2-drive|partition.sh|main|0
-2024-10-19 07:24:01|2-drive|format.sh|main|0
-2024-10-19 07:24:01|2-drive|format.sh|formating|0: mkfs.vfat -F32 -n EFIBOOT /dev/vda2
-2024-10-19 07:24:01|2-drive|format.sh|formating|1: mkfs.ext4 -L ROOT /dev/vda3
-2024-10-19 07:24:01|2-drive|format.sh|formating|2: mount /dev/vda3 /mnt
-2024-10-19 07:24:01|2-drive|format.sh|mounting|0: mount /dev/vda3 /mnt
-2024-10-19 07:24:01|2-drive|format.sh|mounting|1: mkdir -p /mnt/boot/efi
-2024-10-19 07:24:01|2-drive|format.sh|mounting|2: mount -t vfat -L EFIBOOT /mnt/boot/efi
-2024-10-19 07:24:01|2-drive|format.sh|main|0
-2024-10-19 07:24:01|3-base|bootstrap-pkgs.sh|bootstrap_pkgs|0: pacstrap /mnt base base-devel linux linux-firmware efibootmgr grub amd-ucode --noconfirm --needed
-2024-10-19 07:24:01|3-base|bootstrap-pkgs.sh|main|0
-2024-10-19 07:24:01|3-base|generate-fstab.sh|generate_fstab|0: genfstab -U /mnt >> /mnt/etc/fstab
-2024-10-19 07:24:01|3-base|generate-fstab.sh|grub_setup|0: grub-install --target=x86_64-efi --efi-directory=/boot/efi --bootloader-id=GRUB
-2024-10-19 07:24:01|3-base|generate-fstab.sh|grub_setup|1: grub-mkconfig -o /boot/grub/grub.cfg
-2024-10-19 07:24:02|3-base|generate-fstab.sh|main|0
-2024-10-19 07:24:02|4-post|terminal.sh|main|0
-2024-10-19 07:24:02|4-post|terminal.sh|terminal|0: 
-2024-10-19 07:24:02|4-post|terminal.sh|terminal|1: pacman -S --noconfirm --needed alacritty kitty bash starship
-2024-10-19 07:24:02|4-post|terminal.sh|terminal|2: cp -r /home/ssnow/Documents/GitHub/arch_install/scripts/4-post/config/alacritty ~/.config/alacritty
-2024-10-19 07:24:02|4-post|terminal.sh|terminal|3: cp -r /home/ssnow/Documents/GitHub/arch_install/scripts/4-post/config/starship.toml ~/.config/starship.toml
-2024-10-19 07:24:02|4-post|terminal.sh|terminal|4: cp -r /home/ssnow/Documents/GitHub/arch_install/scripts/4-post/config/bashrc ~/.bashrc
-2024-10-19 07:24:02|4-post|terminal.sh|main|0
-2024-10-19 07:24:02|4-post|system-config.sh|main|0
-2024-10-19 07:24:02|4-post|system-config.sh|gpu_setup|0: pacman -S --noconfirm --needed xf86-video-vesa mesa
-2024-10-19 07:24:02|4-post|system-config.sh|system_config|0: echo 'arch' > /etc/hostname
-2024-10-19 07:24:02|4-post|system-config.sh|system_config|1: echo 'en_US.UTF-8 UTF-8' > /etc/locale.gen
-2024-10-19 07:24:02|4-post|system-config.sh|system_config|2: locale-gen
-2024-10-19 07:24:02|4-post|system-config.sh|system_config|3: echo 'LANG=en_US.UTF-8' > /etc/locale.conf
-2024-10-19 07:24:02|4-post|system-config.sh|system_config|4: ln -sf /usr/share/zoneinfo/America/Toronto /etc/localtime
-2024-10-19 07:24:02|4-post|system-config.sh|system_config|5: echo 'KEYMAP=us' > /etc/vconsole.conf
-2024-10-19 07:24:02|4-post|system-config.sh|system_config|6: useradd -m -G wheel -s /bin/bash ssnow
-2024-10-19 07:24:02|4-post|system-config.sh|system_config|7: echo 'root:changeme' | chpasswd
-2024-10-19 07:24:02|4-post|system-config.sh|system_config|8: echo 'ssnow:changeme' | chpasswd
-2024-10-19 07:24:02|4-post|system-config.sh|system_config|9: sed -i 's/^# %wheel ALL=(ALL) ALL/%wheel ALL=(ALL) ALL/' /etc/sudoers
-2024-10-19 07:24:02|4-post|system-config.sh|main|0
-2024-10-19 07:24:02|4-post|system-pkgs.sh|main|0
-2024-10-19 07:24:02|4-post|system-pkgs.sh|install_package_group|0: pacman -S --noconfirm --needed eza fzf zoxide bat exa
-2024-10-19 07:24:02|4-post|system-pkgs.sh|install_package_group|0: pacman -S --noconfirm --needed bluez bluez-utils
-2024-10-19 07:24:02|4-post|system-pkgs.sh|install_package_group|0: pacman -S --noconfirm --needed pipewire wireplumber pipewire-pulse pipewire-alsa pipewire-jack
-2024-10-19 07:24:02|4-post|system-pkgs.sh|install_package_group|0: pacman -S --noconfirm --needed fastfetch ntp cronie alacritty kitty thunar
-2024-10-19 07:24:02|4-post|system-pkgs.sh|install_package_group|0: pacman -S --noconfirm --needed firefox
-2024-10-19 07:24:02|4-post|system-pkgs.sh|install_package_group|0: pacman -S --noconfirm --needed gnome gnome-tweaks gdm
-2024-10-19 07:24:02|4-post|system-pkgs.sh|install_package_group|0: pacman -S --noconfirm --needed git vim neovim
-2024-10-19 07:24:02|4-post|system-pkgs.sh|install_package_group|0: pacman -S --noconfirm --needed libreoffice-fresh pinta
-2024-10-19 07:24:02|4-post|system-pkgs.sh|install_package_group|0: pacman -S --noconfirm --needed vlc
-2024-10-19 07:24:02|4-post|system-pkgs.sh|install_package_group|0: pacman -S --noconfirm --needed discord thunderbird
-2024-10-19 07:24:02|4-post|system-pkgs.sh|install_package_group|0: pacman -S --noconfirm --needed bitwarden
-2024-10-19 07:24:02|4-post|system-pkgs.sh|install_package_group|0: pacman -S --noconfirm --needed networkmanager network-manager-applet dhclient
-2024-10-19 07:24:02|4-post|system-pkgs.sh|install_package_group|0: pacman -S --noconfirm --needed cups
-2024-10-19 07:24:02|4-post|system-pkgs.sh|install_package_group|0: pacman -S --noconfirm --needed terminus-font ttf-font-awesome ttf-nerd-fonts-symbols ttf-jetbrains-mono-nerd ttf-meslo-nerd ttf-firacode-nerd ttf-nerd-fonts-symbols-common
-2024-10-19 07:24:02|4-post|system-pkgs.sh|install_package_group|0: pacman -S --noconfirm --needed btrfs-progs dosfstools ntfs-3g
-2024-10-19 07:24:02|4-post|system-pkgs.sh|install_package_group|0: pacman -S --noconfirm --needed xdg-user-dirs
-2024-10-19 07:24:02|4-post|system-pkgs.sh|main|0
-2024-10-19 07:24:02|5-desktop|gnome.sh|main|0
-2024-10-19 07:24:02|5-desktop|gnome.sh|gnome_os|0: pacman -S --noconfirm --needed gnome gnome-tweaks gdm
-2024-10-19 07:24:02|5-desktop|gnome.sh|main|0
-2024-10-19 07:24:02|6-final|last-cleanup.sh|main|0
-2024-10-19 07:24:02|6-final|last-cleanup.sh|enable_services|0: systemctl enable NetworkManager
-2024-10-19 07:24:02|6-final|last-cleanup.sh|enable_services|1: systemctl enable sshd
-2024-10-19 07:24:02|6-final|last-cleanup.sh|enable_services|2: systemctl enable cronie
-2024-10-19 07:24:02|6-final|last-cleanup.sh|enable_services|3: systemctl enable bluetooth
-2024-10-19 07:24:02|6-final|last-cleanup.sh|enable_services|4: systemctl enable gdm
-2024-10-19 07:24:02|6-final|last-cleanup.sh|main|0
-2024-10-19 07:24:02|7-post-setup|post-setup.sh|main|0
-2024-10-19 07:24:02|7-post-setup|post-setup.sh|main|0
+2024-10-21 03:45:58|1-pre|run-checks.sh|main|0
+2024-10-21 03:46:05|1-pre|run-checks.sh|main|0
+2024-10-21 03:46:05|1-pre|pre-setup.sh|main|0
+2024-10-21 03:46:05|1-pre|pre-setup.sh|initial_setup|0: timedatectl set-ntp true
+2024-10-21 03:46:05|1-pre|pre-setup.sh|initial_setup|1: pacman -Sy archlinux-keyring --noconfirm
+2024-10-21 03:46:05|1-pre|pre-setup.sh|initial_setup|2: pacman -S --noconfirm --needed pacman-contrib terminus-font rsync reflector gptfdisk e2fsprogs
+2024-10-21 03:46:05|1-pre|pre-setup.sh|initial_setup|3: setfont ter-v22b
+2024-10-21 03:46:05|1-pre|pre-setup.sh|initial_setup|4: sed -i -e '/^#ParallelDownloads/s/^#//' -e '/^#Color/s/^#//' /etc/pacman.conf
+2024-10-21 03:46:05|1-pre|pre-setup.sh|initial_setup|5: pacman -Syy
+2024-10-21 03:46:05|1-pre|pre-setup.sh|mirror_setup|0: cp /etc/pacman.d/mirrorlist /etc/pacman.d/mirrorlist.backup
+2024-10-21 03:46:05|1-pre|pre-setup.sh|mirror_setup|1: reflector -c CA -c US -a 12 -p https -f 5 -l 10 --sort rate --save /etc/pacman.d/mirrorlist
+2024-10-21 03:46:05|1-pre|pre-setup.sh|main|0
+2024-10-21 03:46:05|2-drive|partition.sh|main|0
+2024-10-21 03:46:06|2-drive|partition.sh|partitioning|0: sgdisk -Z /dev/vda
+2024-10-21 03:46:07|2-drive|partition.sh|create_boot_partitions|0: sgdisk -n1:2048:+1M -t1:ef02 -c1:'BIOSBOOT' /dev/vda
+2024-10-21 03:46:07|2-drive|partition.sh|create_boot_partitions|1: sgdisk -n2:0:"+1024M" -t2:ef00 -c2:'EFIBOOT' /dev/vda
+2024-10-21 03:46:07|2-drive|partition.sh|create_root_partition|0: sgdisk -n3:0:0 -t3:8300 -c3:'ROOT' /dev/vda
+2024-10-21 03:46:07|2-drive|partition.sh|main|0
+2024-10-21 03:46:07|2-drive|format.sh|main|0
+2024-10-21 03:46:07|2-drive|format.sh|formating|0: mkfs.vfat -F32 -n EFIBOOT /dev/vda2
+2024-10-21 03:46:07|2-drive|format.sh|formating|1: mkfs.ext4 -L ROOT /dev/vda3
+2024-10-21 03:46:07|2-drive|format.sh|formating|2: mount /dev/vda3 /mnt
+2024-10-21 03:46:07|2-drive|format.sh|mounting|0: mount /dev/vda3 /mnt
+2024-10-21 03:46:07|2-drive|format.sh|mounting|1: mkdir -p /mnt/boot/efi
+2024-10-21 03:46:07|2-drive|format.sh|mounting|2: mount -t vfat -L EFIBOOT /mnt/boot/efi
+2024-10-21 03:46:07|2-drive|format.sh|main|0
+2024-10-21 03:46:07|3-base|bootstrap-pkgs.sh|bootstrap_pkgs|0: pacstrap /mnt base base-devel linux linux-firmware efibootmgr grub amd-ucode --noconfirm --needed
+2024-10-21 03:46:07|3-base|bootstrap-pkgs.sh|main|0
+2024-10-21 03:46:07|3-base|generate-fstab.sh|generate_fstab|0: genfstab -U /mnt >> /mnt/etc/fstab
+2024-10-21 03:46:07|3-base|generate-fstab.sh|grub_setup|0: grub-install --target=x86_64-efi --efi-directory=/boot/efi --bootloader-id=GRUB
+2024-10-21 03:46:07|3-base|generate-fstab.sh|grub_setup|1: grub-mkconfig -o /boot/grub/grub.cfg
+2024-10-21 03:46:07|3-base|generate-fstab.sh|main|0
+2024-10-21 03:46:07|4-post|terminal.sh|main|0
+2024-10-21 03:46:07|4-post|terminal.sh|terminal|0: 
+2024-10-21 03:46:07|4-post|terminal.sh|terminal|1: pacman -S --noconfirm --needed alacritty kitty bash starship
+2024-10-21 03:46:07|4-post|terminal.sh|terminal|2: cp -r /home/ssnow/Documents/GitHub/arch_install/scripts/4-post/config/alacritty ~/.config/alacritty
+2024-10-21 03:46:07|4-post|terminal.sh|terminal|3: cp -r /home/ssnow/Documents/GitHub/arch_install/scripts/4-post/config/starship.toml ~/.config/starship.toml
+2024-10-21 03:46:07|4-post|terminal.sh|terminal|4: cp -r /home/ssnow/Documents/GitHub/arch_install/scripts/4-post/config/bashrc ~/.bashrc
+2024-10-21 03:46:07|4-post|terminal.sh|main|0
+2024-10-21 03:46:07|4-post|system-config.sh|main|0
+2024-10-21 03:46:07|4-post|system-config.sh|gpu_setup|0: pacman -S --noconfirm --needed xf86-video-vesa mesa
+2024-10-21 03:46:07|4-post|system-config.sh|system_config|0: echo 'arch' > /etc/hostname
+2024-10-21 03:46:07|4-post|system-config.sh|system_config|1: echo 'en_US.UTF-8 UTF-8' > /etc/locale.gen
+2024-10-21 03:46:07|4-post|system-config.sh|system_config|2: locale-gen
+2024-10-21 03:46:07|4-post|system-config.sh|system_config|3: echo 'LANG=en_US.UTF-8' > /etc/locale.conf
+2024-10-21 03:46:07|4-post|system-config.sh|system_config|4: ln -sf /usr/share/zoneinfo/America/Toronto /etc/localtime
+2024-10-21 03:46:07|4-post|system-config.sh|system_config|5: echo 'KEYMAP=us' > /etc/vconsole.conf
+2024-10-21 03:46:07|4-post|system-config.sh|system_config|6: useradd -m -G wheel -s /bin/bash ssnow
+2024-10-21 03:46:07|4-post|system-config.sh|system_config|7: echo 'root:changeme' | chpasswd
+2024-10-21 03:46:07|4-post|system-config.sh|system_config|8: echo 'ssnow:changeme' | chpasswd
+2024-10-21 03:46:07|4-post|system-config.sh|system_config|9: sed -i 's/^# %wheel ALL=(ALL) ALL/%wheel ALL=(ALL) ALL/' /etc/sudoers
+2024-10-21 03:46:07|4-post|system-config.sh|main|0
+2024-10-21 03:46:07|4-post|system-pkgs.sh|main|0
+2024-10-21 03:46:07|4-post|system-pkgs.sh|install_package_group|0: pacman -S --noconfirm --needed eza fzf zoxide bat exa
+2024-10-21 03:46:07|4-post|system-pkgs.sh|install_package_group|0: pacman -S --noconfirm --needed bluez bluez-utils
+2024-10-21 03:46:07|4-post|system-pkgs.sh|install_package_group|0: pacman -S --noconfirm --needed pipewire wireplumber pipewire-pulse pipewire-alsa pipewire-jack
+2024-10-21 03:46:07|4-post|system-pkgs.sh|install_package_group|0: pacman -S --noconfirm --needed fastfetch ntp cronie alacritty kitty thunar
+2024-10-21 03:46:07|4-post|system-pkgs.sh|install_package_group|0: pacman -S --noconfirm --needed firefox
+2024-10-21 03:46:07|4-post|system-pkgs.sh|install_package_group|0: pacman -S --noconfirm --needed gnome gnome-tweaks gdm
+2024-10-21 03:46:07|4-post|system-pkgs.sh|install_package_group|0: pacman -S --noconfirm --needed git vim neovim
+2024-10-21 03:46:07|4-post|system-pkgs.sh|install_package_group|0: pacman -S --noconfirm --needed libreoffice-fresh pinta
+2024-10-21 03:46:07|4-post|system-pkgs.sh|install_package_group|0: pacman -S --noconfirm --needed vlc
+2024-10-21 03:46:07|4-post|system-pkgs.sh|install_package_group|0: pacman -S --noconfirm --needed discord thunderbird
+2024-10-21 03:46:07|4-post|system-pkgs.sh|install_package_group|0: pacman -S --noconfirm --needed bitwarden
+2024-10-21 03:46:07|4-post|system-pkgs.sh|install_package_group|0: pacman -S --noconfirm --needed networkmanager network-manager-applet dhclient
+2024-10-21 03:46:08|4-post|system-pkgs.sh|install_package_group|0: pacman -S --noconfirm --needed cups
+2024-10-21 03:46:08|4-post|system-pkgs.sh|install_package_group|0: pacman -S --noconfirm --needed terminus-font ttf-font-awesome ttf-nerd-fonts-symbols ttf-jetbrains-mono-nerd ttf-meslo-nerd ttf-firacode-nerd ttf-nerd-fonts-symbols-common
+2024-10-21 03:46:08|4-post|system-pkgs.sh|install_package_group|0: pacman -S --noconfirm --needed btrfs-progs dosfstools ntfs-3g
+2024-10-21 03:46:08|4-post|system-pkgs.sh|install_package_group|0: pacman -S --noconfirm --needed xdg-user-dirs
+2024-10-21 03:46:08|4-post|system-pkgs.sh|main|0
+2024-10-21 03:46:08|5-desktop|gnome.sh|main|0
+2024-10-21 03:46:08|5-desktop|gnome.sh|gnome_os|0: pacman -S --noconfirm --needed gnome gnome-tweaks gdm
+2024-10-21 03:46:08|5-desktop|gnome.sh|main|0
+2024-10-21 03:46:08|6-final|last-cleanup.sh|main|0
+2024-10-21 03:46:08|6-final|last-cleanup.sh|enable_services|0: systemctl enable NetworkManager
+2024-10-21 03:46:08|6-final|last-cleanup.sh|enable_services|1: systemctl enable sshd
+2024-10-21 03:46:08|6-final|last-cleanup.sh|enable_services|2: systemctl enable cronie
+2024-10-21 03:46:08|6-final|last-cleanup.sh|enable_services|3: systemctl enable bluetooth
+2024-10-21 03:46:08|6-final|last-cleanup.sh|enable_services|4: systemctl enable gdm
+2024-10-21 03:46:08|6-final|last-cleanup.sh|main|0
+2024-10-21 03:46:08|7-post-setup|post-setup.sh|main|0
+2024-10-21 03:46:08|7-post-setup|post-setup.sh|main|0

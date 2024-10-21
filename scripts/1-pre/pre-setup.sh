@@ -26,8 +26,9 @@ get_current_context
 
 # Function to set partition tools based on conditions
 set_tools() {
-    [ "$LUKS" = "true" ] && tools+=("cryptsetup")
-    [[ "$BIOS_TYPE" =~ ^(uefi|UEFI|hybrid)$ ]] && tools+=("efibootmgr")
+    
+    [ "sanitize $LUKS" = "true" ] && tools+=("cryptsetup")
+    [[ "sanitize $BIOS_TYPE" =~ ^(uefi|UEFI|hybrid)$ ]] && tools+=("efibootmgr")
     
     case "$FORMAT_TYPE" in
             btrfs) tools+=("btrfs-progs") ;;

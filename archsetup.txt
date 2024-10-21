@@ -2,21 +2,24 @@
 [0;34m [INFO] [0m Setting up the necessary passwords
 Type ssnow password: 
 Retype ssnow password: 
+ssnow passwords don't match. Please try again.
+Type ssnow password: 
+Retype ssnow password: 
 [0;35m [ACTION] [0m Setting:  PASSWORD=p in /home/ssnow/Documents/GitHub/arch_install/arch_config.cfg
 [0;34m [INFO] [0m Checking internet connection...
 [1;37m  [OK] [0m Internet connection is available
 [0;34m [INFO] [0m Here is a list of available drives:
       1) sda     931.5G Samsung SSD 870 QVO 1TB
       2) nvme0n1   1.8T Samsung SSD 980 PRO 2TB
-      3) nvme1n1 931.5G Samsung SSD 980 PRO 1TB
-      4) nvme3n1 931.5G Sabrent SB-RKT4P-1TB
-      5) nvme2n1 476.9G Samsung SSD 960 PRO 512GB
-[0;94mEnter the number of the drive you want to use:[0m [0;35m [ACTION] [0m You selected drive:  /dev/nvme1n1
-[0;35m [ACTION] [0m Setting:  INSTALL_DEVICE=/dev/nvme1n1 in /home/ssnow/Documents/GitHub/arch_install/arch_config.cfg
-[0;35m [ACTION] [0m INSTALL_DEVICE set to:  /dev/nvme1n1
+      3) nvme3n1 931.5G Sabrent SB-RKT4P-1TB
+      4) nvme2n1 931.5G Samsung SSD 980 PRO 1TB
+      5) nvme1n1 476.9G Samsung SSD 960 PRO 512GB
+[0;94mEnter the number of the drive you want to use:[0m [0;35m [ACTION] [0m You selected drive:  /dev/nvme3n1
+[0;35m [ACTION] [0m Setting:  INSTALL_DEVICE=/dev/nvme3n1 in /home/ssnow/Documents/GitHub/arch_install/arch_config.cfg
+[0;35m [ACTION] [0m INSTALL_DEVICE set to:  /dev/nvme3n1
 amd  % Total    % Received % Xferd  Average Speed   Time    Time     Time  Current
                                  Dload  Upload   Total   Spent    Left  Speed
-  0     0    0     0    0     0      0      0 --:--:-- --:--:-- --:--:--     0100    15  100    15    0     0     73      0 --:--:-- --:--:-- --:--:--    73
+  0     0    0     0    0     0      0      0 --:--:-- --:--:-- --:--:--     0100    15  100    15    0     0     69      0 --:--:-- --:--:-- --:--:--    70
 [0;35m [ACTION] [0m Setting:  TIMEZONE=America/Toronto in /home/ssnow/Documents/GitHub/arch_install/arch_config.cfg
 [0;35m [ACTION] [0m Setting:  GPU_VENDOR=amd in /home/ssnow/Documents/GitHub/arch_install/arch_config.cfg
 [0;35m [ACTION] [0m Setting:  GPU_DRIVER=xf86-video-amdgpu in /home/ssnow/Documents/GitHub/arch_install/arch_config.cfg
@@ -28,7 +31,7 @@ amd  % Total    % Received % Xferd  Average Speed   Time    Time     Time  Curre
 [0;35m [ACTION] [0m Setting:  SYSTEM_INSTALLATION=false in /home/ssnow/Documents/GitHub/arch_install/arch_config.cfg
 [1;37m  [OK] [0m Configuration loaded successfully
 [1;37m  [OK] [0m Run checks process completed successfully
-[0;36m [PROC] [0m Process completed successfully:  Run Checks: pre-install preparations (ID: 1729337033)
- Process start 2024-10-19 11:23:53, end 2024-10-19 11:24:00, time 00:00:07
+[0;36m [PROC] [0m Process completed successfully:  Run Checks: pre-install preparations (ID: 1729496759)
+ Process start 2024-10-21 07:45:59, end 2024-10-21 07:46:05, time 00:00:06
 [0;34m [INFO] [0m Exit handler called with exit code:  0
 [0;34m [INFO] [0m Script execution completed successfully
