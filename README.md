@@ -8,7 +8,7 @@
 [] check_update
   
 ## need more live install testing.
-[] ext4
+[x] ext4
 [] Luks, encrytion, encription password.
 [] KDE
 [] DWM
@@ -17,6 +17,8 @@
 [] mybash
 [] nvim
 [] terminal, config, starship
+[] bootloader grub, systemd, efistub
+
 ```
 ## still ironning out the kinks and making sure it works for all cases.
 
