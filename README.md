@@ -3,12 +3,12 @@
 ```
 - What is working and has been tested
 [x] BTRFS
+[x] ext4
 [x] Gnome Desktop
 [] package_manager
 [] check_update
   
 ## need more live install testing.
-[x] ext4
 [] Luks, encrytion, encription password.
 [] KDE
 [] DWM
