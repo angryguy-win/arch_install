@@ -16,16 +16,26 @@ VERBOSE="${VERBOSE:-false}"
 
 # Script-related variables
 SCRIPT_NAME=$(basename "$0")
-SCRIPT_VERSION="1.0.0"
+SCRIPT_VERSION="1.5.0"
 
 # Log file setup
-LOG_DIR="/tmp/arch-install-logs"
+LOG_DIR="logs"
 LOG_FILE="$LOG_DIR/arch_install.log"
 PROCESS_LOG="$LOG_DIR/process.log"
 
-# Create log directory and files if they don't exist
-mkdir -p "$LOG_DIR" || { echo "Failed to create log directory: $LOG_DIR"; exit 1; }
-touch "$LOG_FILE" "$PROCESS_LOG" || { echo "Failed to create log files"; exit 1; }
+if [[ ! -d "$LOG_DIR" ]]; then
+    # Create log directory and files if they don't exist
+    printf "%b\n" "Creating log directory: $LOG_DIR"
+    mkdir -p "$LOG_DIR" || { echo "Failed to create log directory: $LOG_DIR"; exit 1; }
+fi
+if [[ ! -f "$LOG_FILE" ]]; then
+    printf "%b\n" "Creating log file: $LOG_FILE"
+    touch "$LOG_FILE" || { echo "Failed to create log file: $LOG_FILE"; exit 1; }
+fi
+if [[ ! -f "$PROCESS_LOG" ]]; then
+    printf "%b\n" "Creating process log file: $PROCESS_LOG"
+    touch "$PROCESS_LOG" || { echo "Failed to create process log file: $PROCESS_LOG"; exit 1; }
+fi
 
 # @description Color codes
 export TERM=xterm-256color
@@ -118,11 +128,9 @@ log() {
     timestamp=$(date '+%Y-%m-%d %H:%M:%S')
     # Construct the log message without color codes
     local log_entry="${timestamp} ${prefix} ${message}"
-    ensure_log_directory || return
 
     # Use tee to write to both console and log file
-    printf "%b\n" "$log_entry" >> $LOG_FILE
-    
+    printf "%b\n" "$log_entry" >> $LOG_FILE 
 }
 export -f log
 # @description Print formatted messages
@@ -368,7 +376,7 @@ process_end() {
     INSTALLATION_TIME=$(date -u -d @$(($(date -d "$END_TIMESTAMP" '+%s') - $(date -d "$START_TIMESTAMP" '+%s'))) '+%T')
     printf "%b\n" " Process start ${WHITE}$START_TIMESTAMP${NC}, end ${WHITE}$END_TIMESTAMP${NC}, time ${WHITE}$INSTALLATION_TIME${NC}"
 
-    print_message DEBUG "======================= Ending $process_name  ======================="
+    print_message DEBUG "============= Ending $process_name ============="
 
     print_message INFO "All processes allmost completed....." 
     sleep 2
@@ -699,9 +707,6 @@ execute_process() {
         esac
     done
 
-    # Initialize log file
-    init_log_file true "$ARCH_DIR/process.log"
-
     # Collect remaining arguments as commands
     if [[ $# -eq 1 && "${1}" == *$'\n'* ]]; then
         # If a single argument contains newlines, split it into an array
@@ -767,7 +772,7 @@ execute_step() {
 # @arg $1 string Format type
 # @arg $2 string Desktop environment
 process_installation_stages() {
-    local format_type="$1"
+    local start_from="$1"
     local desktop_environment="$2"
     local stage_name
     local stage_type
@@ -818,212 +823,6 @@ process_installation_stages() {
                 return 1
             fi
         done
-    done
-
-    return 0
-}
-# @description Execute scripts for a given stage.
-# @arg $1 string Stage (directory name)
-# @arg $2 string Script name
-execute_script() {
-    local stage="$1"
-    local script="$2"
-    local script_path="${SCRIPTS_DIR}/$stage/$script"
-
-    if [[ "$DRY_RUN" == "true" ]]; then
-        print_message ACTION "[DRY-RUN] Would execute: $script_path"
-        return 0
-    fi
-
-    if [[ ! -f "$script_path" ]]; then
-        print_message ERROR "Error: Script not found: $script_path"
-        print_message DEBUG "Current directory contents:"
-        ls -la "$(dirname "$script_path")"
-        return 1
-    fi
-
-    if [[ ! -x "$script_path" ]]; then
-        print_message ERROR "Error: Script is not executable: $script_path"
-        return 1
-    fi
-
-    if bash "$script_path"; then
-        print_message ACTION "Successfully executed: $script_path"
-        return 0
-    else
-        print_message ERROR "Failed to execute: $script_path"
-        return 1
-    fi
-}
-# @description Run install scripts.
-# @arg $1 string Format type
-# @arg $2 string Desktop environment
-# shellcheck source=../scripts
-run_install_scripts() {
-    local format_type="$1"
-    local desktop_environment="$2"
-
-    for stage in $(printf "%s\n" "${!INSTALL_SCRIPTS[@]}" | sort); do
-        stage_name="${stage%,*}"
-        stage_type="${stage##*,}"
-
-        print_message INFO "Processing stage: $stage_name ($stage_type)"
-
-        IFS=' ' read -ra scripts <<< "${INSTALL_SCRIPTS[$stage]}"
-        for script in "${scripts[@]}"; do
-            script=$(replace_placeholders "$script" "$format_type" "$desktop_environment")
-            
-            if [[ "$stage_type" == "o" ]]; then
-                print_message INFO "Optional script: $stage_name/$script"
-            fi
-
-            print_message INFO "Executing: $stage_name/$script"
-            if ! execute_script "$stage_name" "$script"; then
-                if [[ $DRY_RUN == true ]]; then
-                    print_message WARNING "Dry run: Continuing despite error in $script"
-                else
-                    print_message ERROR "Failed to execute: $script in stage $stage_name"
-                    return 1
-                fi
-            fi
-        done
-    done
-}
-# @description Replace placeholders in script names.
-# @arg $1 string Script name
-# @arg $2 string Format type
-# @arg $3 string Desktop environment
-# @return string Script name with placeholders replaced 
-replace_placeholders() {
-    local script="$1"
-    local format_type="$2"
-    local desktop_environment="$3"
-
-    script="${script//\{format_type\}/$format_type}"
-    script="${script//\{desktop_environment\}/$desktop_environment}"
-    printf "%s" "$script"
-}
-# @description Check if an optional script should run.
-# @arg $1 string Script name
-# @return 0 if the script should run, 1 otherwise   
-should_run_optional_script() {
-    local script="$1"
-    local config_var
-    local install_script
-
-    config_var="INSTALL_$(printf "%s" "${script%.*}" | tr '[:lower:]' '[:upper:]' | tr '-' '_')"
-    install_script=$(get_config_value "$config_var" "true")
-    print_message DEBUG "Checking optional script: $script, config_var: $config_var, value: $install_script"
-    [ "$install_script" == "true" ] && return 0 || return 1
-}
-# @description Parse TOML file and populate INSTALL_SCRIPTS
-# @arg $1 string Path to the TOML file
-# @return 0 on success, 1 on failure
-parse_stages_toml() {
-    local toml_file="$1"
-    declare -gA INSTALL_SCRIPTS FORMAT_TYPES DESKTOP_ENVIRONMENTS
-
-    print_message DEBUG "Parsing stages TOML file: $toml_file"
-
-    if [[ ! -f "$toml_file" ]]; then
-        print_message ERROR "TOML file not found: $toml_file"
-        return 1
-    fi
-
-    local current_section=""
-    while IFS= read -r line || [[ -n "$line" ]]; do
-        # Trim whitespace
-        line=$(printf "%s" "$line" | sed -e 's/^[[:space:]]*//' -e 's/[[:space:]]*$//')
-
-        # Skip empty lines and comments
-        [[ -z "$line" || "$line" == \#* ]] && continue
-
-        if [[ "$line" =~ ^\[([^]]+)\]$ ]]; then
-            current_section="${BASH_REMATCH[1]}"
-            print_message DEBUG "Entering section: [$current_section]"
-            continue
-        fi
-
-        case "$current_section" in
-            stages)
-                if [[ "$line" =~ ^\"([^\"]+)\"[[:space:]]*=[[:space:]]*\{([^}]+)\}$ ]]; then
-                    local stage="${BASH_REMATCH[1]}"
-                    local content="${BASH_REMATCH[2]}"
-                    print_message DEBUG "Parsing stage: $stage"
-                    
-                    if [[ "$content" =~ mandatory[[:space:]]*=[[:space:]]*\[([^\]]+)\] ]]; then
-                        local mandatory_scripts="${BASH_REMATCH[1]}"
-                        mandatory_scripts=$(printf "%s" "$mandatory_scripts" | sed 's/"//g' | sed 's/,/ /g')
-                        INSTALL_SCRIPTS["$stage,m"]="$mandatory_scripts"
-                        print_message DEBUG "Mandatory scripts for stage '$stage': $mandatory_scripts"
-                    fi
-                    if [[ "$content" =~ optional[[:space:]]*=[[:space:]]*\[([^\]]+)\] ]]; then
-                        local optional_scripts="${BASH_REMATCH[1]}"
-                        optional_scripts=$(printf "%s" "$optional_scripts" | sed 's/"//g' | sed 's/,/ /g')
-                        INSTALL_SCRIPTS["$stage,o"]="$optional_scripts"
-                        print_message DEBUG "Optional scripts for stage '$stage': $optional_scripts"
-                    fi
-                elif [[ "$line" =~ ^\"([^\"]+)\"[[:space:]]*=[[:space:]]*\{[[:space:]]*mandatory[[:space:]]*=[[:space:]]*\[([^\]]+)\][[:space:]]*\}$ ]]; then
-                    local stage="${BASH_REMATCH[1]}"
-                    local mandatory_scripts="${BASH_REMATCH[2]}"
-                    mandatory_scripts=$(printf "%s" "$mandatory_scripts" | sed 's/"//g' | sed 's/,/ /g')
-                    INSTALL_SCRIPTS["$stage,m"]="$mandatory_scripts"
-                    print_message DEBUG "Parsing stage: $stage"
-                    print_message DEBUG "Mandatory scripts for stage '$stage': $mandatory_scripts"
-                else
-                    print_message WARNING "Line did not match stage pattern: $line"
-                fi
-                ;;
-            format_types|desktop_environments)
-                if [[ "$line" =~ ^([^=]+)[[:space:]]*=[[:space:]]*(\[.+\])$ ]]; then
-                    local key="${BASH_REMATCH[1]}"
-                    local value="${BASH_REMATCH[2]}"
-                    key=$(printf "%s" "$key" | sed -e 's/^[[:space:]]*//' -e 's/[[:space:]]*$//')
-                    value=$(printf "%s" "$value" | sed -e 's/^\[//' -e 's/\]$//' -e 's/"//g' -e 's/,/ /g')
-                    
-                    if [ "$current_section" == "format_types" ]; then
-                        FORMAT_TYPES["$key"]="$value"
-                        print_message DEBUG "Format type '$key' scripts: ${FORMAT_TYPES[$key]}"
-                    else
-                        DESKTOP_ENVIRONMENTS["$key"]="$value"
-                        print_message DEBUG "Desktop environment '$key' scripts: ${DESKTOP_ENVIRONMENTS[$key]}"
-                    fi
-                else
-                    print_message WARNING "Line did not match ${current_section} pattern: $line"
-                fi
-                ;;
-            *)
-                print_message WARNING "Unknown section: $current_section"
-                ;;
-        esac
-    done < "$toml_file"
-
-     # Remove extra spaces from keys in associative arrays
-    for key in "${!FORMAT_TYPES[@]}"; do
-        new_key="${key%% }"
-        FORMAT_TYPES["$new_key"]="${FORMAT_TYPES[$key]}"
-        [ "$new_key" != "$key" ] && unset "FORMAT_TYPES[$key]"
-    done
-
-    for key in "${!DESKTOP_ENVIRONMENTS[@]}"; do
-        new_key="${key%% }"
-        DESKTOP_ENVIRONMENTS["$new_key"]="${DESKTOP_ENVIRONMENTS[$key]}"
-        [ "$new_key" != "$key" ] && unset "DESKTOP_ENVIRONMENTS[$key]"
-    done
-
-    print_message DEBUG "Parsed stages:"
-    for key in "${!INSTALL_SCRIPTS[@]}"; do
-        print_message DEBUG "  Stage '$key': ${INSTALL_SCRIPTS[$key]}"
-    done
-
-    print_message DEBUG "Parsed format types:"
-    for format in "${!FORMAT_TYPES[@]}"; do
-        print_message DEBUG "  Format '$format': ${FORMAT_TYPES[$format]}"
-    done
-
-    print_message DEBUG "Parsed desktop environments:"
-    for de in "${!DESKTOP_ENVIRONMENTS[@]}"; do
-        print_message DEBUG "  Desktop environment '$de': ${DESKTOP_ENVIRONMENTS[$de]}"
     done
 
     return 0
@@ -1087,88 +886,6 @@ ask_for_password() {
     export PASSWORD="$password"
     export DEVICE="$device"
 }
-# @description Ask for installation information.
-# @return 0 on success, 1 on failure
-ask_for_installation_info() {
-    local script_dir="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
-    local project_root="$( cd "$script_dir/.." && pwd )"
-    local executable_path="$project_root/installation_info/installation_info"
-
-    print_message DEBUG "Current directory: $(pwd)"
-    print_message DEBUG "Script directory: $script_dir"
-    print_message DEBUG "Project root: $project_root"
-    print_message DEBUG "Executable path: $executable_path"
-
-    if [ ! -f "$executable_path" ]; then
-        print_message ERROR "installation_info file not found at $executable_path"
-        return 1
-    fi
-
-    if [ ! -x "$executable_path" ]; then
-        print_message ERROR "installation_info is not executable at $executable_path"
-        chmod +x "$executable_path"
-        print_message DEBUG "Made $executable_path executable"
-    fi
-    print_message DEBUG "Current PATH: $PATH"
-    print_message DEBUG "Current working directory: $(pwd)"
-    print_message DEBUG "Executable permissions: $(ls -l "$executable_path")"
-    print_message DEBUG "Executable file type: $(file "$executable_path")"
-    print_message DEBUG "Environment variables:"
-    print_message DEBUG "USERNAME=$USERNAME"
-    print_message DEBUG "USER_PASSWORD=$USER_PASSWORD"
-    print_message DEBUG "HOSTNAME=$HOSTNAME"
-    print_message DEBUG "TIMEZONE=$TIMEZONE"
-
-    print_message DEBUG "Attempting to run installation_info program"
-    print_message DEBUG "Command: $executable_path -interactive=false"
-    
-    # Explicitly set environment variables
-    export USERNAME="$(sanitize "${USERNAME:-user}")"
-    export USER_PASSWORD="$(sanitize "${USER_PASSWORD:-changeme}")" # Set a default password
-    export HOSTNAME="$(sanitize "${HOSTNAME:-arch}")"
-    export TIMEZONE="$(sanitize "${TIMEZONE:-America/Toronto}")"
-
-    print_message DEBUG "Environment variables after setting defaults:"
-    print_message DEBUG "USERNAME=$USERNAME"
-    print_message DEBUG "USER_PASSWORD=$USER_PASSWORD"
-    print_message DEBUG "HOSTNAME=$HOSTNAME"
-    print_message DEBUG "TIMEZONE=$TIMEZONE"
-
-    # Check if we need to run in interactive mode
-    if [ -z "$USERNAME" ] || [ -z "$USER_PASSWORD" ] || [ -z "$HOSTNAME" ] || [ -z "$TIMEZONE" ]; then
-        print_message DEBUG "Running installation_info in interactive mode"
-        "$executable_path" -interactive=true
-    else
-        print_message DEBUG "Running installation_info in non-interactive mode"
-        "$executable_path" -interactive=false
-    fi
-
-    exit_code=$?
-    print_message DEBUG "installation_info exit code: $exit_code"
-
-    if [ $exit_code -ne 0 ]; then
-        print_message ERROR "Failed to run installation_info program. Exit code: $exit_code"
-        return 1
-    fi
-
-    print_message DEBUG "Trying to execute directly from shell"
-    bash -c "$executable_path -interactive=false"
-    print_message DEBUG "Direct execution exit code: $?"
-
-    print_message DEBUG "Checking library dependencies"
-    ldd_output=$(ldd "$executable_path" 2>&1) || true
-    if [[ $ldd_output == *"not a dynamic executable"* ]]; then
-        print_message DEBUG "The executable is statically linked (this is normal for Go programs)"
-    else
-        print_message DEBUG "Library dependencies: $ldd_output"
-    fi
-
-    print_message DEBUG "Running strace on installation_info"
-    strace "$executable_path" -interactive=false || true
-
-    print_message SUCCESS "Installation information collected successfully!"
-    return 0
-}
 check_password_complexity() {
     local password="$1"
     local min_length=8
@@ -1180,7 +897,7 @@ check_password_complexity() {
         return 1
     fi
 
-    if ! [[ "$password" =~ [0-9] ]] || [ $(echo "$password" | tr -cd '0-9' | wc -c) -lt $min_numbers ]; then
+    if ! [[ "$password" =~ [0-9] ]] || [ "$(echo "$password" | tr -cd '0-9' | wc -c)" -lt $min_numbers ]; then
         print_message WARNING "Password must contain at least $min_numbers numbers."
         return 1
     fi
@@ -1200,7 +917,6 @@ generate_encryption_key() {
     print_message ACTION "Press any key to continue..."
     read -n 1 -s
 }
-
 # Function: sanitize_variable
 sanitize() {
     local variable="$1"
@@ -1210,7 +926,6 @@ sanitize() {
     variable=$(echo "$variable" | sed 's/[[:space:]]*$//') # Trim trailing spaces
     echo "$variable"
 }
-
 # Function: trim_variable
 trim() {
     local variable="$1"
@@ -1218,7 +933,6 @@ trim() {
     variable=$(echo "$variable" | sed 's/[[:space:]]*$//') # Trim trailing spaces
     echo "$variable"
 }
-
 # Function: swap_file
 swap_file() {
     if [[ -n "$SWAP_SIZE" ]]; then
@@ -1227,11 +941,6 @@ swap_file() {
         mkswap /mnt/swapfile
         swapon /mnt/swapfile
     fi
-}
-logs() {
-    ### Set up logging ###
-    exec 1> >(tee "stdout.log")
-    exec 2> >(tee "stderr.log")
 }
 run_command() {
     if [ "$DRY_RUN" == "true" ]; then
@@ -1369,21 +1078,6 @@ handle_critical_error() {
     print_message INFO "Installation aborted due to critical error."
     sleep 5
     exit 1
-}
-# @description Check disk space
-# @arg $1 string Mount point to check
-# @description Ensure log directory exists.
-# @return 0 on success, 1 on failure
-ensure_log_directory() {
-    local log_dir
-
-    log_dir=$(dirname "$LOG_FILE")
-    if [[ ! -d "$log_dir" ]]; then
-        mkdir -p "$log_dir" || {
-            print_message ERROR "Failed to create log directory: $log_dir"  >&2
-            return 1
-        }
-    fi
 }
 # @description Check for missing required scripts.
 # @return 0 if all scripts are present, 1 if any are missing
@@ -1557,18 +1251,35 @@ facts_commons() {
     fi
     set_option "SYSTEM_INSTALLATION" "$SYSTEM_INSTALLATION"
 }
-# @description Initialize log file.
-# @arg $1 bool Enable
-# @arg $2 string File
+# @description Check disk space
+# @arg $1 string Mount point to check
+# @description Ensure log directory exists.
+# @return 0 on success, 1 on failure
+ensure_log_directory() {
+    local log_dir
+
+    log_dir=$(dirname "$LOG_FILE")
+    if [[ ! -d "$log_dir" ]]; then
+        printf "%b\n" "Creating log directory: $log_dir"
+        mkdir -p "$log_dir" || {
+            print_message ERROR "Failed to create log directory: $log_dir"  >&2
+            return 1
+        }
+    fi
+}
+# @description Initialize logging to capture all console output
+# @arg $1 bool Enable logging
+# @arg $2 string Log file path
 init_log_file() {
-    local ENABLE="$1"
-    local FILE="$2"
-    if [ "$ENABLE" == "true" ]; then
-        # Create a file descriptor for the log file
-        exec 3>"$FILE"
-        # Tee stdout and stderr to both console and log file, stripping color codes for the log file
-        exec 1> >(tee >(sed -r "s/\x1B\[([0-9]{1,3}(;[0-9]{1,3})*)?[mGK]//g" >&3))
-        exec 2> >(tee >(sed -r "s/\x1B\[([0-9]{1,3}(;[0-9]{1,3})*)?[mGK]//g" >&3) >&2)
+    local enable_logging="$1"
+    local log_file="$2"
+    if [ "$enable_logging" == "true" ]; then
+        # Ensure the log directory exists
+        ensure_log_directory
+        # Redirect stdout and stderr to both console and log file
+        # exec > >(tee -a "$log_file") 2>&1
+        # Redirect stdout and stderr, stripping color codes for the log file
+        exec > >(tee >(sed -u 's/\x1B\[[0-9;]*[a-zA-Z]//g' >> "$log_file")) 2>&1
     fi
 }
 # @description Detect GPU and determine appropriate driver

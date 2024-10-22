@@ -23,7 +23,88 @@ UUID_ROOT=$(blkid -s UUID -o value "$PARTITION_ROOT")
 PARTUUID_BOOT=$(blkid -s PARTUUID -o value "$PARTITION_BOOT")
 PARTUUID_ROOT=$(blkid -s PARTUUID -o value "$PARTITION_ROOT")
 
+# @description Ask for installation information.
+# @return 0 on success, 1 on failure
+ask_for_installation_info() {
+    local script_dir="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
+    local project_root="$( cd "$script_dir/.." && pwd )"
+    local executable_path="$project_root/installation_info/installation_info"
 
+    print_message DEBUG "Current directory: $(pwd)"
+    print_message DEBUG "Script directory: $script_dir"
+    print_message DEBUG "Project root: $project_root"
+    print_message DEBUG "Executable path: $executable_path"
+
+    if [ ! -f "$executable_path" ]; then
+        print_message ERROR "installation_info file not found at $executable_path"
+        return 1
+    fi
+
+    if [ ! -x "$executable_path" ]; then
+        print_message ERROR "installation_info is not executable at $executable_path"
+        chmod +x "$executable_path"
+        print_message DEBUG "Made $executable_path executable"
+    fi
+    print_message DEBUG "Current PATH: $PATH"
+    print_message DEBUG "Current working directory: $(pwd)"
+    print_message DEBUG "Executable permissions: $(ls -l "$executable_path")"
+    print_message DEBUG "Executable file type: $(file "$executable_path")"
+    print_message DEBUG "Environment variables:"
+    print_message DEBUG "USERNAME=$USERNAME"
+    print_message DEBUG "USER_PASSWORD=$USER_PASSWORD"
+    print_message DEBUG "HOSTNAME=$HOSTNAME"
+    print_message DEBUG "TIMEZONE=$TIMEZONE"
+
+    print_message DEBUG "Attempting to run installation_info program"
+    print_message DEBUG "Command: $executable_path -interactive=false"
+    
+    # Explicitly set environment variables
+    export USERNAME="$(sanitize "${USERNAME:-user}")"
+    export USER_PASSWORD="$(sanitize "${USER_PASSWORD:-changeme}")" # Set a default password
+    export HOSTNAME="$(sanitize "${HOSTNAME:-arch}")"
+    export TIMEZONE="$(sanitize "${TIMEZONE:-America/Toronto}")"
+
+    print_message DEBUG "Environment variables after setting defaults:"
+    print_message DEBUG "USERNAME=$USERNAME"
+    print_message DEBUG "USER_PASSWORD=$USER_PASSWORD"
+    print_message DEBUG "HOSTNAME=$HOSTNAME"
+    print_message DEBUG "TIMEZONE=$TIMEZONE"
+
+    # Check if we need to run in interactive mode
+    if [ -z "$USERNAME" ] || [ -z "$USER_PASSWORD" ] || [ -z "$HOSTNAME" ] || [ -z "$TIMEZONE" ]; then
+        print_message DEBUG "Running installation_info in interactive mode"
+        "$executable_path" -interactive=true
+    else
+        print_message DEBUG "Running installation_info in non-interactive mode"
+        "$executable_path" -interactive=false
+    fi
+
+    exit_code=$?
+    print_message DEBUG "installation_info exit code: $exit_code"
+
+    if [ $exit_code -ne 0 ]; then
+        print_message ERROR "Failed to run installation_info program. Exit code: $exit_code"
+        return 1
+    fi
+
+    print_message DEBUG "Trying to execute directly from shell"
+    bash -c "$executable_path -interactive=false"
+    print_message DEBUG "Direct execution exit code: $?"
+
+    print_message DEBUG "Checking library dependencies"
+    ldd_output=$(ldd "$executable_path" 2>&1) || true
+    if [[ $ldd_output == *"not a dynamic executable"* ]]; then
+        print_message DEBUG "The executable is statically linked (this is normal for Go programs)"
+    else
+        print_message DEBUG "Library dependencies: $ldd_output"
+    fi
+
+    print_message DEBUG "Running strace on installation_info"
+    strace "$executable_path" -interactive=false || true
+
+    print_message SUCCESS "Installation information collected successfully!"
+    return 0
+}
 sanitize_variable() {
     local VARIABLE="$1"
     local VARIABLE=$(echo "$VARIABLE" | sed "s/![^ ]*//g") # remove disabled

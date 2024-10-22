@@ -1,0 +1,36 @@
+2024-10-21 20:30:45 [PROC] Starting process:  Main Installation Process (ID: 1729557045) 2024-10-22 00:30:45
+2024-10-21 20:30:45 [INFO] Welcome to the Arch Linux installer script
+2024-10-21 20:30:45 [PROC] DRY_RUN is set to: true
+2024-10-21 20:30:45 [INFO] Reading configuration from /home/ssnow/Documents/GitHub/arch_install/arch_config.toml
+2024-10-21 20:30:45 [OK] Configuration loaded into: /home/ssnow/Documents/GitHub/arch_install/arch_config.cfg
+2024-10-21 20:30:46 [OK] Configuration loaded successfully
+2024-10-21 20:30:46 [OK] All required scripts are present.
+2024-10-21 20:30:46 [INFO] Executing: 1-pre/pre-setup.sh
+2024-10-21 20:30:46 [PROC] Starting process:  Pre-setup (ID: 1729557046) 2024-10-22 00:30:46
+2024-10-21 20:30:46 [INFO] Starting pre-setup process
+2024-10-21 20:30:46 [INFO] DRY_RUN in pre-setup.sh is set to: true
+2024-10-21 20:30:46 [INFO] Starting initial setup
+2024-10-21 20:30:46 [INFO] Starting: Initial setup
+2024-10-21 20:30:46 [ACTION] [DRY RUN] Would execute: timedatectl set-ntp true
+2024-10-21 20:30:46 [ACTION] [DRY RUN] Would execute: pacman -Sy archlinux-keyring --noconfirm
+2024-10-21 20:30:46 [ACTION] [DRY RUN] Would execute: pacman -S --noconfirm --needed pacman-contrib terminus-font rsync reflector gptfdisk e2fsprogs efibootmgr
+2024-10-21 20:30:46 [ACTION] [DRY RUN] Would execute: setfont ter-v22b
+2024-10-21 20:30:46 [ACTION] [DRY RUN] Would execute: sed -i -e '/^#ParallelDownloads/s/^#//' -e '/^#Color/s/^#//' /etc/pacman.conf
+2024-10-21 20:30:46 [ACTION] [DRY RUN] Would execute: pacman -Syy
+2024-10-21 20:30:46 [OK] Initial setup completed Initial setup completed
+2024-10-21 20:30:46 [INFO] Starting: Mirror setup
+2024-10-21 20:30:46 [ACTION] [DRY RUN] Would execute: cp /etc/pacman.d/mirrorlist /etc/pacman.d/mirrorlist.backup
+2024-10-21 20:30:46 [ACTION] [DRY RUN] Would execute: reflector -c CA -c US -a 12 -p https -f 5 -l 10 --sort rate --save /etc/pacman.d/mirrorlist
+2024-10-21 20:30:46 [OK] Mirror setup completed Mirror setup completed
+2024-10-21 20:30:46 [OK] Pre-setup process completed successfully
+2024-10-21 20:30:46 [PROC] Process completed successfully:  Pre-setup (ID: 1729557046)
+2024-10-21 20:30:46 [INFO] All processes allmost completed.....
+2024-10-21 20:30:48 [INFO] Exit handler called with exit code:  0
+2024-10-21 20:30:48 [INFO] Script execution completed successfully
+2024-10-21 20:30:48 [ACTION] Successfully executed: /home/ssnow/Documents/GitHub/arch_install/scripts/1-pre/pre-setup.sh
+2024-10-21 20:30:48 [INFO] Executing: 1-pre/run-checks.sh
+2024-10-21 20:30:49 [OK] Configuration loaded successfully
+2024-10-21 20:30:49 [PROC] Starting process:  Run Checks: pre-install preparations (ID: 1729557049) 2024-10-22 00:30:49
+2024-10-21 20:30:49 [INFO] Starting the run checks process
+2024-10-21 20:30:49 [INFO] Dry-run: no root check needed
+2024-10-21 20:30:49 [INFO] Setting up the necessary passwords

@@ -1,4 +1,4 @@
-#!/bin/sh
+#!/bin/env bash
 
 # @description Arch Linux Installer
 # This script is used to install Arch Linux on a device.
@@ -22,10 +22,7 @@ while [ "$#" -gt 0 ]; do
     shift
 done
 
-
 # Set up important directories and files
-## SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-## SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"  # Changed from "${BASH_SOURCE[0]}" to "$0"
 SCRIPT_DIR="$(dirname "$(realpath "$0")")"
 export ARCH_DIR="$SCRIPT_DIR"
 export SCRIPTS_DIR="$ARCH_DIR/scripts"
@@ -51,10 +48,8 @@ main() {
     MAIN_START_TIMESTAMP=""
     MAIN_END_TIMESTAMP=""
     MAIN_INSTALLATION_TIME=""
-
-
     MAIN_START_TIMESTAMP=$(date -u +"%F %T")
-    print_message DEBUG "======================= Starting Main Installation Process ======================="
+    print_message DEBUG "============ Starting Main Installation Process ============="
     process_init "Main Installation Process"
     print_message INFO "Welcome to the Arch Linux installer script"
     print_message PROC "DRY_RUN is set to: ${YELLOW}$DRY_RUN"
@@ -67,15 +62,6 @@ main() {
 
     export STAGES_CONFIG="${STAGES_CONFIG:-$ARCH_DIR/stages.toml}"
 
-    # Parse the stages TOML file
-    #parse_stages_toml "$STAGES_CONFIG" || { print_message ERROR "Failed to parse stages.toml"; exit 1; }
-    #print_message DEBUG "Parsed stages.toml: ${STAGES_CONFIG}"
-
-    # Debug: Print the contents of INSTALL_SCRIPTS
-    #print_message DEBUG "Contents of INSTALL_SCRIPTS:"
-    #for key in "${!INSTALL_SCRIPTS[@]}"; do
-    #    print_message DEBUG "  $key: ${INSTALL_SCRIPTS[$key]}"
-    #done
     # Reads config file arch_config.toml and copies it to arch_config.cfg
     read_config || { print_message ERROR "Failed to read config"; exit 1; }
     # Load configuration

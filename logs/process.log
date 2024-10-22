@@ -1,0 +1,40 @@
+1729557045:Main Installation Process:started
+ [PROC]  Starting process:  Main Installation Process (ID: 1729557045) 2024-10-22 00:30:45
+ [INFO]  Welcome to the Arch Linux installer script
+ [PROC]  DRY_RUN is set to: true
+ [INFO]  Reading configuration from /home/ssnow/Documents/GitHub/arch_install/arch_config.toml
+  [OK]  Configuration loaded into: /home/ssnow/Documents/GitHub/arch_install/arch_config.cfg
+  [OK]  Configuration loaded successfully
+  [OK]  All required scripts are present.
+ [INFO]  Executing: 1-pre/pre-setup.sh
+1729557046:Pre-setup:started
+ [PROC]  Starting process:  Pre-setup (ID: 1729557046) 2024-10-22 00:30:46
+ [INFO]  Starting pre-setup process
+ [INFO]  DRY_RUN in pre-setup.sh is set to: true
+ [INFO]  Starting initial setup
+ [INFO]  Starting: Initial setup
+ [ACTION]  [DRY RUN] Would execute: timedatectl set-ntp true
+ [ACTION]  [DRY RUN] Would execute: pacman -Sy archlinux-keyring --noconfirm
+ [ACTION]  [DRY RUN] Would execute: pacman -S --noconfirm --needed pacman-contrib terminus-font rsync reflector gptfdisk e2fsprogs efibootmgr
+ [ACTION]  [DRY RUN] Would execute: setfont ter-v22b
+ [ACTION]  [DRY RUN] Would execute: sed -i -e '/^#ParallelDownloads/s/^#//' -e '/^#Color/s/^#//' /etc/pacman.conf
+ [ACTION]  [DRY RUN] Would execute: pacman -Syy
+  [OK]  Initial setup completed Initial setup completed
+ [INFO]  Starting: Mirror setup
+ [ACTION]  [DRY RUN] Would execute: cp /etc/pacman.d/mirrorlist /etc/pacman.d/mirrorlist.backup
+ [ACTION]  [DRY RUN] Would execute: reflector -c CA -c US -a 12 -p https -f 5 -l 10 --sort rate --save /etc/pacman.d/mirrorlist
+  [OK]  Mirror setup completed Mirror setup completed
+  [OK]  Pre-setup process completed successfully
+ [PROC]  Process completed successfully:  Pre-setup (ID: 1729557046)
+1729557046:Pre-setup:completed
+ [INFO]  All processes allmost completed.....
+ [INFO]  Exit handler called with exit code:  0
+ [INFO]  Script execution completed successfully
+ [ACTION]  Successfully executed: /home/ssnow/Documents/GitHub/arch_install/scripts/1-pre/pre-setup.sh
+ [INFO]  Executing: 1-pre/run-checks.sh
+  [OK]  Configuration loaded successfully
+1729557049:Run Checks: pre-install preparations:started
+ [PROC]  Starting process:  Run Checks: pre-install preparations (ID: 1729557049) 2024-10-22 00:30:49
+ [INFO]  Starting the run checks process
+ [INFO]  Dry-run: no root check needed
+ [INFO]  Setting up the necessary passwords

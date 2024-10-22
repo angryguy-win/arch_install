@@ -153,7 +153,6 @@ mounting() {
         "${commands[@]}"
 }
 main() {
-    logs
     #load_config
     process_init "Formatting partitions $FORMAT_TYPE"
     print_message INFO "Starting formatting partitions $FORMAT_TYPE process"

@@ -1,0 +1,3 @@
+[0;34m [INFO] [0m Dry-run: no root check needed
+[0;34m [INFO] [0m Setting up the necessary passwords
+Type ssnow password: 
