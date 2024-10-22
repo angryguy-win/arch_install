@@ -28,6 +28,7 @@ terminal() {
     
     print_message INFO "Installing Terminal"
     execute_process "Installing Terminal" \
+        --use-chroot \
         --error-message "Terminal installation failed" \
         --success-message "Terminal installation completed" \
         "pacman -S --noconfirm --needed ${TERMINAL} kitty ${SHELL} starship" \
