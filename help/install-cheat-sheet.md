@@ -1,7 +1,7 @@
 # Preparation
 
-## Load keyboard layout (replace de with us, fr, es if needed)
-loadkeys de-latin1
+## Load keyboard layout (replace with us, fr, es if needed)
+loadkeys us
 
 ## Connect to WLAN (if not LAN)
 ```
