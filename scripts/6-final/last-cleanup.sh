@@ -29,6 +29,12 @@ enable_services() {
     local commands=()
 
 
+    commands+=("systemctl enable NetworkManager")
+    commands+=("systemctl enable sshd")
+    commands+=("systemctl enable cronie")
+    commands+=("systemctl enable bluetooth")
+    commands+=("systemctl enable acpid")
+    commands+=("systemctl enable ${display_message}")
     if [ "$DEVICE_TRIM" == "true" ]; then
         commands+=("systemctl enable fstrim.timer")
     fi
@@ -37,11 +43,7 @@ enable_services() {
         --use-chroot \
         --error-message "Enable and start services failed" \
         --success-message "Enable and start services completed" \
-        "systemctl enable NetworkManager" \
-        "systemctl enable sshd" \
-        "systemctl enable cronie" \
-        "systemctl enable bluetooth" \
-        "systemctl enable ${display_message}"
+        "${commands[@]}"
 
 }
 swap() {
