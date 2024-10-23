@@ -21,10 +21,10 @@ lsblk
 gdisk /dev/sda
 ```
 
-## Partition 1: +512M ef00 (for EFI)
-## Partition 2: Available space 8300 (for Linux filesystem)
-## Write w, Confirm Y
-## Sync package
+### Partition 1: +512M ef00 (for EFI)
+### Partition 2: Available space 8300 (for Linux filesystem)
+### Write w, Confirm Y
+### Sync package
 ```
 pacman -Syy
 ```
