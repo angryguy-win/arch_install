@@ -147,8 +147,8 @@ grub-install --target=x86_64-efi --efi-directory=/boot/efi --bootloader-id=GRUB 
 grub-mkconfig -o /boot/grub/grub.cfg
 ```
 ## Add btrfs and setfont to mkinitcpio
-## Before: BINARIES=()
-## After: BINARIES=(btrfs setfont)
+### Before: BINARIES=()
+### After: BINARIES=(btrfs setfont)
 ```
 sed -i 's/BINARIES=()/BINARIES=(btrfs setfont)/g' /etc/mkinitcpio.conf
 mkinitcpio -p linux
