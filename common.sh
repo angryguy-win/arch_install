@@ -168,106 +168,7 @@ swap_partition() {
 
     fallocate -l "$SWAP_SIZE" "$DEVICE_SWAP"
 }
-partition_device() {
-    local DEVICE="$1"
-    local NUMBER="$2"
-    local PARTITION_DEVICE=""
 
-    if [ "$DEVICE_SDA" == "true" ]; then
-        PARTITION_DEVICE="${DEVICE}${NUMBER}"
-    fi
-
-    if [ "$DEVICE_NVME" == "true" ]; then
-        PARTITION_DEVICE="${DEVICE}p${NUMBER}"
-    fi
-
-    if [ "$DEVICE_VDA" == "true" ]; then
-        PARTITION_DEVICE="${DEVICE}${NUMBER}"
-    fi
-
-    if [ "$DEVICE_MMC" == "true" ]; then
-        PARTITION_DEVICE="${DEVICE}p${NUMBER}"
-    fi
-
-    echo "$PARTITION_DEVICE"
-}
-
-partition_options() {
-    PARTITION_OPTIONS_BOOT="defaults"
-    PARTITION_OPTIONS="defaults"
-
-    if [ "$BIOS_TYPE" == "uefi" ]; then
-        PARTITION_OPTIONS_BOOT="$PARTITION_OPTIONS_BOOT,uid=0,gid=0,fmask=0077,dmask=0077"
-    fi
-    if [ "$DEVICE_TRIM" == "true" ]; then
-        PARTITION_OPTIONS_BOOT="$PARTITION_OPTIONS_BOOT,noatime"
-        PARTITION_OPTIONS="$PARTITION_OPTIONS,noatime"
-        if [ "$FILE_SYSTEM_TYPE" == "f2fs" ]; then
-            PARTITION_OPTIONS="$PARTITION_OPTIONS,nodiscard"
-        fi
-    fi
-}
-function partition_setup() {
-    # setup
-    if [ "$PARTITION_MODE" == "auto" ]; then
-        PARTITION_PARTED_FILE_SYSTEM_TYPE="$FILE_SYSTEM_TYPE"
-        if [ "$PARTITION_PARTED_FILE_SYSTEM_TYPE" == "f2fs" ]; then
-            PARTITION_PARTED_FILE_SYSTEM_TYPE=""
-        fi
-        PARTITION_PARTED_UEFI="mklabel gpt mkpart ESP fat32 1MiB 512MiB mkpart root $PARTITION_PARTED_FILE_SYSTEM_TYPE 512MiB 100% set 1 esp on"
-        PARTITION_PARTED_BIOS="mklabel msdos mkpart primary ext4 4MiB 512MiB mkpart primary $PARTITION_PARTED_FILE_SYSTEM_TYPE 512MiB 100% set 1 boot on"
-    elif [ "$PARTITION_MODE" == "custom" ]; then
-        PARTITION_PARTED_UEFI="$PARTITION_CUSTOM_PARTED_UEFI"
-        PARTITION_PARTED_BIOS="$PARTITION_CUSTOM_PARTED_BIOS"
-    fi
-
-    if [ "$DEVICE_SDA" == "true" ]; then
-        PARTITION_BOOT="$(partition_device "${DEVICE}" "${PARTITION_BOOT_NUMBER}")"
-        PARTITION_ROOT="$(partition_device "${DEVICE}" "${PARTITION_ROOT_NUMBER}")"
-        DEVICE_ROOT="$(partition_device "${DEVICE}" "${PARTITION_ROOT_NUMBER}")"
-    fi
-
-    if [ "$DEVICE_NVME" == "true" ]; then
-        PARTITION_BOOT="$(partition_device "${DEVICE}" "${PARTITION_BOOT_NUMBER}")"
-        PARTITION_ROOT="$(partition_device "${DEVICE}" "${PARTITION_ROOT_NUMBER}")"
-        DEVICE_ROOT="$(partition_device "${DEVICE}" "${PARTITION_ROOT_NUMBER}")"
-    fi
-
-    if [ "$DEVICE_VDA" == "true" ]; then
-        PARTITION_BOOT="$(partition_device "${DEVICE}" "${PARTITION_BOOT_NUMBER}")"
-        PARTITION_ROOT="$(partition_device "${DEVICE}" "${PARTITION_ROOT_NUMBER}")"
-        DEVICE_ROOT="$(partition_device "${DEVICE}" "${PARTITION_ROOT_NUMBER}")"
-    fi
-
-    if [ "$DEVICE_MMC" == "true" ]; then
-        PARTITION_BOOT="$(partition_device "${DEVICE}" "${PARTITION_BOOT_NUMBER}")"
-        PARTITION_ROOT="$(partition_device "${DEVICE}" "${PARTITION_ROOT_NUMBER}")"
-        DEVICE_ROOT="$(partition_device "${DEVICE}" "${PARTITION_ROOT_NUMBER}")"
-    fi
-}
-function partition_device() {
-    local DEVICE="$1"
-    local NUMBER="$2"
-    local PARTITION_DEVICE=""
-
-    if [ "$DEVICE_SDA" == "true" ]; then
-        PARTITION_DEVICE="${DEVICE}${NUMBER}"
-    fi
-
-    if [ "$DEVICE_NVME" == "true" ]; then
-        PARTITION_DEVICE="${DEVICE}p${NUMBER}"
-    fi
-
-    if [ "$DEVICE_VDA" == "true" ]; then
-        PARTITION_DEVICE="${DEVICE}${NUMBER}"
-    fi
-
-    if [ "$DEVICE_MMC" == "true" ]; then
-        PARTITION_DEVICE="${DEVICE}p${NUMBER}"
-    fi
-
-    echo "$PARTITION_DEVICE"
-}
 partition_mount() {
     if [ "$FILE_SYSTEM_TYPE" == "btrfs" ]; then
         # mount subvolumes
@@ -313,7 +214,6 @@ partition_mount() {
         done
     fi
 }
-
 create_subvolumes() {
 
     # create
@@ -345,8 +245,7 @@ swap_file() {
         fi
     fi
 }
-
-function install() {
+install() {
     print_step "install()"
     local COUNTRIES=()
     local PACKAGES=()
@@ -389,7 +288,8 @@ EOT
         sed -z -i 's/#\[multilib\]\n#/[multilib]\n/' "${MNT_DIR}"/etc/pacman.conf
     fi
 }
-function configuration() {
+
+configuration() {
     print_step "configuration()"
 
     if [ "$GPT_AUTOMOUNT" != "true" ]; then
@@ -488,9 +388,9 @@ copy_logs() {
 
     if [ -f "$ALIS_CONF_FILE" ]; then
         local SOURCE_FILE="$ALIS_CONF_FILE"
-        local FILE="${MNT_DIR}/var/log/alis/$ALIS_CONF_FILE"
+        local FILE="${MNT_DIR}/var/log/arch-install/$ALIS_CONF_FILE"
 
-        mkdir -p "${MNT_DIR}"/var/log/alis
+        mkdir -p "${MNT_DIR}"/var/log/arch-install/
         cp "$SOURCE_FILE" "$FILE"
         chown root:root "$FILE"
         chmod 600 "$FILE"
@@ -504,45 +404,28 @@ copy_logs() {
             sed -i "s/${ESCAPED_USER_PASSWORD}/******/g" "$FILE"
         fi
     fi
-    if [ -f "$ALIS_LOG_FILE" ]; then
-        local SOURCE_FILE="$ALIS_LOG_FILE"
-        local FILE="${MNT_DIR}/var/log/alis/$ALIS_LOG_FILE"
 
-        mkdir -p "${MNT_DIR}"/var/log/alis
-        cp "$SOURCE_FILE" "$FILE"
-        chown root:root "$FILE"
-        chmod 600 "$FILE"
-        if [ -n "$ESCAPED_LUKS_PASSWORD" ]; then
-            sed -i "s/${ESCAPED_LUKS_PASSWORD}/******/g" "$FILE"
-        fi
-        if [ -n "$ESCAPED_ROOT_PASSWORD" ]; then
-            sed -i "s/${ESCAPED_ROOT_PASSWORD}/******/g" "$FILE"
-        fi
-        if [ -n "$ESCAPED_USER_PASSWORD" ]; then
-            sed -i "s/${ESCAPED_USER_PASSWORD}/******/g" "$FILE"
-        fi
-    fi
 }
-function sanitize_variables() {
-    DEVICE=$(sanitize_variable "$DEVICE")
-    PARTITION_MODE=$(sanitize_variable "$PARTITION_MODE")
-    PARTITION_CUSTOM_PARTED_UEFI=$(sanitize_variable "$PARTITION_CUSTOM_PARTED_UEFI")
-    PARTITION_CUSTOM_PARTED_BIOS=$(sanitize_variable "$PARTITION_CUSTOM_PARTED_BIOS")
-    FILE_SYSTEM_TYPE=$(sanitize_variable "$FILE_SYSTEM_TYPE")
-    SWAP_SIZE=$(sanitize_variable "$SWAP_SIZE")
-    KERNELS=$(sanitize_variable "$KERNELS")
-    KERNELS_COMPRESSION=$(sanitize_variable "$KERNELS_COMPRESSION")
-    KERNELS_PARAMETERS=$(sanitize_variable "$KERNELS_PARAMETERS")
-    AUR_PACKAGE=$(sanitize_variable "$AUR_PACKAGE")
-    DISPLAY_DRIVER=$(sanitize_variable "$DISPLAY_DRIVER")
-    DISPLAY_DRIVER_HARDWARE_VIDEO_ACCELERATION_INTEL=$(sanitize_variable "$DISPLAY_DRIVER_HARDWARE_VIDEO_ACCELERATION_INTEL")
-    SYSTEMD_HOMED_STORAGE=$(sanitize_variable "$SYSTEMD_HOMED_STORAGE")
-    SYSTEMD_HOMED_STORAGE_LUKS_TYPE=$(sanitize_variable "$SYSTEMD_HOMED_STORAGE_LUKS_TYPE")
-    BOOTLOADER=$(sanitize_variable "$BOOTLOADER")
-    CUSTOM_SHELL=$(sanitize_variable "$CUSTOM_SHELL")
-    DESKTOP_ENVIRONMENT=$(sanitize_variable "$DESKTOP_ENVIRONMENT")
-    DISPLAY_MANAGER=$(sanitize_variable "$DISPLAY_MANAGER")
-    SYSTEMD_UNITS=$(sanitize_variable "$SYSTEMD_UNITS")
+sanitize() {
+    DEVICE=$(sanitize "$DEVICE")
+    PARTITION_MODE=$(sanitize "$PARTITION_MODE")
+    PARTITION_CUSTOM_PARTED_UEFI=$(sanitize "$PARTITION_CUSTOM_PARTED_UEFI")
+    PARTITION_CUSTOM_PARTED_BIOS=$(sanitize "$PARTITION_CUSTOM_PARTED_BIOS")
+    FILE_SYSTEM_TYPE=$(sanitize "$FILE_SYSTEM_TYPE")
+    SWAP_SIZE=$(sanitize "$SWAP_SIZE")
+    KERNELS=$(sanitize "$KERNELS")
+    KERNELS_COMPRESSION=$(sanitize "$KERNELS_COMPRESSION")
+    KERNELS_PARAMETERS=$(sanitize "$KERNELS_PARAMETERS")
+    AUR_PACKAGE=$(sanitize "$AUR_PACKAGE")
+    DISPLAY_DRIVER=$(sanitize "$DISPLAY_DRIVER")
+    DISPLAY_DRIVER_HARDWARE_VIDEO_ACCELERATION_INTEL=$(sanitize "$DISPLAY_DRIVER_HARDWARE_VIDEO_ACCELERATION_INTEL")
+    SYSTEMD_HOMED_STORAGE=$(sanitize "$SYSTEMD_HOMED_STORAGE")
+    SYSTEMD_HOMED_STORAGE_LUKS_TYPE=$(sanitize "$SYSTEMD_HOMED_STORAGE_LUKS_TYPE")
+    BOOTLOADER=$(sanitize "$BOOTLOADER")
+    CUSTOM_SHELL=$(sanitize "$CUSTOM_SHELL")
+    DESKTOP_ENVIRONMENT=$(sanitize "$DESKTOP_ENVIRONMENT")
+    DISPLAY_MANAGER=$(sanitize "$DISPLAY_MANAGER")
+    SYSTEMD_UNITS=$(sanitize "$SYSTEMD_UNITS")
 
     for I in "${BTRFS_SUBVOLUMES_MOUNTPOINTS[@]}"; do
         IFS=',' read -ra SUBVOLUME <<< "$I"
@@ -562,11 +445,27 @@ function sanitize_variables() {
         fi
     done
 }
+cleanup() {
+    local exit_code=$?
+    print_message INFO "Performing cleanup..."
 
-logs() {
-### Set up logging ###
-exec 1> >(tee "stdout.log")
-exec 2> >(tee "stderr.log")
+    # Restore original configuration files if backups exist
+    [ -f "/mnt/etc/mkinitcpio.conf.bak" ] && mv "/mnt/etc/mkinitcpio.conf.bak" "/mnt/etc/mkinitcpio.conf"
+    [ -f "/mnt/etc/default/grub.bak" ] && mv "/mnt/etc/default/grub.bak" "/mnt/etc/default/grub"
+
+    # Remove any partial boot entries
+    if [ "$BOOTLOADER" == "systemd" ]; then
+        rm -f "/mnt$ESP_DIRECTORY/loader/entries/arch-*.conf"
+    fi
+
+    # Log the exit status
+    if [ $exit_code -ne 0 ]; then
+        print_message ERROR "Script exited with error code $exit_code"
+        # You could add more detailed logging or error reporting here
+    fi
+
+    print_message INFO "Cleanup completed"
+    exit $exit_code
 }
 
 

@@ -18,6 +18,7 @@
 [] nvim
 [] terminal, config, starship
 [] bootloader grub, systemd, efistub
+[] VM install
 
 ```
 ## still ironning out the kinks and making sure it works for all cases.

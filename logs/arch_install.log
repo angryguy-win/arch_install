@@ -34,3 +34,4 @@
 2024-10-21 20:30:49 [INFO] Starting the run checks process
 2024-10-21 20:30:49 [INFO] Dry-run: no root check needed
 2024-10-21 20:30:49 [INFO] Setting up the necessary passwords
+2024-10-23 06:05:59 [ERROR] Failed to execute: /home/ssnow/Documents/GitHub/arch_install/scripts/1-pre/run-checks.sh

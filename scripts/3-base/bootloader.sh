@@ -56,7 +56,7 @@ configure_mkinitcpio() {
     [ "$LVM" == "true" ] && hooks+=" lvm2"
 
     # Add encryption hooks if needed
-    if [ -n "$LUKS_PASSWORD" ]; then
+    if [ "$LUKS" == "true" ]; then
         if [ "$BOOTLOADER" == "systemd" ] || [ "$GPT_AUTOMOUNT" == "true" ]; then
             hooks+=" sd-encrypt"
         else

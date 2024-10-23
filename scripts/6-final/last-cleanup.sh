@@ -25,8 +25,13 @@ export DRY_RUN="${DRY_RUN:-false}"
 
 
 enable_services() {
-    local display_message="gdm"
+    local display_message="$DISPLAY_MANAGER"
+    local commands=()
 
+
+    if [ "$DEVICE_TRIM" == "true" ]; then
+        commands+=("systemctl enable fstrim.timer")
+    fi
     print_message INFO "Enable and start services"
     execute_process "Enable and start services" \
         --use-chroot \
@@ -39,6 +44,13 @@ enable_services() {
         "systemctl enable ${display_message}"
 
 }
+swap() {
+    if [ -n "$SWAP_SIZE" ] && [ "$SWAP" == "true" ]; then
+        print_message INFO "Enable swap configuration"
+        echo "vm.swappiness=10" > "${MNT_DIR}"/etc/sysctl.d/99-sysctl.conf
+    fi
+}
+
 last_cleanup() {
     print_message INFO "Last cleanup"
     execute_process "Last cleanup" \
@@ -58,6 +70,7 @@ main() {
 
     enable_services || { print_message ERROR "Enable and start services failed"; return 1; }
     last_cleanup || { print_message ERROR "Last cleanup failed"; return 1; }
+    swap || { print_message ERROR "Swap failed"; return 1; }
 
     print_message OK "Last cleanup completed successfully"
     print_message OK "Arch Linux installation completed. You can now reboot into your new system."
