@@ -43,7 +43,7 @@ bootstrap_pkgs() {
     execute_process "Installing base system" \
         --error-message "Base system installation failed" \
         --success-message "Base system installation completed" \
-        "pacstrap /mnt base base-devel linux linux-firmware efibootmgr grub ${MICROCODE}-ucode --noconfirm --needed"
+        "pacstrap /mnt base base-devel linux linux-firmware efibootmgr ${BOOTLOADER} ${MICROCODE}-ucode --noconfirm --needed"
 
 }
 
