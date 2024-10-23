@@ -1,47 +1,52 @@
-#!/bin/bash
+#!/bin/env bash
+# @file snapper_install.sh
+# @brief Install and configure Snapper
+# @author ssnow
+# @version 0.1
+# @date 2024-10-23
+# @license GPL-3.0-or-later
 
-# Source the library functions
+set -eo pipefail  # Exit on error, pipe failure
+
+# Determine the correct path to lib.sh
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 LIB_PATH="$(dirname "$(dirname "$SCRIPT_DIR")")/lib/lib.sh"
-source "$LIB_PATH"
 
-# Set up error handling
-setup_error_handling
+# Source the library functions
+# shellcheck source=../../lib/lib.sh
+if [ -f "$LIB_PATH" ]; then
+    . "$LIB_PATH"
+else
+    echo "Error: Cannot find lib.sh at $LIB_PATH" >&2
+    exit 1
+fi
 
 # Function to install Snapper and dependencies
 install_dependencies() {
-    local commands=(
-        "pacman -S --noconfirm --needed snapper snap-pac snapper-gui-git grub-btrfs btrfs-assistant"
-    )
-    local messages=(
-        "Installing Snapper and dependencies"
-    )
+    print_message INFO "Installing Snapper and dependencies"
 
     execute_process "Snapper Installation" \
         --debug \
+        --use-chroot \
         --error-handler "Snapper installation failed" \
         --success-handler "Snapper installation completed successfully" \
-        "${commands[@]}" "${messages[@]}"
+        "pacman -S --noconfirm --needed snapper snap-pac snapper-gui-git grub-btrfs btrfs-assistant"
 }
 
 # Function to configure Snapper
 configure_snapper() {
     local commands=(
         "mkdir -p /etc/snapper/configs/"
-        "cp -rfv ${SCRIPT_DIR}/root /etc/snapper/configs/"
-        "cp -rfv ${SCRIPT_DIR}/snapper /etc/conf.d/"
-    )
-    local messages=(
-        "Creating Snapper configuration directory"
-        "Copying root configuration"
-        "Copying Snapper configuration"
+        "cp -rfv ${SCRIPT_DIR}/config/snapper/root /etc/snapper/configs/"
+        "cp -rfv ${SCRIPT_DIR}/config/snapper/snapper /etc/conf.d/"
     )
 
     execute_process "Snapper Configuration" \
         --debug \
+        --use-chroot \
         --error-handler "Snapper configuration failed" \
         --success-handler "Snapper configuration completed successfully" \
-        "${commands[@]}" "${messages[@]}"
+        "${commands[@]}"
 }
 
 # Function to enable Snapper services
@@ -49,19 +54,25 @@ enable_snapper_services() {
     local commands=(
         "systemctl enable --now snapper-timeline.timer"
         "systemctl enable --now snapper-cleanup.timer"
-    )
-    local messages=(
-        "Enabling Snapper timeline service"
-        "Enabling Snapper cleanup service"
+        "systemctl start snapper-cleanup.timer"
+        "systemctl start snapper-timeline.timer"
     )
 
     execute_process "Enabling Snapper Services" \
         --debug \
+        --use-chroot \
         --error-handler "Enabling Snapper services failed" \
         --success-handler "Snapper services enabled successfully" \
-        "${commands[@]}" "${messages[@]}"
+        "${commands[@]}"
 }
+# Function: create_initial_snapshots
+create_initial_snapshots() {
+    print_message INFO "Creating initial Snapper snapshots"
 
+    snapper -c root create -d "Initial snapshot"
+    
+    print_message OK "Initial Snapper snapshots created successfully"
+}
 # Main function
 main() {
     process_init "Snapper Installation and Configuration"
@@ -71,6 +82,7 @@ main() {
     install_dependencies || { print_message ERROR "Snapper installation failed"; return 1; }
     configure_snapper || { print_message ERROR "Snapper configuration failed"; return 1; }
     enable_snapper_services || { print_message ERROR "Enabling Snapper services failed"; return 1; }
+    create_initial_snapshots || { print_message ERROR "Creating initial Snapper snapshots failed"; return 1; }
 
     print_message OK "Snapper installation and configuration completed successfully"
     process_end $?

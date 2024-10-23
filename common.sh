@@ -467,5 +467,1115 @@ cleanup() {
     print_message INFO "Cleanup completed"
     exit $exit_code
 }
+select_default_kernel {
+  local kernellist
+  local kernels
+  local option
+
+  if [ "$(stat -c "%u" /boot)" -eq 0 ]; then
+    show_info "'/boot' owned by root. Searching as root:"
+    mapfile -t kernellist < \
+      <(sudo find /boot -maxdepth 1 -name 'vmlinuz-*' -type f -print0 |
+        xargs -0 -I _ basename _ |
+        sed -e "s/^vmlinuz-//g")
+  else
+    mapfile -t kernellist < \
+      <(find /boot -maxdepth 1 -name 'vmlinuz-*' -type f -print0 |
+        xargs -0 -I _ basename _ |
+        sed -e "s/^vmlinuz-//g")
+  fi
+
+  kernels=("Back" "${kernellist[@]}")
+
+  show_question "Select a default kernel:"
+  select option in "${kernels[@]}"; do
+    case "${option}" in
+      Back)
+        break
+        ;;
+      linux | linux-lts | linux-zen | linux-hardened | linux-rt | linux-rt-lts)
+        KERNEL="${option}"
+        set_default_kernel
+        break
+        ;;
+      *)
+        show_error "Invalid option ${option@Q}."
+        break
+        ;;
+    esac
+  done
+}
+
+set_default_kernel {
+  local grubdefault="/etc/default/grub"
+  local grubcfg="/boot/grub/grub.cfg"
+  local mksdbootcfg="${DIR}/utils/sdboot-mkconfig"
+
+  show_info "Setting default boot kernel to ${KERNEL}."
+
+  if [ -f "${grubdefault}" ]; then
+    sudo sed -i "s/^GRUB_DEFAULT=.*$/GRUB_DEFAULT='Advanced options for Arch Linux>Arch Linux, with Linux ${KERNEL}'/g" ${grubdefault}
+    sudo grub-mkconfig -o ${grubcfg}
+  fi
+
+  if [[ "$(sudo bootctl is-installed)" = yes ]]; then
+    local sdbootcfg
+    sdbootcfg="$(bootctl -p)/loader/loader.conf"
+    if ! [ -f "$(bootctl -p)/loader/entries/${KERNEL}.conf" ]; then
+      sudo "${mksdbootcfg}" "${KERNEL}"
+    fi
+    sudo sed -i "s/^default\(\s\+\)\(.*\)/default\1${KERNEL}.conf/g" "${sdbootcfg}"
+  fi
+}
+select_plymouth_theme {
+  if command -v plymouth-set-default-theme > /dev/null; then
+    show_info "Select Plymouth theme:"
+    local choice
+    local choices
+    mapfile -t choices < <(plymouth-set-default-theme -l)
+    select choice in Back default "${choices[@]}"; do
+      set_plymouth_theme "${choice}"
+      break
+    done
+  else
+    show_warning "'plymouth-set-default-theme' executable not found. Skipping."
+  fi
+}
+set_plymouth_theme {
+  local theme="${1:-default}"
+  if command -v plymouth-set-default-theme > /dev/null; then
+    case "${theme}" in
+      Back)
+        return
+        ;;
+      default)
+        sudo plymouth-set-default-theme -r -R
+        ;;
+      breeze-text)
+        show_warning "WARNING: ${theme@Q} not working as of 03/07/2024."
+        ;;
+      *)
+        sudo plymouth-set-default-theme -R "${theme}"
+        ;;
+    esac
+  else
+    show_warning "'plymouth-set-default-theme' executable not found. Skipping."
+  fi
+}
+select_icon_theme {
+  show_question "Select an icon theme:"
+
+  local options=(
+    "Back"
+    "Adwaita"
+    "Breeze"
+    "Breeze-Dark"
+    "Papirus"
+    "ePapirus"
+    "ePapirus-Dark"
+    "Papirus-Light"
+    "Papirus-Dark"
+    "Papirus-Adapta"
+    "Papirus-Adapta-Nokto")
+  local option
+  select option in "${options[@]}"; do
+    case "${option}" in
+      "Back")
+        return
+        ;;
+      "Adwaita")
+        if [ -d /usr/share/icons/Adwaita ]; then
+          ICONTHEME="Adwaita"
+          break
+        else
+          show_warning "${option@Q} icons are not installed."
+        fi
+        ;;
+      "Breeze")
+        if [ -d /usr/share/icons/breeze ]; then
+          ICONTHEME="breeze"
+          break
+        else
+          show_warning "${option@Q} icons are not installed."
+        fi
+        ;;
+      "Breeze-Dark")
+        if [ -d /usr/share/icons/breeze-dark ]; then
+          ICONTHEME="breeze-dark"
+          break
+        else
+          show_warning "${option@Q} icons are not installed."
+        fi
+        ;;
+      "Papirus")
+        if [ -d /usr/share/icons/Papirus ] ||
+           [ -d /usr/local/share/icons/Papirus ] ||
+           [ -d "${HOME}/.local/share/icons/Papirus" ] ||
+           [ -d "${HOME}/.icons/Papirus" ]; then
+          ICONTHEME="Papirus"
+          break
+        else
+          show_warning "${option@Q} icons are not installed."
+        fi
+        ;;
+      "ePapirus")
+        if [ -d /usr/share/icons/ePapirus ] ||
+           [ -d /usr/local/share/icons/ePapirus ] ||
+           [ -d "${HOME}/.local/share/icons/ePapirus" ] ||
+           [ -d "${HOME}/.icons/ePapirus" ]; then
+          ICONTHEME="ePapirus"
+          break
+        else
+          show_warning "${option@Q} icons are not installed."
+        fi
+        ;;
+      "ePapirus-Dark")
+        if [ -d /usr/share/icons/ePapirus-Dark ] ||
+           [ -d /usr/local/share/icons/ePapirus-Dark ] ||
+           [ -d "${HOME}/.local/share/icons/ePapirus-Dark" ] ||
+           [ -d "${HOME}/.icons/ePapirus-Dark" ]; then
+          ICONTHEME="ePapirus-Dark"
+          break
+        else
+          show_warning "${option@Q} icons are not installed."
+        fi
+        ;;
+      "Papirus-Light")
+        if [ -d /usr/share/icons/Papirus-Light ] ||
+           [ -d /usr/local/share/icons/Papirus-Light ] ||
+           [ -d "${HOME}/.local/share/icons/Papirus-Light" ] ||
+           [ -d "${HOME}/.icons/Papirus-Light" ]; then
+          ICONTHEME="Papirus-Light"
+          break
+        else
+          show_warning "${option@Q} icons are not installed."
+        fi
+        ;;
+      "Papirus-Dark")
+        if [ -d /usr/share/icons/Papirus-Dark ] ||
+           [ -d /usr/local/share/icons/Papirus-Dark ] ||
+           [ -d "${HOME}/.local/share/icons/Papirus-Dark" ] ||
+           [ -d "${HOME}/.icons/Papirus-Dark" ]; then
+          ICONTHEME="Papirus-Dark"
+          break
+        else
+          show_warning "${option@Q} icons are not installed."
+        fi
+        ;;
+      "Papirus-Adapta")
+        if [ -d /usr/share/icons/Papirus-Adapta ] ||
+           [ -d /usr/local/share/icons/Papirus-Adapta ] ||
+           [ -d "${HOME}/.local/share/icons/Papirus-Adapta" ] ||
+           [ -d "${HOME}/.icons/Papirus-Adapta" ]; then
+          ICONTHEME="Papirus-Adapta"
+          break
+        else
+          show_warning "${option@Q} icons are not installed."
+        fi
+        ;;
+      "Papirus-Adapta-Nokto")
+        if [ -d /usr/share/icons/Papirus-Adapta-Nokto ] ||
+           [ -d /usr/local/share/icons/Papirus-Adapta-Nokto ] ||
+           [ -d "${HOME}/.local/share/icons/Papirus-Adapta-Nokto" ] ||
+           [ -d "${HOME}/.icons/Papirus-Adapta-Nokto" ]; then
+          ICONTHEME="Papirus-Adapta-Nokto"
+          break
+        else
+          show_warning "${option@Q} icons are not installed."
+        fi
+        ;;
+      *)
+        show_warning "Invalid option ${option@Q}."
+        ;;
+    esac
+  done
+
+  set_icon_theme
+  set_lightdm_theme
+}
+select_plasma_theme {
+  show_question "Select a Plasma theme:"
+
+  local options=(
+    "Back"
+    "Arc"
+    "Arc-Dark"
+    "Arc-Darker"
+    "Breeze"
+    "Breeze-dark"
+    "Breeze-twilight"
+    "Materia"
+    "Materia-dark"
+    "Materia-light")
+  local option
+  select option in "${options[@]}"; do
+    case "${option}" in
+      "Back")
+        return
+        ;;
+      "Arc")
+        if [ -d /usr/share/plasma/look-and-feel/com.github.sudorook.arc/ ] ||
+           [ -d /usr/local/share/plasma/look-and-feel/com.github.sudorook.arc/ ]; then
+          PLASMATHEME="Arc"
+          GTKTHEME="Arc"
+          break
+        else
+          show_warning "${option@Q} theme is not installed."
+        fi
+        ;;
+      "Arc-Darker")
+        if [ -d /usr/share/plasma/look-and-feel/com.github.sudorook.arc-darker ] ||
+           [ -d /usr/local/share/plasma/look-and-feel/com.github.sudorook.arc-darker ]; then
+          PLASMATHEME="Arc-Darker"
+          GTKTHEME="Arc-Dark"
+          break
+        else
+          show_warning "${option@Q} theme is not installed."
+        fi
+        ;;
+      "Arc-Dark")
+        if [ -d /usr/share/plasma/look-and-feel/com.github.sudorook.arc-dark ] ||
+           [ -d /usr/local/share/plasma/look-and-feel/com.github.sudorook.arc-dark ]; then
+          PLASMATHEME="Arc-Dark"
+          GTKTHEME="Arc-Dark"
+          break
+        else
+          show_warning "${option@Q} theme is not installed."
+        fi
+        ;;
+      "Breeze")
+        if [ -d /usr/share/plasma/look-and-feel/org.kde.breeze.desktop ] ||
+           [ -d /usr/local/share/plasma/look-and-feel/org.kde.breeze.desktop ]; then
+          PLASMATHEME="breeze"
+          GTKTHEME="Breeze"
+          break
+        else
+          show_warning "${option@Q} theme is not installed."
+        fi
+        ;;
+      "Breeze-dark")
+        if [ -d /usr/share/plasma/look-and-feel/org.kde.breezedark.desktop ] ||
+           [ -d /usr/local/share/plasma/look-and-feel/org.kde.breezedark.desktop ]; then
+          PLASMATHEME="breeze-dark"
+          GTKTHEME="Breeze"
+          break
+        else
+          show_warning "${option@Q} theme is not installed."
+        fi
+        ;;
+      "Breeze-twilight")
+        if [ -d /usr/share/plasma/look-and-feel/org.kde.breezetwilight.desktop ] ||
+           [ -d /usr/local/share/plasma/look-and-feel/org.kde.breezetwilight.desktop ]; then
+          PLASMATHEME="breeze-twilight"
+          GTKTHEME="Breeze"
+          break
+        else
+          show_warning "${option@Q} theme is not installed."
+        fi
+        ;;
+      "Materia")
+        if [ -d /usr/share/plasma/desktoptheme/Materia ] ||
+           [ -d /usr/local/share/plasma/desktoptheme/Materia ]; then
+          PLASMATHEME="Materia"
+          GTKTHEME="Materia"
+          break
+        else
+          show_warning "${option@Q} theme is not installed."
+        fi
+        ;;
+      "Materia-light")
+        if [ -d /usr/share/plasma/desktoptheme/Materia-light ] ||
+           [ -d /usr/local/share/plasma/desktoptheme/Materia-light ]; then
+          PLASMATHEME="Materia-light"
+          GTKTHEME="Materia-light"
+          break
+        else
+          show_warning "${option@Q} theme is not installed."
+        fi
+        ;;
+      "Materia-dark")
+        if [ -d /usr/share/plasma/desktoptheme/Materia-dark ] ||
+           [ -d /usr/local/share/plasma/desktoptheme/Materia-dark ]; then
+          PLASMATHEME="Materia-dark"
+          GTKTHEME="Materia-dark"
+          break
+        else
+          show_warning "${option@Q} theme is not installed."
+        fi
+        ;;
+      *)
+        show_warning "Invalid option ${option@Q}."
+        ;;
+    esac
+  done
+
+  set_plasma_theme
+  set_gtk_theme
+  set_sddm_theme
+}
+select_gtk_theme {
+  show_question "Select a GTK theme:"
+
+  local options=(
+    "Back"
+    "Adwaita"
+    "Adwaita-dark"
+    "Arc"
+    "Arc-Darker"
+    "Arc-Dark"
+    "Arc-Lighter"
+    "Adapta"
+    "Adapta-Eta"
+    "Adapta-Nokto"
+    "Adapta-Nokto-Eta"
+    "Materia"
+    "Materia-compact"
+    "Materia-dark"
+    "Materia-dark-compact"
+    "Materia-light"
+    "Materia-light-compact"
+    "Plata"
+    "Plata-Compact"
+    "Plata-Lumine"
+    "Plata-Lumine-Compact"
+    "Plata-Noir"
+    "Plata-Noir-Compact")
+  local option
+  select option in "${options[@]}"; do
+    case "${option}" in
+      "Back")
+        return
+        ;;
+      "Adwaita")
+        if [ -d /usr/share/themes/Adwaita ]; then
+          GTKTHEME="Adwaita"
+          break
+        else
+          show_warning "${option@Q} theme is not installed."
+        fi
+        ;;
+      "Adwaita-dark")
+        if [ -d /usr/share/themes/Adwaita-dark ]; then
+          GTKTHEME="Adwaita-dark"
+          break
+        else
+          show_warning "${option@Q} theme is not installed."
+        fi
+        ;;
+      "Arc")
+        if [ -d /usr/share/themes/Arc ] ||
+           [ -d /usr/local/share/themes/Arc ] ||
+           [ -d "${HOME}/.local/share/themes/Arc" ] ||
+           [ -d "${HOME}/.themes/Arc" ]; then
+          GTKTHEME="Arc"
+          break
+        else
+          show_warning "${option@Q} theme is not installed."
+        fi
+        ;;
+      "Arc-Darker")
+        if [ -d /usr/share/themes/Arc-Darker ] ||
+           [ -d /usr/local/share/themes/Arc-Darker ] ||
+           [ -d "${HOME}/.local/share/themes/Arc-Darker" ] ||
+           [ -d "${HOME}/.themes/Arc-Darker" ]; then
+          GTKTHEME="Arc-Darker"
+          break
+        else
+          show_warning "${option@Q} theme is not installed."
+        fi
+        ;;
+      "Arc-Dark")
+        if [ -d /usr/share/themes/Arc-Dark ] ||
+           [ -d /usr/local/share/themes/Arc-Dark ] ||
+           [ -d "${HOME}/.local/share/themes/Arc-Dark" ] ||
+           [ -d "${HOME}/.themes/Arc-Dark" ]; then
+          GTKTHEME="Arc-Dark"
+          break
+        else
+          show_warning "${option@Q} theme is not installed."
+        fi
+        ;;
+      "Arc-Lighter")
+        if [ -d /usr/share/themes/Arc-Lighter ] ||
+           [ -d /usr/local/share/themes/Arc-Lighter ] ||
+           [ -d "${HOME}/.local/share/themes/Arc-Lighter" ] ||
+           [ -d "${HOME}/.themes/Arc-Lighter" ]; then
+          GTKTHEME="Arc-Lighter"
+          break
+        else
+          show_warning "${option@Q} theme is not installed."
+        fi
+        ;;
+      "Adapta")
+        if [ -d /usr/share/themes/Adapta ] ||
+           [ -d /usr/local/share/themes/Adapta ] ||
+           [ -d "${HOME}/.local/share/themes/Adapta" ] ||
+           [ -d "${HOME}/.themes/Adapta" ]; then
+          GTKTHEME="Adapta"
+          break
+        else
+          show_warning "${option@Q} theme is not installed."
+        fi
+        ;;
+      "Adapta-Eta")
+        if [ -d /usr/share/themes/Adapta-Eta ] ||
+           [ -d /usr/local/share/themes/Adapta-Eta ] ||
+           [ -d "${HOME}/.local/share/themes/Adapta-Eta" ] ||
+           [ -d "${HOME}/.themes/Adapta-Eta" ]; then
+          GTKTHEME="Adapta-Eta"
+          break
+        else
+          show_warning "${option@Q} theme is not installed."
+        fi
+        ;;
+      "Adapta-Nokto")
+        if [ -d /usr/share/themes/Adapta-Nokto ] ||
+           [ -d /usr/local/share/themes/Adapta-Nokto ] ||
+           [ -d "${HOME}/.local/share/themes/Adapta-Nokto" ] ||
+           [ -d "${HOME}/.themes/Adapta-Nokto" ]; then
+          GTKTHEME="Adapta-Nokto"
+          break
+        else
+          show_warning "${option@Q} theme is not installed."
+        fi
+        ;;
+      "Adapta-Nokto-Eta")
+        if [ -d /usr/share/themes/Adapta-Nokto-Eta ] ||
+           [ -d /usr/local/share/themes/Adapta-Nokto-Eta ] ||
+           [ -d "${HOME}/.local/share/themes/Adapta-Nokto-Eta" ] ||
+           [ -d "${HOME}/.themes/Adapta-Nokto-Eta" ]; then
+          GTKTHEME="Adapta-Nokto-Eta"
+          break
+        else
+          show_warning "${option@Q} theme is not installed."
+        fi
+        ;;
+      "Materia")
+        if [ -d /usr/share/themes/Materia ] ||
+           [ -d /usr/local/share/themes/Materia ] ||
+           [ -d "${HOME}/.local/share/themes/Materia" ] ||
+           [ -d "${HOME}/.themes/Materia" ]; then
+          GTKTHEME="Materia"
+          break
+        else
+          show_warning "${option@Q} theme is not installed."
+        fi
+        ;;
+      "Materia-compact")
+        if [ -d /usr/share/themes/Materia-compact ] ||
+           [ -d /usr/local/share/themes/Materia-compact ] ||
+           [ -d "${HOME}/.local/share/themes/Materia-compact" ] ||
+           [ -d "${HOME}/.themes/Materia-compact" ]; then
+          GTKTHEME="Materia-compact"
+          break
+        else
+          show_warning "${option@Q} theme is not installed."
+        fi
+        ;;
+      "Materia-light")
+        if [ -d /usr/share/themes/Materia-light ] ||
+           [ -d /usr/local/share/themes/Materia-light ] ||
+           [ -d "${HOME}/.local/share/themes/Materia-light" ] ||
+           [ -d "${HOME}/.themes/Materia-light" ]; then
+          GTKTHEME="Materia-light"
+          break
+        else
+          show_warning "${option@Q} theme is not installed."
+        fi
+        ;;
+      "Materia-light-compact")
+        if [ -d /usr/share/themes/Materia-light-compact ] ||
+           [ -d /usr/local/share/themes/Materia-light-compact ] ||
+           [ -d "${HOME}/.local/share/themes/Materia-light-compact" ] ||
+           [ -d "${HOME}/.themes/Materia-light-compact" ]; then
+          GTKTHEME="Materia-light-compact"
+          break
+        else
+          show_warning "${option@Q} theme is not installed."
+        fi
+        ;;
+      "Materia-dark")
+        if [ -d /usr/share/themes/Materia-dark ] ||
+           [ -d /usr/local/share/themes/Materia-dark ] ||
+           [ -d "${HOME}/.local/share/themes/Materia-dark" ] ||
+           [ -d "${HOME}/.themes/Materia-dark" ]; then
+          GTKTHEME="Materia-dark"
+          break
+        else
+          show_warning "${option@Q} theme is not installed."
+        fi
+        ;;
+      "Materia-dark-compact")
+        if [ -d /usr/share/themes/Materia-dark-compact ] ||
+           [ -d /usr/local/share/themes/Materia-dark-compact ] ||
+           [ -d "${HOME}/.local/share/themes/Materia-dark-compact" ] ||
+           [ -d "${HOME}/.themes/Materia-dark-compact" ]; then
+          GTKTHEME="Materia-dark-compact"
+          break
+        else
+          show_warning "${option@Q} theme is not installed."
+        fi
+        ;;
+      "Plata")
+        if [ -d /usr/share/themes/Plata ] ||
+           [ -d /usr/local/share/themes/Plata ] ||
+           [ -d "${HOME}/.local/share/themes/Plata" ] ||
+           [ -d "${HOME}/.themes/Plata" ]; then
+          GTKTHEME="Plata"
+          break
+        else
+          show_warning "${option@Q} theme is not installed."
+        fi
+        ;;
+      "Plata-Compact")
+        if [ -d /usr/share/themes/Plata-Compact ] ||
+           [ -d /usr/local/share/themes/Plata-Compact ] ||
+           [ -d "${HOME}/.local/share/themes/Plata-Compact" ] ||
+           [ -d "${HOME}/.themes/Plata-Compact" ]; then
+          GTKTHEME="Plata-Compact"
+          break
+        else
+          show_warning "${option@Q} theme is not installed."
+        fi
+        ;;
+      "Plata-Lumine")
+        if [ -d /usr/share/themes/Plata-Lumine ] ||
+           [ -d /usr/local/share/themes/Plata-Lumine ] ||
+           [ -d "${HOME}/.local/share/themes/Plata-Lumine" ] ||
+           [ -d "${HOME}/.themes/Plata-Lumine" ]; then
+          GTKTHEME="Plata-Lumine"
+          break
+        else
+          show_warning "${option@Q} theme is not installed."
+        fi
+        ;;
+      "Plata-Lumine-Compact")
+        if [ -d /usr/share/themes/Plata-Lumine-Compact ] ||
+           [ -d /usr/local/share/themes/Plata-Lumine-Compact ] ||
+           [ -d "${HOME}/.local/share/themes/Plata-Lumine-Compact" ] ||
+           [ -d "${HOME}/.themes/Plata-Lumine-Compact" ]; then
+          GTKTHEME="Plata-Lumine-Compact"
+          break
+        else
+          show_warning "${option@Q} theme is not installed."
+        fi
+        ;;
+      "Plata-Noir")
+        if [ -d /usr/share/themes/Plata-Noir ] ||
+           [ -d /usr/local/share/themes/Plata-Noir ] ||
+           [ -d "${HOME}/.local/share/themes/Plata-Noir" ] ||
+           [ -d "${HOME}/.themes/Plata-Noir" ]; then
+          GTKTHEME="Plata-Noir"
+          break
+        else
+          show_warning "${option@Q} theme is not installed."
+        fi
+        ;;
+      "Plata-Noir-Compact")
+        if [ -d /usr/share/themes/Plata-Noir-Compact ] ||
+           [ -d /usr/local/share/themes/Plata-Noir-Compact ] ||
+           [ -d "${HOME}/.local/share/themes/Plata-Noir-Compact" ] ||
+           [ -d "${HOME}/.themes/Plata-Noir-Compact" ]; then
+          GTKTHEME="Plata-Noir-Compact"
+          break
+        else
+          show_warning "${option@Q} theme is not installed."
+        fi
+        ;;
+      *)
+        show_warning "Invalid option ${option@Q}."
+        ;;
+    esac
+  done
+
+  set_gtk_theme
+  set_lightdm_theme
+  set_gdm_theme
+}
+enable_autologin {
+  local gdmconf="/etc/gdm/custom.conf"
+  local lightdmconf="/etc/lightdm/lightdm.conf"
+  local sddmconf="/etc/sddm.conf.d/kde_settings.conf"
+
+  show_header "Enabling automatic login for ${USER@Q}."
+  local is_autologin_set=false
+
+  if pacman -Qi gdm > /dev/null 2>&1; then
+    show_info "Log in as ${USER@Q} via GDM."
+    ! [ -f ${gdmconf} ] && sudo touch ${gdmconf}
+    if ! grep -q "^AutomaticLogin=${USER}" ${gdmconf}; then
+      ! grep -q '^\[daemon\]' "${gdmconf}" &&
+        sudo sh -c "echo '[daemon]' >> ${gdmconf}"
+      sudo sed -i "/^\[daemon\]$/a AutomaticLogin=${USER}" "${gdmconf}"
+      sudo sed -i "/^AutomaticLogin=/a AutomaticLoginEnable=true" "${gdmconf}"
+    else
+      sudo sed -i "s/^AutomaticLogin=.*$/AutomaticLogin=${USER}/g" ${gdmconf}
+      sudo sed -i "s/^AutomaticLoginEnable=.*$/AutomaticLoginEnable=true/g" ${gdmconf}
+    fi
+    is_autologin_set=true
+  fi
+
+  if pacman -Qi lightdm > /dev/null 2>&1; then
+    show_info "Log in as ${USER@Q} via LightDM."
+    if ! grep -q autologin <(getent group); then
+      sudo groupadd -r autologin
+    fi
+    if ! [[ $(groups) =~ autologin ]]; then
+      sudo gpasswd -a "${USER}" autologin
+    fi
+    sudo sed -i "s/^#autologin-user=/autologin-user=/g" ${lightdmconf}
+    sudo sed -i "s/^#autologin-user-timeout=/autologin-user-timeout=/g" ${lightdmconf}
+    sudo sed -i "s/^autologin-user=.*$/autologin-user=${USER}/g" ${lightdmconf}
+    is_autologin_set=true
+  fi
+
+  if pacman -Qi sddm > /dev/null 2>&1; then
+    show_info "Log in as ${USER@Q} via SDDM."
+    local kwconfig
+    local plasmaversion
+    plasmaversion="$(plasmashell --version)"
+    if kwconfig="$(_get_kwrite_config)"; then
+      if ! [ -d /etc/sddm.conf.d/ ]; then
+        sudo mkdir /etc/sddm.conf.d/
+        sudo touch "${sddmconf}"
+
+        sudo "${kwconfig}" --file "${sddmconf}" --group Autologin --key Relogin "false"
+        if [[ "${plasmaversion}" =~ 6\.[0-9]+\.[0-9]+$ ]]; then
+          sudo "${kwconfig}" --file "${sddmconf}" --group Autologin --key Session "${DESKTOP_SESSION:-plasma}"
+        elif [[ "${plasmaversion}" =~ 5\.[0-9]+\.[0-9]+$ ]]; then
+          sudo "${kwconfig}" --file "${sddmconf}" --group Autologin --key Session "${DESKTOP_SESSION:-plasmawayland}"
+        fi
+        sudo "${kwconfig}" --file "${sddmconf}" --group Autologin --key User "${USER}"
+
+        sudo "${kwconfig}" --file "${sddmconf}" --group General --key HaltCommand ""
+        sudo "${kwconfig}" --file "${sddmconf}" --group General --key RebootCommand ""
+
+        sudo "${kwconfig}" --file "${sddmconf}" --group Theme --key Current ""
+
+        sudo "${kwconfig}" --file "${sddmconf}" --group Users --key MaximumUid 60000
+        sudo "${kwconfig}" --file "${sddmconf}" --group Users --key MinimumUid 1000
+      else
+        sudo "${kwconfig}" --file "${sddmconf}" --group Autologin --key Relogin "false"
+        if [[ "${plasmaversion}" =~ 6\.[0-9]+\.[0-9]+$ ]]; then
+          sudo "${kwconfig}" --file "${sddmconf}" --group Autologin --key Session "${DESKTOP_SESSION:-plasma}"
+        elif [[ "${plasmaversion}" =~ 5\.[0-9]+\.[0-9]+$ ]]; then
+          sudo "${kwconfig}" --file "${sddmconf}" --group Autologin --key Session "${DESKTOP_SESSION:-plasmawayland}"
+        fi
+        sudo "${kwconfig}" --file "${sddmconf}" --group Autologin --key User "${USER}"
+      fi
+      is_autologin_set=true
+    fi
+  fi
+
+  if "${is_autologin_set}"; then
+    show_success "Autologin enabled."
+  else
+    show_warning "Failed to detect display manager. Autologin not enabled."
+  fi
+}
+ hide_avahi_apps {
+  local systemappsdir="/usr/share/applications"
+  local localappsdir="${HOME}/.local/share/applications"
+  show_header "Hiding Avahi applications."
+  local avahiapps=("avahi-discover" "bssh" "bvnc")
+  local app
+  mkdir -p "${localappsdir}"
+  for app in "${avahiapps[@]}"; do
+    cp "${systemappsdir}/${app}.desktop" "${localappsdir}/"
+    echo "Hidden=true" >> "${localappsdir}/${app}.desktop"
+  done
+}
+set_dark_gtk {
+  local gtksettings="${HOME}/.config/gtk-3.0/settings.ini"
+  local isgtkdark
+
+  show_header "Setting global dark theme for gtk applications."
+  mkdir -p "$(dirname "${gtksettings}")"
+  if [ -f "${gtksettings}" ]; then
+    if grep -q ^gtk-application-prefer-dark-theme= "${gtksettings}"; then
+      isgtkdark=$(sed -n 's/^gtk-application-prefer-dark-theme\s*=\s*\(.*\)\s*/\1/p' "${gtksettings}")
+      if test "${isgtkdark}"; then
+        show_info "Desktop is already set to use dark GTK variants."
+      else
+        sed -i "s/^gtk-application-prefer-dark-theme=${isgtkdark}$/gtk-application-prefer-dark-theme=1/g" "${gtksettings}"
+      fi
+    else
+      if grep -q "^\[Settings\]" "${gtksettings}"; then
+        sed -i "/^\[Settings\]/a gtk-application-prefer-dark-theme=1" "${gtksettings}"
+      else
+        cat >> "${gtksettings}" << EOF
+
+[Settings]
+gtk-application-prefer-dark-theme=1
+EOF
+      fi
+    fi
+  else
+    cat > "${gtksettings}" << EOF
+[Settings]
+gtk-application-prefer-dark-theme=1
+EOF
+  fi
+}
+set_login_shell {
+  local options=(
+    "Back"
+    "bash"
+    "zsh"
+  )
+  local option
+  select option in "${options[@]}"; do
+    case "${option}" in
+      "Back")
+        return
+        ;;
+      "bash")
+        set_bash_shell
+        break
+        ;;
+      "zsh")
+        set_zsh_shell
+        break
+        ;;
+    esac
+  done
+}
+set_zsh_shell {
+  local zshrc="${DIR}/dotfiles/zshrc"
+  local p10krc="${DIR}/dotfiles/p10k"
+
+  if ! command -v zsh > /dev/null 2>&1; then
+    show_warning "Zsh not installed. Skipping."
+    return
+  fi
+
+  if ! grep -q "zsh" <(getent passwd "$(whoami)"); then
+    show_info "Changing login shell to Zsh. Provide your password."
+    chsh -s /bin/zsh
+  else
+    show_info "Default shell already set to Zsh."
+  fi
+
+  mkdir -p "${HOME}/.local/share/zsh/site-functions"
+
+  copy_config_file "${zshrc}" "${HOME}/.zshrc"
+  copy_config_file "${p10krc}" "${HOME}/.p10k.zsh"
+}
+set_bash_shell {
+  local bashrc="${DIR}/dotfiles/bashrc"
+  local bashprofile="${DIR}/dotfiles/bash_profile"
+
+  if ! command -v bash > /dev/null 2>&1; then
+    show_warning "bash not installed. Skipping."
+    return
+  fi
+
+  if ! grep -q "bash" <(getent passwd "$(whoami)"); then
+    show_info "Changing login shell to Bash. Provide your password."
+    chsh -s /bin/bash
+  else
+    show_info "Default shell already set to bash."
+  fi
+
+  copy_config_file "${bashprofile}" "${HOME}/.bash_profile"
+  copy_config_file "${bashrc}" "${HOME}/.bashrc"
+}
+set_sddm_theme {
+  local sddmconf="/etc/sddm.conf.d/kde_settings.conf"
+  local sddmtheme
+  if [[ "${PLASMATHEME}" =~ ^breeze ]]; then
+    sddmtheme=breeze
+  else
+    sddmtheme=${PLASMATHEME}
+  fi
+  if pacman -Qi sddm > /dev/null 2>&1; then
+    if [ -d "/usr/share/sddm/themes/${sddmtheme}" ]; then
+      show_header "Setting SDDM login theme to ${sddmtheme@Q}."
+      local kwconfig
+      if kwconfig="$(_get_kwrite_config)"; then
+        sudo "${kwconfig}" --file "${sddmconf}" --group Theme --key Current "${sddmtheme}"
+        if [[ "${sddmtheme}" = breeze ]]; then
+          sudo "${kwconfig}" --file "${sddmconf}" --group Theme --key CursorTheme "breeze_cursors"
+        fi
+        case "${FONT}" in
+          Noto)
+            if pacman -Qi noto-fonts > /dev/null 2>&1; then
+              sudo "${kwconfig}" --file "${sddmconf}" --group Theme --key Font "Noto Sans,10,-1,5,50,0,0,0,0,0"
+            fi
+            ;;
+          Roboto)
+            if pacman -Qi ttf-roboto > /dev/null 2>&1; then
+              sudo "${kwconfig}" --file "${sddmconf}" --group Theme --key Font "Roboto,10,-1,5,50,0,0,0,0,0"
+            fi
+            ;;
+          *) ;;
+        esac
+      fi
+    else
+      show_warning "SDDM theme for ${PLASMATHEME@Q} not found. Skipping."
+    fi
+  else
+    show_warning "SDDM not installed. Skipping."
+  fi
+}
+ set_gdm_theme {
+  local gtkthemedir
+  if pacman -Qi gdm > /dev/null 2>&1; then
+    if [[ -d "/usr/local/share/themes/${GTKTHEME}" ]]; then
+      gtkthemedir="/usr/local/share/themes/${GTKTHEME}"
+    elif [[ -d "${HOME}/.local/share/themes/${GTKTHEME}" ]]; then
+      gtkthemedir="${HOME}/.local/share/themes/${GTKTHEME}"
+    elif [[ -d "${HOME}/.themes/${GTKTHEME}" ]]; then
+      gtkthemedir="${HOME}/.themes/${GTKTHEME}"
+    elif [[ -d "/usr/share/themes/${GTKTHEME}" ]]; then
+      gtkthemedir="/usr/share/themes/${GTKTHEME}"
+    else
+      show_warning "GTK theme ${GTKTHEME@Q} not found. Skipping."
+      return
+    fi
+    show_header "Setting GDM login theme to ${GTKTHEME@Q}."
+    sudo cp -r "/usr/share/gnome-shell" "/usr/share/gnome-shell-$(date +%Y%m%d-%H%M%S)"
+    if [[ "${GTKTHEME}" =~ ^Adapta ]] || [[ "${GTKTHEME}" =~ ^Plata ]]; then
+      sudo cp -rf \
+        "${gtkthemedir}"/gnome-shell/* \
+        /usr/share/gnome-shell/
+      sudo cp -f \
+        "${gtkthemedir}"/gnome-shell/extensions/window-list/classic.css \
+        /usr/share/gnome-shell/extensions/window-list@gnome-shell-extensions.gcampax.github.com/
+      sudo cp -f \
+        "${gtkthemedir}"/gnome-shell/extensions/window-list/stylesheet.css \
+        /usr/share/gnome-shell/extensions/window-list@gnome-shell-extensions.gcampax.github.com/
+    elif [[ "${GTKTHEME}" =~ ^Materia ]]; then
+      sudo glib-compile-resources \
+        --target="/usr/share/gnome-shell/gnome-shell-theme.gresource" \
+        --sourcedir="${gtkthemedir}/gnome-shell" \
+        "${gtkthemedir}/gnome-shell/gnome-shell-theme.gresource.xml"
+    elif [[ "${GTKTHEME}" =~ ^Arc ]]; then
+      if [[ "${GTKTHEME}" =~ Dark ]]; then
+        if [ -f "${gtkthemedir}/gnome-shell/gnome-shell-theme-dark.gresource" ]; then
+          sudo cp -f "${gtkthemedir}/gnome-shell/gnome-shell-theme-dark.gresource" \
+            "/usr/share/gnome-shell/gnome-shell-theme.gresource"
+        fi
+      else
+        if [ -f "${gtkthemedir}/gnome-shell/gnome-shell-theme.gresource" ]; then
+          sudo cp -f "${gtkthemedir}/gnome-shell/gnome-shell-theme.gresource" \
+            "/usr/share/gnome-shell/gnome-shell-theme.gresource"
+        fi
+      fi
+    elif [[ "${GTKTHEME}" =~ ^Adwaita ]]; then
+      show_info "Reinstalling GNOME-shell to reset theme files."
+      sudo pacman -S --noconfirm gnome-shell gnome-shell-extensions
+    else
+      show_warning "${GTKTHEME@Q} theme for GDM is unsupported."
+    fi
+  else
+    show_warning "GDM is not installed. Skipping."
+  fi
+}
+set_lightdm_theme {
+  local lightdmgtkconf="/etc/lightdm/lightdm-gtk-greeter.conf"
+  if pacman -Qi lightdm-gtk-greeter > /dev/null 2>&1; then
+    show_header "Setting LightDM login GTK theme to ${GTKTHEME@Q}."
+    sudo sed -i "s/^#theme-name=$/theme-name=/g" ${lightdmgtkconf}
+    sudo sed -i "s/^theme-name=.*/theme-name=${GTKTHEME}/g" ${lightdmgtkconf}
+    sudo sed -i "s/^#icon-theme-name=$/icon-theme-name=/g" ${lightdmgtkconf}
+    sudo sed -i "s/^icon-theme-name=.*$/icon-theme-name=${ICONTHEME}/g" ${lightdmgtkconf}
+    if [[ "${FONT}" == "Noto" ]]; then
+      if pacman -Qi noto-fonts > /dev/null 2>&1; then
+        sudo sed -i "s/^#font-name=$/font-name=/g" ${lightdmgtkconf}
+        sudo sed -i "s/^font-name=.*/font-name=Noto Sans/g" ${lightdmgtkconf}
+      fi
+    elif [[ "${FONT}" == "Roboto" ]]; then
+      if pacman -Qi ttf-roboto > /dev/null 2>&1; then
+        sudo sed -i "s/^#font-name=$/font-name=/g" ${lightdmgtkconf}
+        sudo sed -i "s/^font-name=.*/font-name=Roboto/g" ${lightdmgtkconf}
+      fi
+    fi
+    sudo sed -i "s/^#xft-hintstyle=$/xft-hintstyle=/g" ${lightdmgtkconf}
+    sudo sed -i "s/^xft-hintstyle=.*$/xft-hintstyle=slight/g" ${lightdmgtkconf}
+  else
+    show_warning "LightDM GTK greeter not installed. Skipping."
+  fi
+}
+set_plasma_theme {
+  show_header "Setting Plasma theme to ${PLASMATHEME@Q}."
+  local kwconfig
+  local qdb
+  if kwconfig="$(_get_kwrite_config)" && qdb="$(_get_qdbus)"; then
+    case "${PLASMATHEME,,}" in
+      arc)
+        plasma-apply-lookandfeel -a com.github.sudorook.arc
+        "${qdb}" org.kde.GtkConfig /GtkConfig org.kde.GtkConfig.setGtkTheme "Arc"
+        "${kwconfig}" --file kdeglobals --group "KDE" --key "widgetStyle" "kvantum"
+        kvantummanager --set Arc
+        ;;
+      arcdark | arc-dark)
+        plasma-apply-lookandfeel -a com.github.sudorook.arc-dark
+        "${qdb}" org.kde.GtkConfig /GtkConfig org.kde.GtkConfig.setGtkTheme "Arc-Dark"
+        "${kwconfig}" --file kdeglobals --group "KDE" --key "widgetStyle" "kvantum"
+        kvantummanager --set ArcDark
+        ;;
+      arc-darker | arcdarker)
+        plasma-apply-lookandfeel -a com.github.sudorook.arc-darker
+        "${qdb}" org.kde.GtkConfig /GtkConfig org.kde.GtkConfig.setGtkTheme "Arc-Darker"
+        "${kwconfig}" --file kdeglobals --group "KDE" --key "widgetStyle" "kvantum"
+        kvantummanager --set ArcDarker
+        ;;
+      breeze)
+        plasma-apply-lookandfeel -a org.kde.breeze.desktop
+        "${qdb}" org.kde.GtkConfig /GtkConfig org.kde.GtkConfig.setGtkTheme "Breeze"
+        "${kwconfig}" --file kdeglobals --group "KDE" --key "widgetStyle" "Breeze"
+        ;;
+      breeze-dark | breezedark)
+        plasma-apply-lookandfeel -a org.kde.breezedark.desktop
+        "${qdb}" org.kde.GtkConfig /GtkConfig org.kde.GtkConfig.setGtkTheme "Breeze"
+        "${kwconfig}" --file kdeglobals --group "KDE" --key "widgetStyle" "Breeze"
+        ;;
+      breeze-twilight | breezetwilight)
+        plasma-apply-lookandfeel -a org.kde.breezetwilight.desktop
+        "${qdb}" org.kde.GtkConfig /GtkConfig org.kde.GtkConfig.setGtkTheme "Breeze"
+        "${kwconfig}" --file kdeglobals --group "KDE" --key "widgetStyle" "Breeze"
+        ;;
+      materia)
+        plasma-apply-lookandfeel -a com.github.sudorook.materia
+        "${qdb}" org.kde.GtkConfig /GtkConfig org.kde.GtkConfig.setGtkTheme "Materia"
+        "${kwconfig}" --file kdeglobals --group "KDE" --key "widgetStyle" "kvantum"
+        kvantummanager --set Materia
+        ;;
+      materiadark | materia-dark)
+        plasma-apply-lookandfeel -a com.github.sudorook.materia-dark
+        "${qdb}" org.kde.GtkConfig /GtkConfig org.kde.GtkConfig.setGtkTheme "Materia-dark"
+        "${kwconfig}" --file kdeglobals --group "KDE" --key "widgetStyle" "kvantum"
+        kvantummanager --set MateriaDark
+        ;;
+      materialight | materia-light)
+        plasma-apply-lookandfeel -a com.github.sudorook.materia-light
+        "${qdb}" org.kde.GtkConfig /GtkConfig org.kde.GtkConfig.setGtkTheme "Materia-light"
+        "${kwconfig}" --file kdeglobals --group "KDE" --key "widgetStyle" "kvantum"
+        kvantummanager --set MateriaLight
+        ;;
+    esac
+  fi
+}
+set_gtk_theme {
+  if pacman -Qi cinnamon > /dev/null 2>&1; then
+    show_info "Setting Cinnamon GTK theme to ${GTKTHEME@Q}."
+    gsettings set org.cinnamon.desktop.interface gtk-theme "'${GTKTHEME}'"
+    if [[ "${GTKTHEME}" =~ -Eta$ ]]; then
+      gsettings set org.cinnamon.theme name "'${GTKTHEME%-*}'"
+      gsettings set org.cinnamon.desktop.wm.preferences theme "'${GTKTHEME}'"
+    elif [[ "${GTKTHEME}" =~ -Compact$ ]]; then
+      gsettings set org.cinnamon.theme name "'${GTKTHEME%-*}'"
+      gsettings set org.cinnamon.desktop.wm.preferences theme "'${GTKTHEME}'"
+    elif [[ "${GTKTHEME}" =~ -Darker$ ]]; then
+      gsettings set org.cinnamon.theme name "'${GTKTHEME%er}'"
+    else
+      gsettings set org.cinnamon.theme name "'${GTKTHEME}'"
+    fi
+  fi
+
+  if pacman -Qi gnome-shell > /dev/null 2>&1; then
+    show_info "Setting GNOME GTK theme to ${GTKTHEME@Q}."
+    gsettings set org.gnome.desktop.wm.preferences theme "'${GTKTHEME}'"
+    if [[ "${GTKTHEME,,}" =~ dark ]]; then
+      gsettings set org.gnome.desktop.interface color-scheme "'prefer-dark'"
+    else
+      gsettings set org.gnome.desktop.interface color-scheme "'default'"
+    fi
+    gsettings set org.gnome.desktop.interface gtk-theme "'${GTKTHEME}'"
+    gnome-extensions enable "user-theme@gnome-shell-extensions.gcampax.github.com" || true
+    gsettings set org.gnome.shell.extensions.user-theme name "'${GTKTHEME}'"
+  fi
+
+  if pacman -Qi plasma-desktop > /dev/null 2>&1; then
+    show_info "Setting Plasma GTK theme to ${GTKTHEME@Q}."
+    local qdb
+    if qdb="$(_get_qdbus)"; then
+      if "${qdb}" org.kde.KWin > /dev/null; then
+        "${qdb}" org.kde.KWin /KWin reconfigure
+      fi
+    fi
+  fi
+
+  set_config_key_value "${HOME}/.xprofile" "export GTK_THEME" "${GTKTHEME}"
+  set_config_key_value \
+    "${HOME}/.config/environment.d/envvars.conf" "GTK_THEME" "${GTKTHEME}"
+}
+set_icon_theme {
+  show_header "Setting desktop icon theme to ${ICONTHEME@Q}."
+
+  if pacman -Qi cinnamon > /dev/null 2>&1; then
+    show_info "Setting Cinnamon icon theme to ${ICONTHEME@Q}."
+    gsettings set org.cinnamon.desktop.interface icon-theme "'${ICONTHEME}'"
+  fi
+
+  if pacman -Qi gnome-shell > /dev/null 2>&1; then
+    show_info "Setting GNOME icon theme to ${ICONTHEME@Q}."
+    gsettings set org.gnome.desktop.interface icon-theme "'${ICONTHEME}'"
+  fi
+
+  if [ -e /usr/lib/plasma-changeicons ]; then
+    show_info "Setting Plasma icon theme to ${ICONTHEME@Q}."
+    /usr/lib/plasma-changeicons "${ICONTHEME}"
+  fi
+}
+execute_script() {
+    local script="$1"
+    local script_path="$script_directory/$script"
+    if [ -f "$script_path" ]; then
+        chmod +x "$script_path"
+        if [ -x "$script_path" ]; then
+            env USE_PRESET=$use_preset  "$script_path"
+        else
+            echo "Failed to make script '$script' executable."
+        fi
+    else
+        echo "Script '$script' not found in '$script_directory'."
+    fi
+}
+
+paru_install() {
+        # Set some colors for output messages
+    OK="$(tput setaf 2)[OK]$(tput sgr0)"
+    ERROR="$(tput setaf 1)[ERROR]$(tput sgr0)"
+    NOTE="$(tput setaf 3)[NOTE]$(tput sgr0)"
+    WARN="$(tput setaf 5)[WARN]$(tput sgr0)"
+    CAT="$(tput setaf 6)[ACTION]$(tput sgr0)"
+    ORANGE=$(tput setaf 166)
+    YELLOW=$(tput setaf 3)
+    RESET=$(tput sgr0)
+    # Check for AUR helper and install if not found
+    ISAUR=$(command -v yay || command -v paru)
+
+    if [ -n "$ISAUR" ]; then
+    printf "\n%s - AUR helper already installed, moving on..\n" "${OK}"
+    else
+    printf "\n%s - AUR helper was NOT located\n" "$WARN"
+    printf "\n%s - Installing paru from AUR\n" "${NOTE}"
+    git clone https://aur.archlinux.org/paru.git || { printf "%s - Failed to clone paru from AUR\n" "${ERROR}"; exit 1; }
+    cd paru || { printf "%s - Failed to enter paru directory\n" "${ERROR}"; exit 1; }
+    makepkg -si --noconfirm 2>&1 | tee -a "$LOG" || { printf "%s - Failed to install paru from AUR\n" "${ERROR}"; exit 1; }
+    
+    # moving install logs in to Install-Logs folder
+    mv install*.log ../Install-Logs/ || true  
+    cd ..
+    fi
+
+    # Update system before proceeding
+    printf "\n%s - Performing a full system update to avoid issues.... \n" "${NOTE}"
+    ISAUR=$(command -v yay || command -v paru)
+
+    $ISAUR -Syu --noconfirm 2>&1 | tee -a "$LOG" || { printf "%s - Failed to update system\n" "${ERROR}"; exit 1; }
+
+    clear
+}
+
+pkg() {
+
+    Qeq: base
+    Qq : all pkgs
+    Qmq: aur pkgs
+    Qdq: only dep pkgs
 
 
+}

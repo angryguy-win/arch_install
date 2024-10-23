@@ -38,6 +38,9 @@ enable_services() {
     if [ "$DEVICE_TRIM" == "true" ]; then
         commands+=("systemctl enable fstrim.timer")
     fi
+    if [ "$SNAPSHOTS" == "true" ]; then
+        commands+=("systemctl enable btrfs-scrub@-.timer")
+    fi
     print_message INFO "Enable and start services"
     execute_process "Enable and start services" \
         --use-chroot \

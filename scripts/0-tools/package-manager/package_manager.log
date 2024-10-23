@@ -1,0 +1,15 @@
+2024-10-23 09:06:04 [INFO] Logging output to: /home/ssnow/Documents/GitHub/arch_install/scripts/0-tools/package-manager/package_manager.log
+2024-10-23 09:06:04 [INFO] System Information:
+2024-10-23 09:06:04 [INFO] CPU: AMD Ryzen 9 7900X3D 12-Core Processor
+2024-10-23 09:06:04 [INFO] Total Memory: 61Gi
+2024-10-23 09:06:04 [INFO] Disk Space: 931G
+2024-10-23 09:06:04 [INFO] Library version: Unknown
+2024-10-23 09:06:04 [INFO] Path: /home/ssnow/Documents/GitHub/arch_install/scripts/0-tools/package-manager
+2024-10-23 09:06:04 [INFO] Generating initial package list...
+2024-10-23 09:06:04 [INFO] Generating package list...
+2024-10-23 09:06:04 [SUCCESS] Package list generated: /home/ssnow/Documents/GitHub/arch_install/scripts/0-tools/package-manager/package_config.toml
+2024-10-23 09:06:04 [INFO] Starting package manager... (2024-10-23 09:06:04)
+2024-10-23 09:06:04 [INFO] Script version: 2.0.0
+2024-10-23 09:06:04 [INFO] Using package list file: /home/ssnow/Documents/GitHub/arch_install/scripts/0-tools/package-manager/package_config.toml
+2024-10-23 09:06:05 [INFO] Resource usage - CPU: 2.6%, Memory: 44.2153%, Disk: 26%
+2024-10-23 09:06:05 [ERROR] No operation specified. Use -i for install or -u for uninstall.

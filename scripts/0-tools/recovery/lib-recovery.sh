@@ -1,4 +1,13 @@
 #!/bin/bash
+# This is a WIP use at your own risk
+# This is still under development
+# @file lib-recovery.sh
+# @brief Library for recovery system
+# @author ssnow
+# @version 0.1
+# @date 2024-10-23
+# @license GPL-3.0-or-later
+
 
 MASTER_LIST="/etc/recovery_system/master_package_list.txt"
 CONFIG_BACKUP="/etc/recovery_system/config_backups"

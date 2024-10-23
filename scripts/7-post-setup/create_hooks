@@ -1,12 +1,25 @@
-#!/bin/bash
+#!/bin/env bash
+# @file create_hooks.sh 
+# @brief Create Snapper hooks
+# @author ssnow
+# @version 0.1
+# @date 2024-10-23
+# @license GPL-3.0-or-later
 
-# Source the library functions
+set -eo pipefail  # Exit on error, pipe failure
+
+# Determine the correct path to lib.sh
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 LIB_PATH="$(dirname "$(dirname "$SCRIPT_DIR")")/lib/lib.sh"
-source "$LIB_PATH"
 
-# Set up error handling
-setup_error_handling
+# Source the library functions
+# shellcheck source=../../lib/lib.sh
+if [ -f "$LIB_PATH" ]; then
+    . "$LIB_PATH"
+else
+    echo "Error: Cannot find lib.sh at $LIB_PATH" >&2
+    exit 1
+fi
 
 create_hook_directories() {
 
