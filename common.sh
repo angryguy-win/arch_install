@@ -152,7 +152,6 @@ root_partition() {
         mkfs."$FILE_SYSTEM_TYPE" -L root "$DEVICE_ROOT"
     fi
 }
-
 home_partition() {
     local DEVICE_HOME="$1"
     local FILE_SYSTEM_TYPE="$2"
@@ -1534,8 +1533,8 @@ execute_script() {
     fi
 }
 
-paru_install() {
-        # Set some colors for output messages
+install-package-helper() {
+    # Set color variables for output messages
     OK="$(tput setaf 2)[OK]$(tput sgr0)"
     ERROR="$(tput setaf 1)[ERROR]$(tput sgr0)"
     NOTE="$(tput setaf 3)[NOTE]$(tput sgr0)"
@@ -1544,29 +1543,65 @@ paru_install() {
     ORANGE=$(tput setaf 166)
     YELLOW=$(tput setaf 3)
     RESET=$(tput sgr0)
-    # Check for AUR helper and install if not found
+
+    # Define log file if not already defined
+    LOG="${LOG:-/var/log/paru_install.log}"
+
+    # Function to log messages
+    log_message() {
+        echo -e "$1" | tee -a "$LOG"
+    }
+
+    # Check for existing AUR helper
     ISAUR=$(command -v yay || command -v paru)
 
-    if [ -n "$ISAUR" ]; then
-    printf "\n%s - AUR helper already installed, moving on..\n" "${OK}"
+    if [ -z "$ISAUR" ]; then
+        print_message WARMNING "No AUR helper found."
+
+        # Ask user which AUR helper to install
+        echo "Select an AUR helper to install:"
+        select AUR_HELPER in "yay" "paru" "Cancel"; do
+            case "$AUR_HELPER" in
+                yay)
+                    CHOSEN_HELPER="yay"
+                    break
+                    ;;
+                paru)
+                    CHOSEN_HELPER="paru"
+                    break
+                    ;;
+                Cancel)
+                    print_message ERROR "Installation canceled by user."
+                    return 1
+                    ;;
+                *)
+                    print_message ERROR "Invalid selection."
+                    ;;
+            esac
+        done
+
+        # Install the chosen AUR helper
+        print_message NOTE "Installing ${CHOSEN_HELPER} from AUR."
+        git clone "https://aur.archlinux.org/${CHOSEN_HELPER}.git" || { print_message ERROR "Failed to clone ${CHOSEN_HELPER} from AUR."; exit 1; }
+        cd "${CHOSEN_HELPER}" || { print_message ERROR "Failed to enter ${CHOSEN_HELPER} directory."; exit 1; }
+        makepkg -si --noconfirm 2>&1 | tee -a "$LOG" || { print_message ERROR "Failed to install ${CHOSEN_HELPER} from AUR."; exit 1; }
+        cd .. || exit
+        rm -rf "${CHOSEN_HELPER}"
+        ISAUR=$(command -v "$CHOSEN_HELPER")
+        if [ -z "$ISAUR" ]; then
+            print_message ERROR "${CHOSEN_HELPER} installation failed."
+            exit 1
+        fi
+        print_message OK "${CHOSEN_HELPER} installed successfully."
     else
-    printf "\n%s - AUR helper was NOT located\n" "$WARN"
-    printf "\n%s - Installing paru from AUR\n" "${NOTE}"
-    git clone https://aur.archlinux.org/paru.git || { printf "%s - Failed to clone paru from AUR\n" "${ERROR}"; exit 1; }
-    cd paru || { printf "%s - Failed to enter paru directory\n" "${ERROR}"; exit 1; }
-    makepkg -si --noconfirm 2>&1 | tee -a "$LOG" || { printf "%s - Failed to install paru from AUR\n" "${ERROR}"; exit 1; }
-    
-    # moving install logs in to Install-Logs folder
-    mv install*.log ../Install-Logs/ || true  
-    cd ..
+        print_message OK "Found existing AUR helper: ${ISAUR}"
     fi
 
     # Update system before proceeding
-    printf "\n%s - Performing a full system update to avoid issues.... \n" "${NOTE}"
-    ISAUR=$(command -v yay || command -v paru)
+    print_message NOTE "Performing a full system update to avoid issues..."
+    "$ISAUR" -Syu --noconfirm 2>&1 | tee -a "$LOG" || { print_message ERROR "Failed to update system."; exit 1; }
 
-    $ISAUR -Syu --noconfirm 2>&1 | tee -a "$LOG" || { printf "%s - Failed to update system\n" "${ERROR}"; exit 1; }
-
+    print_message OK "System updated successfully."
     clear
 }
 
