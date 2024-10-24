@@ -1,0 +1,4 @@
+.env
+*.pem
+*.log
+arch_config.cfg

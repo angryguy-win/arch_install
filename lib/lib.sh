@@ -467,6 +467,7 @@ cleanup() {
     print_message DEBUG "Cleanup completed"
 }
 # @description Load configuration variables.
+# @description Load configuration variables.
 # shellcheck source=../../config_file
 load_config() {
     if [ ! -f "$CONFIG_FILE" ]; then
@@ -745,7 +746,7 @@ execute_process() {
                 fi
             else
                 if ! eval "$cmd"; then
-                    print_message ERROR "${error_message} ${process_name}: ${cmd}"
+                    print_message ERROR "${error_message} ${process_name} failed: ${cmd}"
                     if [[ "$critical" == true ]]; then
                         handle_critical_error "${error_message} ${process_name} failed: ${cmd}"
                         exit_code=1
@@ -779,6 +780,7 @@ process_installation_stages() {
     local scripts
     local script
     local script_path
+    local start_processing=false
 
     # Define the stages and their corresponding scripts
     declare -A stages=(
@@ -792,15 +794,28 @@ process_installation_stages() {
         ["6-final,m"]="last-cleanup.sh"
         ["7-post-setup,o"]="post-setup.sh"
     )
+
     # Process installation stages
     for stage in $(printf "%s\n" "${!stages[@]}" | sort); do
         stage_name="${stage%,*}"
         stage_type="${stage##*,}"
+
+        # Start processing from the specified stage
+        if [[ "$stage_name" == "$start_from" ]]; then
+            start_processing=true
+        fi
+
+        # Skip stages until the start_from stage is reached
+        if [[ "$start_processing" == false ]]; then
+            continue
+        fi
+
         # Check if the stage directory exists
         [[ ! -d "${SCRIPTS_DIR}/${stage_name}" ]] && {
             print_message WARNING "Stage directory not found: ${SCRIPTS_DIR}/${stage_name}"
             continue
         }
+
         # Read the scripts into an array    
         IFS=' ' read -ra scripts <<< "${stages[$stage]}"
         for script in "${scripts[@]}"; do
@@ -1319,4 +1334,284 @@ detect_gpu_driver() {
     # Print detected GPU information
     print_message INFO "Detected GPU Vendor: $gpu_vendor"
     print_message INFO "Selected GPU Driver: $gpu_driver"
+}
+# @description Validate password.
+# @arg $1 string Password
+# @return 0 on success, 1 on failure
+validate_password() {
+    local password="$1"
+    local min_length=8
+    local max_length=64
+    local min_numbers=2  # Set the minimum number of numeric characters required
+
+    if [[ ${#password} -lt $min_length || ${#password} -gt $max_length ]]; then
+        print_message ERROR "Password must be between $min_length and $max_length characters."
+        return 1
+    fi
+
+    if ! [[ "$password" =~ [A-Z] ]]; then
+        print_message ERROR "Password must contain at least one uppercase letter."
+        return 1
+    fi
+
+    if ! [[ "$password" =~ [a-z] ]]; then
+        print_message ERROR "Password must contain at least one lowercase letter."
+        return 1
+    fi
+
+    if ! [[ "$password" =~ [0-9] ]]; then
+        print_message ERROR "Password must contain at least one digit."
+        return 1
+    fi
+
+    # Check for special characters
+    if ! [[ "$password" =~ [!@#$%^&*<>\-_=+] ]]; then
+        print_message ERROR "Password must contain at least one special character from the set: !@#$%^&*<>-_=+."
+        return 1
+    fi
+
+    # Check for whitespace
+    if [[ "$password" =~ [[:space:]] ]]; then
+        print_message ERROR "Password must not contain any whitespace characters."
+        return 1
+    fi
+
+    # Check for minimum number of numeric characters
+    if [[ "$(echo "$password" | tr -cd '0-9' | wc -c)" -lt $min_numbers ]]; then
+        print_message ERROR "Password must contain at least $min_numbers numeric characters."
+        return 1
+    fi
+
+    return 0
+}
+# @description Validate configuration file.
+# @arg $1 string Configuration file
+# @return 0 on success, 1 on failure
+validate_config() {
+    local config_file="$1"
+    local username password format_type subvolumes luks_password install_device
+    local bios_type locale keymap hostname gpu_driver terminal shell editor desktop
+    local errors=0
+
+    # Load (source) the configuration file
+    . "$config_file"
+
+    # Validate username
+    if [[ ! "$USERNAME" =~ ^[a-zA-Z0-9_-]{3,}$ ]]; then
+        print_message ERROR "Invalid username. Must be at least 3 characters and can include letters, numbers, '-', '_'."
+        errors=$((errors + 1))
+    fi
+
+    # Validate password
+    if [[ "$PASSWORD" == "changeme" ]]; then
+        print_message WARNING "Password is 'changeme'. Please provide a new password."
+        errors=$((errors + 1))
+    elif ! validate_password "$PASSWORD"; then
+        errors=$((errors + 1))
+    fi
+
+    # Validate format type
+    if [[ ! "$FORMAT_TYPE" =~ ^(btrfs|ext4)$ ]]; then
+        print_message ERROR "Invalid format type. Must be 'btrfs', 'ext4'."
+        errors=$((errors + 1))
+    elif [[ "$FORMAT_TYPE" == "btrfs" ]]; then
+        if [[ ! "$SUBVOLUMES" =~ ^(@|/|home|\.snapshots|@home|@\.snapshots)$ ]]; then
+            print_message ERROR "Invalid subvolumes for btrfs. Must include '/', 'home', and '.snapshots' or '@', '@home', '@.snapshots'."
+            errors=$((errors + 1))
+        fi
+    fi
+
+    # Validate LUKS password
+    if [[ "$LUKS" == "true" && -z "$LUKS_PASSWORD" ]]; then
+        print_message ERROR "LUKS format requires a LUKS password."
+        errors=$((errors + 1))
+    elif [[ "$LUKS" == "true" ]]; then
+        if ! validate_password "$LUKS_PASSWORD"; then
+            errors=$((errors + 1))
+        fi
+    fi
+
+    # Validate install device
+    if [[ -z "$INSTALL_DEVICE" ]]; then
+        print_message ERROR "No install device specified. Must provide a device like /dev/* 'vda', 'sda', 'nvme', etc!."
+        errors=$((errors + 1))
+    fi
+
+    # Set defaults for optional parameters
+    BIOS_TYPE="${BIOS_TYPE:-hybrid}"
+    LOCALE="${LOCALE:-en_US.UTF-8}"
+    KEYMAP="${KEYMAP:-us}"
+    HOSTNAME="${HOSTNAME:-arch}"
+    GPU_DRIVER="${GPU_DRIVER:-mesa}"
+    TERMINAL="${TERMINAL:-alacritty}"
+    SHELL="${SHELL:-bash}"
+    EDITOR="${EDITOR:-neovim}"
+    DESKTOP_ENVIRONMENT="${DESKTOP_ENVIRONMENT:-none}"
+    LUKS="${LUKS:-false}"
+    HOME="${HOME:-false}"
+    SWAP="${SWAP:-false}"
+
+    # Print default values if they were set
+    print_message DEBUG "Using default BIOS_TYPE: $BIOS_TYPE"
+    print_message DEBUG "Using default LOCALE: $LOCALE"
+    print_message DEBUG "Using default KEYMAP: $KEYMAP"
+    print_message DEBUG "Using default HOSTNAME: $HOSTNAME"
+    print_message DEBUG "Using default GPU_DRIVER: $GPU_DRIVER"
+    print_message DEBUG "Using default TERMINAL: $TERMINAL"
+    print_message DEBUG "Using default SHELL: $SHELL"
+    print_message DEBUG "Using default EDITOR: $EDITOR"
+    print_message DEBUG "Using default DESKTOP_ENVIRONMENT: $DESKTOP_ENVIRONMENT"
+
+    # Return 0 if no errors, 1 if there are errors
+    return $errors
+}
+# @description Encrypt password.
+# @arg $1 string Password
+# @return string Encrypted password
+encrypt_password() {
+    local password="$1"
+    local encrypted_password
+
+    # Ensure RSA environment is initialized
+    [[ -z "$RSA_PUBLIC_KEY_PATH" ]] && init_rsa_env
+
+    # Check if public key exists
+    if [[ ! -f "$RSA_PUBLIC_KEY_PATH" ]]; then
+        print_message ERROR "Public key not found at $RSA_PUBLIC_KEY_PATH"
+        return 1
+    fi
+
+    # Encrypt the password using the public key
+    encrypted_password=$(echo -n "$password" | openssl rsautl -encrypt -pubin -inkey "$RSA_PUBLIC_KEY_PATH" | base64) || {
+        print_message ERROR "Password encryption failed"
+        return 1
+    }
+
+    echo "$encrypted_password"
+}
+# @description Decrypt password.
+# @arg $1 string Encrypted password
+# @return string Decrypted password
+decrypt_password() {
+    local encrypted_password="$1"
+    local decrypted_password
+    local key_path
+
+    # Ensure RSA environment is initialized
+    [[ -z "$RSA_PRIVATE_KEY_PATH" ]] && init_rsa_env
+
+    # Check for private key in different locations
+    # Check if the key location is in the .env file of a previous
+    # install, use it
+    if [[ -f "$RSA_PRIVATE_KEY_PATH" ]]; then
+        key_path="$RSA_PRIVATE_KEY_PATH"
+    elif [[ -f "$HOME/.config/arch-install/private_key.pem" ]]; then
+        key_path="$HOME/.config/arch-install/private_key.pem"
+    else
+        print_message ERROR "Private key not found"
+        return 1
+    fi
+
+    # Validate key permissions
+    if [[ "$(stat -c %a "$key_path")" != "600" ]]; then
+        print_message WARNING "Incorrect permissions on private key. Fixing..."
+        chmod 600 "$key_path" || {
+            print_message ERROR "Failed to set correct permissions on private key"
+            return 1
+        }
+    fi
+
+    # Decrypt the password
+    decrypted_password=$(echo "$encrypted_password" | base64 -d | openssl rsautl -decrypt -inkey "$key_path") || {
+        print_message ERROR "Password decryption failed"
+        return 1
+    }
+
+    echo "$decrypted_password"
+}
+# @description Generate RSA keys and initialize environment
+# @noargs
+generate_rsa_keys() {
+    local commands=()
+    
+    # Ensure RSA environment is initialized
+    [[ -z "$RSA_KEY_DIR" ]] && init_rsa_env
+    
+    check_openssl || return 1
+
+    commands+=("mkdir -p $RSA_KEY_DIR")
+    commands+=("chmod 700 $RSA_KEY_DIR")
+    commands+=("openssl genpkey -algorithm RSA -out $RSA_PRIVATE_KEY_PATH -pkeyopt rsa_keygen_bits:2048")
+    commands+=("chmod 600 $RSA_PRIVATE_KEY_PATH")
+    commands+=("openssl rsa -pubout -in $RSA_PRIVATE_KEY_PATH -out $RSA_PUBLIC_KEY_PATH")
+    commands+=("chmod 644 $RSA_PUBLIC_KEY_PATH")
+
+    execute_process "Generating RSA keys" \
+        --debug \
+        --use-chroot \
+        --error-message "Generating RSA keys failed" \
+        --success-message "RSA keys generated and stored in $RSA_KEY_DIR" \
+        "${commands[@]}"
+}
+# @description Create .env file with RSA configuration
+create_env_file() {
+    # Ensure RSA environment is initialized
+    [[ -z "$RSA_KEY_DIR" ]] && init_rsa_env
+
+    local user_env_dir="$HOME/.config/arch-install"
+    local user_env_file="$user_env_dir/.env"
+    local local_env_dir="/arch_install/config"
+    local local_env_file="$local_env_dir/.env"
+
+    # Check if the user's .env file exists
+    if [[ -f "$user_env_file" ]]; then
+        print_message INFO ".env file found at $user_env_file. Using existing file."
+        # Source the existing file to update current environment
+        source "$user_env_file"
+        return 0
+    fi
+
+    # Create a local .env file if the user's .env file does not exist
+    mkdir -p "$local_env_dir" || {
+        print_message ERROR "Failed to create local environment directory"
+        return 1
+    }
+    chmod 700 "$local_env_dir"
+
+    cat <<EOF > "$local_env_file"
+# RSA key configuration
+RSA_KEY_DIR="$RSA_KEY_DIR"
+RSA_PRIVATE_KEY_PATH="$RSA_PRIVATE_KEY_PATH"
+RSA_PUBLIC_KEY_PATH="$RSA_PUBLIC_KEY_PATH"
+EOF
+
+    chmod 600 "$local_env_file" || {
+        print_message ERROR "Failed to set permissions on .env file"
+        return 1
+    }
+    
+    print_message ACTION ".env file created locally at $local_env_file with RSA key paths."
+    return 0
+}
+# @description Example usage of RSA encryption functions
+# @noargs
+usage() {
+    # Initialize environment
+    init_rsa_env
+    
+    # Generate keys if they don't exist
+    if [[ ! -f "$RSA_PRIVATE_KEY_PATH" ]] || [[ ! -f "$RSA_PUBLIC_KEY_PATH" ]]; then
+        generate_rsa_keys || {
+            print_message ERROR "Failed to generate RSA keys"
+            return 1
+        }
+    fi
+
+    # Example encryption/decryption
+    local encrypted decrypted
+    encrypted=$(encrypt_password "my_secure_password") || return 1
+    print_message INFO "Encrypted Password: $encrypted"
+
+    decrypted=$(decrypt_password "$encrypted") || return 1
+    print_message INFO "Decrypted Password: $decrypted"
 }

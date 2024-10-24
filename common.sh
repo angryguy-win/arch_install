@@ -1518,6 +1518,74 @@ set_icon_theme {
     /usr/lib/plasma-changeicons "${ICONTHEME}"
   fi
 }
+set_gnome_theme() {
+    show_header "Setting GNOME theme to ${GNOMEMHEME@Q}."
+    local gsettings_cmd
+    local extension_enabled
+
+    # Verify that gsettings is available
+    if ! command -v gsettings &> /dev/null; then
+        show_warning "gsettings command not found. Skipping GNOME theme setup."
+        return
+    fi
+
+    # Function to enable GNOME Shell extensions
+    enable_extension() {
+        local extension="$1"
+        local status
+        status=$(gnome-extensions list --enabled | grep -w "$extension" || true)
+        if [ -z "$status" ]; then
+            gnome-extensions enable "$extension" || {
+                show_warning "Failed to enable GNOME extension: $extension."
+            }
+        fi
+    }
+
+    # Ensure the user-theme extension is enabled
+    enable_extension "user-theme@gnome-shell-extensions.gcampax.github.com"
+
+    case "${GNOMEMHEME,,}" in
+        arc)
+            gsettings set org.gnome.desktop.interface gtk-theme "Arc"
+            gsettings set org.gnome.desktop.interface icon-theme "Arc"
+            gsettings set org.gnome.shell.extensions.user-theme name "Arc"
+            ;;
+        arc-dark | arcdark)
+            gsettings set org.gnome.desktop.interface gtk-theme "Arc-Dark"
+            gsettings set org.gnome.desktop.interface icon-theme "Arc-Dark"
+            gsettings set org.gnome.shell.extensions.user-theme name "Arc-Dark"
+            ;;
+        materia)
+            gsettings set org.gnome.desktop.interface gtk-theme "Materia"
+            gsettings set org.gnome.desktop.interface icon-theme "Materia"
+            gsettings set org.gnome.shell.extensions.user-theme name "Materia"
+            ;;
+        materia-dark | materiadark)
+            gsettings set org.gnome.desktop.interface gtk-theme "Materia-Dark"
+            gsettings set org.gnome.desktop.interface icon-theme "Materia-Dark"
+            gsettings set org.gnome.shell.extensions.user-theme name "Materia-Dark"
+            ;;
+        breeze)
+            gsettings set org.gnome.desktop.interface gtk-theme "Breeze"
+            gsettings set org.gnome.desktop.interface icon-theme "Breeze"
+            gsettings set org.gnome.shell.extensions.user-theme name "Breeze"
+            ;;
+        breeze-dark | breezedark)
+            gsettings set org.gnome.desktop.interface gtk-theme "Breeze-Dark"
+            gsettings set org.gnome.desktop.interface icon-theme "Breeze-Dark"
+            gsettings set org.gnome.shell.extensions.user-theme name "Breeze-Dark"
+            ;;
+        *)
+            show_warning "Unsupported GNOME theme: ${GNOMEMHEME@Q}. Skipping."
+            return
+            ;;
+    esac
+
+    # Apply the GNOME Shell theme
+    gnome-shell --replace &
+
+    show_success "GNOME theme set to ${GNOMEMHEME@Q} successfully!"
+}
 execute_script() {
     local script="$1"
     local script_path="$script_directory/$script"
@@ -1534,24 +1602,6 @@ execute_script() {
 }
 
 install-package-helper() {
-    # Set color variables for output messages
-    OK="$(tput setaf 2)[OK]$(tput sgr0)"
-    ERROR="$(tput setaf 1)[ERROR]$(tput sgr0)"
-    NOTE="$(tput setaf 3)[NOTE]$(tput sgr0)"
-    WARN="$(tput setaf 5)[WARN]$(tput sgr0)"
-    CAT="$(tput setaf 6)[ACTION]$(tput sgr0)"
-    ORANGE=$(tput setaf 166)
-    YELLOW=$(tput setaf 3)
-    RESET=$(tput sgr0)
-
-    # Define log file if not already defined
-    LOG="${LOG:-/var/log/paru_install.log}"
-
-    # Function to log messages
-    log_message() {
-        echo -e "$1" | tee -a "$LOG"
-    }
-
     # Check for existing AUR helper
     ISAUR=$(command -v yay || command -v paru)
 
@@ -1584,7 +1634,7 @@ install-package-helper() {
         print_message NOTE "Installing ${CHOSEN_HELPER} from AUR."
         git clone "https://aur.archlinux.org/${CHOSEN_HELPER}.git" || { print_message ERROR "Failed to clone ${CHOSEN_HELPER} from AUR."; exit 1; }
         cd "${CHOSEN_HELPER}" || { print_message ERROR "Failed to enter ${CHOSEN_HELPER} directory."; exit 1; }
-        makepkg -si --noconfirm 2>&1 | tee -a "$LOG" || { print_message ERROR "Failed to install ${CHOSEN_HELPER} from AUR."; exit 1; }
+        makepkg -si --noconfirm 2>&1 || { print_message ERROR "Failed to install ${CHOSEN_HELPER} from AUR."; exit 1; }
         cd .. || exit
         rm -rf "${CHOSEN_HELPER}"
         ISAUR=$(command -v "$CHOSEN_HELPER")
@@ -1599,7 +1649,7 @@ install-package-helper() {
 
     # Update system before proceeding
     print_message NOTE "Performing a full system update to avoid issues..."
-    "$ISAUR" -Syu --noconfirm 2>&1 | tee -a "$LOG" || { print_message ERROR "Failed to update system."; exit 1; }
+    "$ISAUR" -Syu --noconfirm 2>&1 || { print_message ERROR "Failed to update system."; exit 1; }
 
     print_message OK "System updated successfully."
     clear
