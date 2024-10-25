@@ -1422,8 +1422,8 @@ validate_config() {
         print_message ERROR "Invalid format type. Must be 'btrfs', 'ext4'."
         errors=$((errors + 1))
     elif [[ "$FORMAT_TYPE" == "btrfs" ]]; then
-        if [[ ! "$SUBVOLUMES" =~ ^(@|/|home|\.snapshots|@home|@\.snapshots)$ ]]; then
-            print_message ERROR "Invalid subvolumes for btrfs. Must include '/', 'home', and '.snapshots' or '@', '@home', '@.snapshots'."
+        if [[ ! "$SUBVOLUMES" =~ ^(@|@home|@\.snapshots)$ ]]; then
+            print_message ERROR "Invalid subvolumes for btrfs. Must include '@', '@home', '@.snapshots'."
             errors=$((errors + 1))
         fi
     fi
