@@ -1343,6 +1343,8 @@ validate_password() {
     local min_length=8
     local max_length=64
     local min_numbers=2  # Set the minimum number of numeric characters required
+    local special_chars="!@#$%^&*<>-_=+?"
+    local min_special=1
 
     if [[ ${#password} -lt $min_length || ${#password} -gt $max_length ]]; then
         print_message ERROR "Password must be between $min_length and $max_length characters."
@@ -1365,7 +1367,7 @@ validate_password() {
     fi
 
     # Check for special characters
-    if ! [[ "$password" =~ [!@#$%^&*<>\-_=+] ]]; then
+    if ! [[ "$password" =~ [$special_chars] ]]; then
         print_message ERROR "Password must contain at least one special character from the set: !@#$%^&*<>-_=+."
         return 1
     fi
@@ -1379,6 +1381,11 @@ validate_password() {
     # Check for minimum number of numeric characters
     if [[ "$(echo "$password" | tr -cd '0-9' | wc -c)" -lt $min_numbers ]]; then
         print_message ERROR "Password must contain at least $min_numbers numeric characters."
+        return 1
+    fi
+    # Check for minimum number of special characters
+    if [[ "$(echo "$password" | tr -cd "$special_chars" | wc -c)" -lt $min_special ]]; then
+        print_message ERROR "Password must contain at least $min_special special character(s) from the set: $special_chars"
         return 1
     fi
 
