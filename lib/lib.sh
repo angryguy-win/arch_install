@@ -1368,7 +1368,7 @@ validate_password() {
 
     # Check for special characters
     if ! [[ "$password" =~ [$special_chars] ]]; then
-        print_message ERROR "Password must contain at least one special character from the set: !@#$%^&*<>-_=+."
+        print_message ERROR "Password must contain at least one special character from the set: $special_chars"
         return 1
     fi
 
