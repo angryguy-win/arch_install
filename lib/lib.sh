@@ -36,6 +36,8 @@ if [[ ! -f "$PROCESS_LOG" ]]; then
     printf "%b\n" "Creating process log file: $PROCESS_LOG"
     touch "$PROCESS_LOG" || { echo "Failed to create process log file: $PROCESS_LOG"; exit 1; }
 fi
+# @description Dialog configuration
+declare -A DIALOG_CONFIG
 
 # @description Color codes
 export TERM=xterm-256color
@@ -418,7 +420,7 @@ exit_handler() {
 # shellcheck disable=SC2034
 error_handler() {
     local exit_code
-    local line_number
+    local line_numberexec
     local function_name
 
     exit_code=$1
@@ -1621,4 +1623,31 @@ usage() {
 
     decrypted=$(decrypt_password "$encrypted") || return 1
     print_message INFO "Decrypted Password: $decrypted"
+}
+
+read_dialog_config() {
+    if [[ -f "config/dialog.toml" ]]; then
+        while IFS='=' read -r key value; do
+            DIALOG_CONFIG["$key"]="$value"
+        done < <(parse_toml "config/dialog.toml")
+    fi
+}
+# Add before each dialog function
+log_dialog_action() {
+    local action="$1"
+    local result="$2"
+    print_message DEBUG "Dialog action: $action - Result: $result"
+    log "DIALOG" "$action" "$result"
+}
+# Enhanced progress bar function
+show_progress() {
+    local title="$1"
+    local total="$2"
+    local current="$3"
+    local message="$4"
+    
+    execute_process "Progress Update" \
+        --debug \
+        "echo $((current * 100 / total)) | dialog --title \"$title\" \
+                                                --gauge \"$message\" 8 60 0"
 }
